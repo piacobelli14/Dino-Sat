@@ -1,0 +1,827 @@
+:root {
+  --dg-bg-void: #08090c;
+  --dg-bg-base: #0a0c0f;
+  --dg-bg-primary: #0d0f13;
+  --dg-bg-secondary: #101216;
+  --dg-bg-tertiary: #13151a;
+  --dg-bg-elevated: #16181d;
+  --dg-bg-surface: #12141a;
+
+  --dg-text-primary: rgba(235, 240, 248, 0.95);
+  --dg-text-secondary: rgba(205, 212, 228, 0.82);
+  --dg-text-tertiary: rgba(170, 180, 200, 0.72);
+  --dg-text-muted: rgba(145, 155, 175, 0.58);
+
+  --dg-border-primary: rgba(50, 55, 70, 0.45);
+  --dg-border-subtle: rgba(40, 45, 58, 0.35);
+  --dg-border-glow: rgba(60, 68, 85, 0.5);
+
+  --dg-accent-primary: #6a7a8a;
+  --dg-accent-secondary: #5a6a7a;
+  --dg-accent-muted: rgba(106, 122, 138, 0.08);
+
+  --dg-status-nominal: #5a7068;
+  --dg-status-critical: #78686a;
+
+  --dg-radius-sm: 4px;
+  --dg-radius-md: 6px;
+
+  --dg-spacing-xs: 4px;
+  --dg-spacing-sm: 8px;
+  --dg-spacing-md: 12px;
+  --dg-spacing-lg: 16px;
+  --dg-spacing-xl: 24px;
+
+  --dg-transition-fast: 0.15s ease;
+  --dg-transition-normal: 0.25s ease;
+
+  --dg-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --dg-font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.dinoGeodeAddSpecimenContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100vw;
+  min-height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  height: calc(100vh - 60px);
+  background: var(--dg-bg-void);
+  color: var(--dg-text-primary);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dinoGeodeAddSpecimenContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dinoGeodeAddSpecimenContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dinoGeodeAddSpecimenContainer::-webkit-scrollbar-thumb {
+  background: var(--dg-border-primary);
+  border-radius: 2px;
+}
+
+.dinoGeodeAddSpecimenHeader {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--dg-bg-secondary);
+  border-bottom: 1px solid var(--dg-border-primary);
+  padding: var(--dg-spacing-lg) var(--dg-spacing-xl);
+  padding: 1rem; 
+  width: 100%; 
+  min-width: 100%; 
+  max-width: 100%; 
+}
+
+.dinoGeodeAddSpecimenTitleBar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dg-spacing-lg);
+}
+
+.dinoGeodeAddSpecimenTitleLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--dg-spacing-md);
+  max-width: 30%;
+  min-width: 30%;
+  overflow: hidden;
+}
+
+.dinoGeodeAddSpecimenLogoWrapper {
+  padding: var(--dg-spacing-sm);
+  background: var(--dg-bg-tertiary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-sm);
+  flex-shrink: 0;
+}
+
+.dinoGeodeAddSpecimenLogo {
+  height: 32px;
+  border-radius: var(--dg-radius-sm);
+  display: block;
+}
+
+.dinoGeodeAddSpecimenTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  font-family: var(--dg-font-system);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dg-text-primary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dinoGeodeAddSpecimenStatusGroup {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--dg-spacing-sm);
+  background: var(--dg-bg-tertiary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-sm);
+  padding: var(--dg-spacing-sm) var(--dg-spacing-md);
+}
+
+.dinoGeodeAddSpecimenWifiOn {
+  color: var(--dg-status-nominal);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dinoGeodeAddSpecimenWifiOff {
+  color: var(--dg-status-critical);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dinoGeodeAddSpecimenStatusText {
+  color: var(--dg-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: var(--dg-spacing-xs);
+}
+
+.dinoGeodeAddSpecimenLoadingSpinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--dg-border-primary);
+  border-top-color: var(--dg-accent-primary);
+  border-radius: 50%;
+  animation: dinoGeodeAddSpecimenSpin 1s linear infinite;
+}
+
+@keyframes dinoGeodeAddSpecimenSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dinoGeodeAddSpecimenSearchBox {
+  position: relative;
+  max-width: 65%;
+  min-width: 65%;
+  display: flex;
+  align-items: center;
+  padding-right: 2rem;
+}
+
+.dinoGeodeAddSpecimenSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dg-text-tertiary);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.dinoGeodeAddSpecimenSearchInput {
+  width: 100%;
+  background: var(--dg-bg-tertiary);
+  color: var(--dg-text-primary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-sm);
+  padding: 0.8rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--dg-font-system);
+  outline: none;
+  transition: border-color var(--dg-transition-fast);
+}
+
+.dinoGeodeAddSpecimenSearchInput::placeholder {
+  color: var(--dg-text-muted);
+  font-weight: 600;
+}
+
+.dinoGeodeAddSpecimenSearchInput:hover {
+  border-color: var(--dg-border-glow);
+}
+
+.dinoGeodeAddSpecimenSearchInput:focus {
+  outline: none;
+  border-color: var(--dg-accent-primary);
+}
+
+.dinoGeodeAddSpecimenContent {
+  flex: 1;
+  width: 100%;
+  padding: var(--dg-spacing-xl) 1rem;
+  box-sizing: border-box;
+  max-width: 900px;
+}
+
+.dinoGeodeAddSpecimenSection {
+  margin: var(--dg-spacing-xl) 0;
+  background: transparent;
+}
+
+.dinoGeodeAddSpecimenSection:last-child {
+  margin-bottom: var(--dg-spacing-lg);
+}
+
+.dinoGeodeAddSpecimenSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--dg-spacing-sm);
+  background: var(--dg-bg-secondary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-md);
+  padding: var(--dg-spacing-md) var(--dg-spacing-lg);
+  margin-bottom: var(--dg-spacing-lg);
+}
+
+.dinoGeodeAddSpecimenSectionIcon {
+  background: var(--dg-bg-elevated);
+  color: var(--dg-text-secondary);
+  border: 1px solid var(--dg-border-subtle);
+  border-radius: var(--dg-radius-sm);
+  padding: var(--dg-spacing-sm);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.dinoGeodeAddSpecimenSectionTitle {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: var(--dg-font-system);
+  color: var(--dg-text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dinoGeodeAddSpecimenCard {
+  background: var(--dg-bg-surface);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-md);
+  margin-bottom: var(--dg-spacing-md);
+  transition: border-color var(--dg-transition-fast);
+  padding: var(--dg-spacing-lg);
+}
+
+.dinoGeodeAddSpecimenCard:hover {
+  border-color: var(--dg-border-glow);
+}
+
+.dinoGeodeAddSpecimenCard:last-child {
+  margin-bottom: 0;
+}
+
+.dinoGeodeAddSpecimenInputWrapper {
+  width: 100%;
+  margin-bottom: var(--dg-spacing-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.dinoGeodeAddSpecimenInputSpecial {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--dg-spacing-md) var(--dg-spacing-sm) var(--dg-spacing-xs);
+}
+
+.dinoGeodeAddSpecimenInputWrapper:last-child {
+  margin-bottom: 0;
+}
+
+.dinoGeodeAddSpecimenLabelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--dg-spacing-xs);
+  margin-bottom: var(--dg-spacing-sm);
+}
+
+.dinoGeodeAddSpecimenLabel {
+  color: var(--dg-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 800;
+  font-family: var(--dg-font-system);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dinoGeodeAddSpecimenRequired {
+  color: var(--dg-status-critical);
+  font-weight: 700;
+  font-size: 0.6rem;
+}
+
+.dinoGeodeAddSpecimenSliderValue {
+  margin-left: auto;
+  color: var(--dg-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--dg-font-mono);
+  background: var(--dg-bg-elevated);
+  border: 1px solid var(--dg-border-subtle);
+  border-radius: var(--dg-radius-sm);
+  padding: var(--dg-spacing-xs) var(--dg-spacing-sm);
+  min-width: 40px;
+  text-align: center;
+}
+
+.dinoGeodeAddSpecimenInput,
+.dinoGeodeAddSpecimenSelect,
+.dinoGeodeAddSpecimenTextarea {
+  width: 100%;
+  background: var(--dg-bg-tertiary);
+  color: var(--dg-text-primary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--dg-font-system);
+  outline: none;
+  transition: border-color var(--dg-transition-fast);
+  box-sizing: border-box;
+}
+
+.dinoGeodeAddSpecimenInput::placeholder,
+.dinoGeodeAddSpecimenTextarea::placeholder {
+  color: var(--dg-text-muted);
+  font-weight: 600;
+}
+
+.dinoGeodeAddSpecimenInput:hover,
+.dinoGeodeAddSpecimenSelect:hover,
+.dinoGeodeAddSpecimenTextarea:hover {
+  border-color: var(--dg-border-glow);
+}
+
+.dinoGeodeAddSpecimenInput:focus,
+.dinoGeodeAddSpecimenSelect:focus,
+.dinoGeodeAddSpecimenTextarea:focus {
+  outline: none;
+  border-color: var(--dg-accent-primary);
+}
+
+.dinoGeodeAddSpecimenInput:disabled,
+.dinoGeodeAddSpecimenSelect:disabled,
+.dinoGeodeAddSpecimenTextarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dinoGeodeAddSpecimenInput[type="date"] {
+  color-scheme: dark;
+}
+
+.dinoGeodeAddSpecimenTextarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+.dinoGeodeAddSpecimenSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236a7a8a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.dinoGeodeAddSpecimenCheckbox {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  background: var(--dg-bg-tertiary);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all var(--dg-transition-fast);
+  position: relative;
+}
+
+.dinoGeodeAddSpecimenCheckbox:checked {
+  background: var(--dg-accent-primary);
+  border-color: var(--dg-accent-primary);
+}
+
+.dinoGeodeAddSpecimenCheckbox:checked::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 4px;
+  height: 7px;
+  border: solid var(--dg-bg-void);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.dinoGeodeAddSpecimenSwitch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.dinoGeodeAddSpecimenSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dinoGeodeAddSpecimenSwitchSlider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  background: var(--dg-bg-elevated);
+  border: 1px solid var(--dg-border-primary);
+  transition: all var(--dg-transition-fast);
+  border-radius: 10px;
+}
+
+.dinoGeodeAddSpecimenSwitchSlider::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--dg-text-tertiary);
+  border-radius: 50%;
+  transition: all var(--dg-transition-fast);
+}
+
+.dinoGeodeAddSpecimenSwitch input:checked + .dinoGeodeAddSpecimenSwitchSlider {
+  background: var(--dg-accent-muted);
+  border-color: var(--dg-accent-primary);
+}
+
+.dinoGeodeAddSpecimenSwitch input:checked + .dinoGeodeAddSpecimenSwitchSlider::before {
+  transform: translateX(20px);
+  background: var(--dg-accent-primary);
+}
+
+.dinoGeodeAddSpecimenSlider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--dg-bg-elevated);
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.dinoGeodeAddSpecimenSlider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--dg-radius-sm);
+  background: var(--dg-accent-primary);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.dinoGeodeAddSpecimenSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.dinoGeodeAddSpecimenSlider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--dg-radius-sm);
+  background: var(--dg-accent-primary);
+  border: none;
+}
+
+.dinoGeodeAddSpecimenDescRow {
+  margin-top: var(--dg-spacing-sm);
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 var(--dg-spacing-xs);
+}
+
+.dinoGeodeAddSpecimenDescText {
+  color: var(--dg-text-muted);
+  font-size: 0.6rem;
+  font-weight: 600;
+  font-family: var(--dg-font-system);
+  text-align: left;
+  line-height: 1.5;
+}
+
+.dinoGeodeAddSpecimenRowGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--dg-spacing-md);
+}
+
+.dinoGeodeAddSpecimenRowCol {
+  width: 100%;
+}
+
+.dinoGeodeAddSpecimenEmpty {
+  color: var(--dg-text-tertiary);
+  padding: var(--dg-spacing-xl);
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--dg-bg-surface);
+  border-radius: var(--dg-radius-md);
+  border: 1px dashed var(--dg-border-primary);
+  margin: var(--dg-spacing-xl) 0;
+}
+
+.dinoGeodeAddSpecimenFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  background: var(--dg-bg-secondary);
+  border-top: 1px solid var(--dg-border-primary);
+  padding: var(--dg-spacing-md) var(--dg-spacing-xl);
+  min-width: 100%; 
+  max-width: 100%; 
+}
+
+.dinoGeodeAddSpecimenButtonRow {
+  max-width: 100%;
+  margin: 0 auto var(--dg-spacing-md);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--dg-spacing-md);
+}
+
+.dinoGeodeAddSpecimenButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dg-spacing-sm);
+  border-radius: var(--dg-radius-sm);
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  font-size: 0.7rem;
+  font-family: var(--dg-font-system);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--dg-border-primary);
+  cursor: pointer;
+  transition: all var(--dg-transition-fast);
+  background: var(--dg-bg-elevated);
+  color: var(--dg-text-primary);
+}
+
+.dinoGeodeAddSpecimenButton:hover:not(:disabled) {
+  background: var(--dg-bg-tertiary);
+  border-color: var(--dg-border-glow);
+}
+
+.dinoGeodeAddSpecimenButton:active:not(:disabled) {
+  background: var(--dg-bg-secondary);
+}
+
+.dinoGeodeAddSpecimenButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dinoGeodeAddSpecimenButtonBlue {
+  background: var(--dg-bg-elevated);
+  border-color: var(--dg-border-primary);
+  color: var(--dg-text-primary);
+}
+
+.dinoGeodeAddSpecimenButtonBlue:hover:not(:disabled) {
+  border-color: var(--dg-accent-primary);
+  color: var(--dg-text-primary);
+}
+
+.dinoGeodeAddSpecimenButtonTeal {
+  background: var(--dg-bg-elevated);
+  border-color: var(--dg-border-primary);
+  color: var(--dg-text-secondary);
+}
+
+.dinoGeodeAddSpecimenButtonTeal:hover:not(:disabled) {
+  border-color: var(--dg-border-glow);
+  color: var(--dg-text-primary);
+}
+
+.dinoGeodeAddSpecimenButtonPurple {
+  background: var(--dg-bg-tertiary);
+  border-color: var(--dg-border-primary);
+  color: var(--dg-text-primary);
+}
+
+.dinoGeodeAddSpecimenButtonPurple:hover:not(:disabled) {
+  background: var(--dg-bg-elevated);
+  border-color: var(--dg-border-glow);
+}
+
+.dinoGeodeAddSpecimenHiddenInput {
+  display: none;
+}
+
+.dinoGeodeAddSpecimenPreviewWrap {
+  max-width: 100%;
+  display: flex;
+  gap: var(--dg-spacing-md);
+  align-items: flex-start;
+  padding: var(--dg-spacing-md);
+  border: 1px solid var(--dg-border-primary);
+  border-radius: var(--dg-radius-md);
+  background: var(--dg-bg-surface);
+}
+
+.dinoGeodeAddSpecimenPreviewImg {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--dg-radius-sm);
+  border: 1px solid var(--dg-border-primary);
+  flex-shrink: 0;
+}
+
+.dinoGeodeAddSpecimenPreviewMeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dg-spacing-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.dinoGeodeAddSpecimenPreviewName {
+  color: var(--dg-text-primary);
+  font-weight: 700;
+  font-size: 0.7rem;
+  font-family: var(--dg-font-system);
+  letter-spacing: 0.02em;
+}
+
+.dinoGeodeAddSpecimenPreviewHashLabel {
+  color: var(--dg-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: var(--dg-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dinoGeodeAddSpecimenPreviewHash {
+  color: var(--dg-text-secondary);
+  background: var(--dg-bg-tertiary);
+  border: 1px solid var(--dg-border-subtle);
+  padding: var(--dg-spacing-sm);
+  border-radius: var(--dg-radius-sm);
+  font-family: var(--dg-font-mono);
+  word-break: break-all;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+@media (max-width: 1024px) {
+  .dinoGeodeAddSpecimenHeader {
+    padding: var(--dg-spacing-lg);
+  }
+
+  .dinoGeodeAddSpecimenContent {
+    padding: var(--dg-spacing-lg);
+  }
+
+  .dinoGeodeAddSpecimenFooter {
+    padding: var(--dg-spacing-md) var(--dg-spacing-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .dinoGeodeAddSpecimenHeader {
+    padding: var(--dg-spacing-md);
+  }
+
+  .dinoGeodeAddSpecimenContent {
+    padding: var(--dg-spacing-md);
+  }
+
+  .dinoGeodeAddSpecimenFooter {
+    padding: var(--dg-spacing-sm) var(--dg-spacing-md);
+  }
+
+  .dinoGeodeAddSpecimenTitle {
+    font-size: 12px;
+  }
+
+  .dinoGeodeAddSpecimenLogo {
+    height: 28px;
+  }
+
+  .dinoGeodeAddSpecimenCard {
+    padding: var(--dg-spacing-md);
+  }
+
+  .dinoGeodeAddSpecimenButtonRow {
+    grid-template-columns: 1fr;
+    gap: var(--dg-spacing-sm);
+  }
+
+  .dinoGeodeAddSpecimenRowGrid {
+    grid-template-columns: 1fr;
+    gap: var(--dg-spacing-sm);
+  }
+
+  .dinoGeodeAddSpecimenPreviewWrap {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .dinoGeodeAddSpecimenTitleLeft {
+    max-width: 40%;
+    min-width: 40%;
+  }
+
+  .dinoGeodeAddSpecimenSearchBox {
+    max-width: 55%;
+    min-width: 55%;
+  }
+}
+
+@media (max-width: 480px) {
+  .dinoGeodeAddSpecimenCard {
+    padding: var(--dg-spacing-sm);
+  }
+
+  .dinoGeodeAddSpecimenSection {
+    margin-bottom: var(--dg-spacing-lg);
+  }
+
+  .dinoGeodeAddSpecimenInputWrapper {
+    margin-bottom: var(--dg-spacing-sm);
+  }
+
+  .dinoGeodeAddSpecimenPreviewImg {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .dinoGeodeAddSpecimenCard,
+  .dinoGeodeAddSpecimenInput,
+  .dinoGeodeAddSpecimenSelect,
+  .dinoGeodeAddSpecimenTextarea {
+    border-width: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dinoGeodeAddSpecimenLoadingSpinner {
+    animation: none;
+  }
+
+  .dinoGeodeAddSpecimenButton,
+  .dinoGeodeAddSpecimenCard,
+  .dinoGeodeAddSpecimenInput,
+  .dinoGeodeAddSpecimenSelect,
+  .dinoGeodeAddSpecimenTextarea,
+  .dinoGeodeAddSpecimenSwitchSlider,
+  .dinoGeodeAddSpecimenSwitchSlider::before,
+  .dinoGeodeAddSpecimenCheckbox {
+    transition: none;
+  }
+}

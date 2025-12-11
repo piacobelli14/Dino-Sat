@@ -1,0 +1,1137 @@
+:root {
+  --ml-bg-void: #08090c;
+  --ml-bg-base: #0a0c0f;
+  --ml-bg-primary: #0d0f13;
+  --ml-bg-secondary: #101216;
+  --ml-bg-tertiary: #13151a;
+  --ml-bg-elevated: #16181d;
+  --ml-bg-surface: #12141a;
+
+  --ml-text-primary: rgba(235, 240, 248, 0.95);
+  --ml-text-secondary: rgba(205, 212, 228, 0.82);
+  --ml-text-tertiary: rgba(170, 180, 200, 0.72);
+  --ml-text-muted: rgba(145, 155, 175, 0.58);
+
+  --ml-border-primary: rgba(50, 55, 70, 0.45);
+  --ml-border-subtle: rgba(40, 45, 58, 0.35);
+  --ml-border-glow: rgba(60, 68, 85, 0.5);
+
+  --ml-accent-primary: #6a7a8a;
+  --ml-accent-secondary: #5a6a7a;
+  --ml-accent-muted: rgba(106, 122, 138, 0.08);
+
+  --ml-status-nominal: #5a7068;
+  --ml-status-alert: #78686a;
+  --ml-status-warning: #706a5a;
+  --ml-status-info: #5a6a78;
+
+  --ml-radius-sm: 4px;
+  --ml-radius-md: 6px;
+
+  --ml-transition-fast: 0.15s ease;
+  --ml-transition-normal: 0.25s ease;
+
+  --ml-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --ml-font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mineralLibraryContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  min-height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  height: calc(100vh - 60px);
+  background: var(--ml-bg-void);
+  color: var(--ml-text-primary);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mineralLibraryMain {
+  flex: 1;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px 24px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+  min-height: 0;
+  grid-template-columns: 340px 1fr;
+  height: calc(100vh - 48px);
+}
+
+.mineralLibrarySidebar {
+  background: var(--ml-bg-secondary);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 48px);
+}
+
+.mineralLibrarySidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mineralLibrarySidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mineralLibrarySidebar::-webkit-scrollbar-thumb {
+  background: var(--ml-border-primary);
+  border-radius: 2px;
+}
+
+.mineralLibrarySidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--ml-border-glow);
+}
+
+.mineralLibrarySidebarHeader {
+  background: var(--ml-bg-secondary);
+  border-bottom: 1px solid var(--ml-border-primary);
+  padding: 16px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mineralLibraryTitleLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.mineralLibraryLogo {
+  height: 32px;
+  border-radius: var(--ml-radius-sm);
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.mineralLibraryTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ml-text-primary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.mineralLibraryBanner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.mineralLibraryBannerText {
+  color: var(--ml-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mineralLibrarySearchBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 12px 16px;
+}
+
+.mineralLibrarySearchInput {
+  width: 100%;
+  background: var(--ml-bg-tertiary);
+  color: var(--ml-text-primary);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-sm);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+  outline: none;
+  transition: border-color var(--ml-transition-fast);
+  box-sizing: border-box;
+  padding-right: 36px;
+}
+
+.mineralLibrarySearchInput::placeholder {
+  color: var(--ml-text-muted);
+  font-weight: 600;
+}
+
+.mineralLibrarySearchInput:hover {
+  border-color: var(--ml-border-glow);
+}
+
+.mineralLibrarySearchInput:focus {
+  outline: none;
+  border-color: var(--ml-accent-primary);
+}
+
+.mineralLibraryClearButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--ml-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--ml-radius-sm);
+  font-size: 12px;
+  transition: color var(--ml-transition-fast);
+}
+
+.mineralLibraryClearButton:hover {
+  color: var(--ml-text-secondary);
+}
+
+.mineralLibraryActions {
+  display: flex;
+  gap: 8px;
+  margin: 0 16px 12px 16px;
+  flex-shrink: 0;
+}
+
+.mineralLibraryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--ml-radius-sm);
+  padding: 0.6rem 1rem;;
+  font-weight: 700;
+  font-size: 0.7rem;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.04em;
+  border: 1px solid var(--ml-border-primary);
+  cursor: pointer;
+  transition: all var(--ml-transition-fast);
+  background: var(--ml-bg-tertiary);
+  color: var(--ml-text-secondary);
+  width: 100%;
+}
+
+.mineralLibraryButton:hover {
+  background: var(--ml-bg-elevated);
+  border-color: var(--ml-border-glow);
+  color: var(--ml-text-primary);
+}
+
+.mineralLibraryButton:active {
+  background: var(--ml-bg-tertiary);
+}
+
+.mineralLibraryButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mineralLibraryButton span {
+  white-space: nowrap;
+}
+
+.mineralLibraryButtonBusy {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mineralLibraryButtonPrimary {
+  background: var(--ml-bg-elevated);
+  color: var(--ml-text-primary);
+  border-color: var(--ml-border-primary);
+}
+
+.mineralLibraryButtonPrimary:hover:not(:disabled) {
+  background: var(--ml-bg-tertiary);
+  border-color: var(--ml-border-glow);
+}
+
+.mineralLibraryButtonSecondary {
+  background: var(--ml-bg-tertiary);
+  color: var(--ml-text-secondary);
+  border-color: var(--ml-border-primary);
+}
+
+.mineralLibraryButtonSecondary:hover:not(:disabled) {
+  color: var(--ml-text-primary);
+  background: var(--ml-bg-elevated);
+  border-color: var(--ml-border-glow);
+}
+
+.mineralLibrarySpinner {
+  animation: mlSpin 1s linear infinite;
+}
+
+@keyframes mlSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.mineralLibraryHistory {
+  margin: 0 16px 12px 16px;
+  flex-shrink: 0;
+}
+
+.mineralLibraryHistoryLabel {
+  color: var(--ml-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mineralLibraryHistoryTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mineralLibraryHistoryTag {
+  background: var(--ml-bg-tertiary);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-sm);
+  padding: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  color: var(--ml-text-secondary);
+  cursor: pointer;
+  transition: all var(--ml-transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mineralLibraryHistoryTag:hover {
+  border-color: var(--ml-border-glow);
+  color: var(--ml-text-primary);
+  background: var(--ml-bg-elevated);
+}
+
+.mineralLibraryAlert {
+  background: var(--ml-bg-tertiary);
+  border: 1px solid var(--ml-border-subtle);
+  border-left: 3px solid var(--ml-border-glow);
+  border-radius: var(--ml-radius-sm);
+  padding: 10px 12px;
+  margin: 0 16px 12px 16px;
+  color: var(--ml-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mineralLibraryList {
+  padding: 12px 16px 16px 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mineralLibraryList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mineralLibraryList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mineralLibraryList::-webkit-scrollbar-thumb {
+  background: var(--ml-border-primary);
+  border-radius: 2px;
+}
+
+.mineralLibraryList::-webkit-scrollbar-thumb:hover {
+  background: var(--ml-border-glow);
+}
+
+.mineralLibraryWelcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  background: var(--ml-bg-surface);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-md);
+}
+
+.mineralLibraryWelcomeIcon {
+  font-size: 2rem;
+  color: var(--ml-text-tertiary);
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.mineralLibraryWelcomeTitle {
+  color: var(--ml-text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 8px 0;
+}
+
+.mineralLibraryWelcomeText {
+  color: var(--ml-text-muted);
+  max-width: 24rem;
+  line-height: 1.5;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+  margin: 0 0 16px 0;
+}
+
+.mineralLibraryExampleTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.mineralLibraryExampleTag {
+  background: var(--ml-bg-elevated);
+  color: var(--ml-text-secondary);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-sm);
+  padding: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  cursor: pointer;
+  transition: all var(--ml-transition-fast);
+}
+
+.mineralLibraryExampleTag:hover {
+  background: var(--ml-bg-tertiary);
+  border-color: var(--ml-border-glow);
+  color: var(--ml-text-primary);
+}
+
+.mineralLibraryResults {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mineralLibraryRow {
+  display: flex;
+  gap: 10px;
+  background: var(--ml-bg-tertiary);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-sm);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--ml-transition-fast);
+  flex-shrink: 0;
+}
+
+.mineralLibraryRow:hover {
+  border-color: var(--ml-border-glow);
+  background: var(--ml-bg-elevated);
+}
+
+.mineralLibraryRowActive {
+  border-color: var(--ml-accent-primary);
+  background: var(--ml-bg-elevated);
+}
+
+.mineralLibraryRowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.mineralLibraryRowTitle {
+  color: var(--ml-text-primary);
+  font-weight: 700;
+  font-size: 11px;
+  font-family: var(--ml-font-system);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mineralLibraryRowTitleOn {
+  color: var(--ml-text-primary);
+}
+
+.mineralLibraryRowSub {
+  color: var(--ml-text-tertiary);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--ml-font-system);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.mineralLibraryRowSubOn {
+  color: var(--ml-text-tertiary);
+}
+
+.mineralLibrarySync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.mineralLibrarySyncIcon {
+  color: var(--ml-status-nominal);
+  font-size: 9px;
+}
+
+.mineralLibrarySync span {
+  color: var(--ml-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mineralLibraryContent {
+  background: var(--ml-bg-secondary);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 48px);
+}
+
+.mineralLibraryEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--ml-text-tertiary);
+  font-weight: 600;
+  font-size: 11px;
+  font-family: var(--ml-font-system);
+  background: var(--ml-bg-surface);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-md);
+  margin: 16px;
+  max-height: 180px;
+  box-sizing: border-box;
+}
+
+.mineralLibraryEmptyIcon {
+  font-size: 2rem;
+  color: var(--ml-text-tertiary);
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.mineralLibraryEmptyTitle {
+  color: var(--ml-text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.mineralLibraryEmptyText {
+  color: var(--ml-text-muted);
+  max-width: 24rem;
+  line-height: 1.5;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+}
+
+.mineralLibraryDetail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mineralLibraryDetailHead {
+  flex-shrink: 0;
+  background: var(--ml-bg-secondary);
+  border-bottom: 1px solid var(--ml-border-primary);
+  padding: 16px 20px;
+}
+
+.mineralLibrarySpecInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mineralLibrarySpecText {
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.mineralLibrarySpecName {
+  color: var(--ml-text-primary);
+  font-weight: 700;
+  font-size: 14px;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mineralLibrarySpecId {
+  color: var(--ml-text-tertiary);
+  font-size: 10px;
+  font-family: var(--ml-font-mono);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mineralLibraryExportRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.mineralLibraryLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 20px;
+  color: var(--ml-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+}
+
+.mineralLibraryLoadingSpinner {
+  animation: mlSpin 1s linear infinite;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.mineralLibraryDetailBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  background: var(--ml-bg-base);
+}
+
+.mineralLibraryDetailBody::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mineralLibraryDetailBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mineralLibraryDetailBody::-webkit-scrollbar-thumb {
+  background: var(--ml-border-primary);
+  border-radius: 2px;
+}
+
+.mineralLibraryDetailBody::-webkit-scrollbar-thumb:hover {
+  background: var(--ml-border-glow);
+}
+
+.mineralLibraryOverview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mineralLibraryImageWrap {
+  background: var(--ml-bg-surface);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-md);
+  padding: 16px;
+  text-align: center;
+}
+
+.mineralLibraryImage {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: var(--ml-radius-sm);
+  opacity: 0.9;
+}
+
+.mineralLibrarySections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mineralLibrarySec {
+  background: transparent;
+}
+
+.mineralLibrarySecHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ml-bg-surface);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-md);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.mineralLibrarySecIcon {
+  background: var(--ml-bg-elevated);
+  color: var(--ml-text-secondary);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-sm);
+  padding: 6px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.mineralLibrarySecTitle {
+  color: var(--ml-text-secondary);
+  font-weight: 700;
+  font-size: 10px;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mineralLibraryFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mineralLibraryPropertyCategory {
+  background: var(--ml-bg-surface);
+  border: 1px solid var(--ml-border-primary);
+  border-radius: var(--ml-radius-md);
+  padding: 12px;
+}
+
+.mineralLibraryPropertyCategoryTitle {
+  color: var(--ml-text-tertiary);
+  font-weight: 700;
+  font-size: 10px;
+  font-family: var(--ml-font-system);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ml-border-subtle);
+}
+
+.mineralLibraryCell {
+  background: var(--ml-bg-tertiary);
+  border: 1px solid var(--ml-border-subtle);
+  border-radius: var(--ml-radius-sm);
+  padding: 10px 12px;
+  transition: border-color var(--ml-transition-fast);
+  margin-bottom: 6px;
+}
+
+.mineralLibraryCell:last-child {
+  margin-bottom: 0;
+}
+
+.mineralLibraryCell:hover {
+  border-color: var(--ml-border-glow);
+}
+
+.mineralLibraryCellKey {
+  color: var(--ml-text-tertiary);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--ml-font-system);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mineralLibraryCellVal {
+  color: var(--ml-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ml-font-system);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.mineralLibraryFootNote {
+  color: var(--ml-text-muted);
+  font-size: 10px;
+  font-family: var(--ml-font-system);
+  font-weight: 600;
+  text-align: right;
+  padding-top: 12px;
+  border-top: 1px solid var(--ml-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 1024px) {
+  .mineralLibraryMain {
+    grid-template-columns: 280px 1fr;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .mineralLibraryTitle {
+    font-size: 11px;
+  }
+
+  .mineralLibraryLogo {
+    height: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mineralLibraryContainer {
+    position: fixed;
+    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    top: 60px;
+  }
+
+  .mineralLibraryMain {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 120px);
+    max-height: none;
+    padding: 12px;
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .mineralLibraryMain::after {
+    content: "";
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .mineralLibrarySidebar {
+    height: auto;
+    max-height: none;
+    min-height: auto;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  .mineralLibraryContent {
+    height: auto;
+    min-height: 50vh;
+    max-height: none;
+    flex: none;
+    overflow: visible;
+  }
+
+  .mineralLibraryDetailHead {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  .mineralLibrarySpecInfo {
+    justify-content: center;
+  }
+
+  .mineralLibrarySpecText {
+    text-align: center;
+  }
+
+  .mineralLibraryExportRow {
+    justify-content: center;
+  }
+
+  .mineralLibraryDetailBody {
+    padding: 12px;
+    gap: 12px;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    flex: none;
+  }
+
+  .mineralLibraryDetail {
+    height: auto;
+    overflow: visible;
+  }
+
+  .mineralLibraryFields {
+    padding: 0 8px;
+  }
+
+  .mineralLibrarySidebarHeader {
+    padding: 12px;
+  }
+
+  .mineralLibrarySearchBox {
+    margin: 8px 12px;
+  }
+
+  .mineralLibraryActions {
+    margin: 0 12px 8px 12px;
+  }
+
+  .mineralLibraryHistory {
+    margin: 0 12px 10px 12px;
+  }
+
+  .mineralLibraryAlert {
+    margin: 0 12px 10px 12px;
+  }
+
+  .mineralLibraryList {
+    padding: 8px 12px;
+  }
+
+  .mineralLibraryEmpty {
+    margin: 12px;
+    padding: 16px;
+  }
+
+  .mineralLibraryImageWrap {
+    padding: 12px;
+  }
+
+  .mineralLibraryContainer::-webkit-scrollbar {
+    width: 4px;
+    display: block;
+  }
+
+  .mineralLibraryContainer::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .mineralLibraryContainer::-webkit-scrollbar-thumb {
+    background: var(--ml-border-primary);
+    border-radius: 2px;
+  }
+
+  .mineralLibraryContainer::-webkit-scrollbar-thumb:hover {
+    background: var(--ml-border-glow);
+  }
+}
+
+@media (max-width: 480px) {
+  .mineralLibraryMain {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .mineralLibraryTitleLeft {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .mineralLibraryTitle {
+    font-size: 10px;
+  }
+
+  .mineralLibraryLogo {
+    height: 24px;
+  }
+
+  .mineralLibraryBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .mineralLibraryButton {
+    padding: 6px 8px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .mineralLibraryButton span {
+    display: none;
+  }
+
+  .mineralLibraryHistoryTag {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .mineralLibraryExampleTag {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .mineralLibraryRow {
+    padding: 10px;
+    margin-bottom: 4px;
+  }
+
+  .mineralLibraryRowTitle {
+    font-size: 10px;
+  }
+
+  .mineralLibraryRowSub {
+    font-size: 9px;
+  }
+
+  .mineralLibraryDetailHead {
+    padding: 10px;
+  }
+
+  .mineralLibrarySpecName {
+    font-size: 12px;
+  }
+
+  .mineralLibrarySpecId {
+    font-size: 9px;
+  }
+
+  .mineralLibraryDetailBody {
+    padding: 10px;
+  }
+
+  .mineralLibrarySecHead {
+    padding: 10px 12px;
+  }
+
+  .mineralLibrarySecTitle {
+    font-size: 9px;
+  }
+
+  .mineralLibraryCell {
+    padding: 8px 10px;
+  }
+
+  .mineralLibraryCellKey {
+    font-size: 8px;
+  }
+
+  .mineralLibraryCellVal {
+    font-size: 10px;
+  }
+
+  .mineralLibraryPropertyCategoryTitle {
+    font-size: 9px;
+  }
+
+  .mineralLibraryWelcomeTitle {
+    font-size: 11px;
+  }
+
+  .mineralLibraryWelcomeText {
+    font-size: 10px;
+  }
+
+  .mineralLibraryEmptyTitle {
+    font-size: 11px;
+  }
+
+  .mineralLibraryEmptyText {
+    font-size: 10px;
+  }
+
+  .mineralLibraryImageWrap {
+    padding: 10px;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .mineralLibraryRow,
+  .mineralLibraryCell,
+  .mineralLibrarySearchInput {
+    border-width: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mineralLibraryButton,
+  .mineralLibraryRow,
+  .mineralLibraryHistoryTag,
+  .mineralLibraryCell,
+  .mineralLibrarySearchInput {
+    transition: none;
+  }
+
+  .mineralLibrarySpinner,
+  .mineralLibraryLoadingSpinner {
+    animation: none;
+  }
+}

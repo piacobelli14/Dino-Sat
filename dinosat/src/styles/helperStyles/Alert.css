@@ -1,0 +1,178 @@
+.dinolabsAlertOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.dinolabsAlert {
+    background: linear-gradient(145deg, #0e1014 0%, #181c24 50%, #242a36 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 2rem;
+    border: 1px solid rgba(50, 55, 70, 0.45);
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    min-width: 400px;
+    max-width: 500px;
+}
+
+.dinolabsAlertImage {
+    height: 60px;
+    width: auto;
+}
+
+.dinolabsAlertHeader {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.dinolabsAlertSubHeader {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-top: 0.5rem;
+    opacity: 0.9;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.dinolabsAlertButtonsFlex {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem 0 0 0;
+    width: 100%;
+    gap: 1rem;
+}
+
+.dinolabsAlertButtons {
+    padding: 0.6rem 1.2rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: #f1f5f9;
+    border: 1px solid rgba(50, 55, 70, 0.45);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    min-width: 80px;
+}
+
+.dinolabsAlertButtons[style*="backgroundColor: #AD6ADD"] {
+    background: linear-gradient(135deg, #1c222c 0%, #2a323e 50%, #363f4d 100%);
+    border-color: rgba(60, 68, 85, 0.5);
+}
+
+.dinolabsAlertButtons[style*="backgroundColor: #D8D8D8"] {
+    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
+    border-color: rgba(50, 55, 70, 0.45);
+    color: #f1f5f9;
+}
+
+.dinolabsAlertButtons:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(60, 68, 85, 0.5);
+    outline: none;
+}
+
+.dinolabsAlertButtons:focus {
+    outline: none;
+    border-color: rgba(106, 122, 138, 0.5);
+    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.dinolabsAlertInputWrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 1rem 0 0 0;
+}
+
+.dinolabsAlertInput.input-text {
+    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
+    border: 1px solid rgba(50, 55, 70, 0.45);
+    padding: 0.6rem 1rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: #f1f5f9;
+    border-radius: 6px;
+    width: 80%;
+    outline: none;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.dinolabsAlertInput.input-text::placeholder {
+    color: rgba(145, 155, 175, 0.58);
+    font-weight: 700;
+}
+
+.dinolabsAlertInput.input-text:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    outline: none;
+}
+
+.dinolabsAlertInput.input-text:focus {
+    outline: none;
+    border-color: rgba(106, 122, 138, 0.5);
+    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.dinolabsAlertInput.input-select {
+    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
+    border: 1px solid rgba(50, 55, 70, 0.45);
+    padding: 0.6rem 1rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: #f1f5f9;
+    border-radius: 6px;
+    width: 80%;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.dinolabsAlertInput.input-select:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    outline: none;
+    cursor: pointer;
+}
+
+.dinolabsAlertInput.input-select:focus {
+    outline: none;
+    border-color: rgba(106, 122, 138, 0.5);
+    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    cursor: pointer;
+}
+
+.dinolabsAlertInput::-ms-expand {
+    display: none;
+}
+
+.dinolabsAlertInput {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}

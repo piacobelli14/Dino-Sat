@@ -1,0 +1,1137 @@
+:root {
+  --cr-bg-void: #08090c;
+  --cr-bg-base: #0a0c0f;
+  --cr-bg-primary: #0d0f13;
+  --cr-bg-secondary: #101216;
+  --cr-bg-tertiary: #13151a;
+  --cr-bg-elevated: #16181d;
+  --cr-bg-surface: #12141a;
+
+  --cr-text-primary: rgba(235, 240, 248, 0.95);
+  --cr-text-secondary: rgba(205, 212, 228, 0.82);
+  --cr-text-tertiary: rgba(170, 180, 200, 0.72);
+  --cr-text-muted: rgba(145, 155, 175, 0.58);
+
+  --cr-border-primary: rgba(50, 55, 70, 0.45);
+  --cr-border-subtle: rgba(40, 45, 58, 0.35);
+  --cr-border-glow: rgba(60, 68, 85, 0.5);
+
+  --cr-accent-primary: #6a7a8a;
+  --cr-accent-secondary: #5a6a7a;
+  --cr-accent-muted: rgba(106, 122, 138, 0.08);
+
+  --cr-status-nominal: #5a7068;
+  --cr-status-alert: #78686a;
+  --cr-status-warning: #706a5a;
+  --cr-status-info: #5a6a78;
+
+  --cr-radius-sm: 4px;
+  --cr-radius-md: 6px;
+
+  --cr-transition-fast: 0.15s ease;
+  --cr-transition-normal: 0.25s ease;
+
+  --cr-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --cr-font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.celestialReferenceContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  min-height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  height: calc(100vh - 60px);
+  background: var(--cr-bg-void);
+  color: var(--cr-text-primary);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.celestialReferenceMain {
+  flex: 1;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px 24px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+  min-height: 0;
+  grid-template-columns: 340px 1fr;
+  height: calc(100vh - 48px);
+}
+
+.celestialReferenceSidebar {
+  background: var(--cr-bg-secondary);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 48px);
+}
+
+.celestialReferenceSidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.celestialReferenceSidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.celestialReferenceSidebar::-webkit-scrollbar-thumb {
+  background: var(--cr-border-primary);
+  border-radius: 2px;
+}
+
+.celestialReferenceSidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--cr-border-glow);
+}
+
+.celestialReferenceSidebarHeader {
+  background: var(--cr-bg-secondary);
+  border-bottom: 1px solid var(--cr-border-primary);
+  padding: 16px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.celestialReferenceTitleLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.celestialReferenceLogo {
+  height: 32px;
+  border-radius: var(--cr-radius-sm);
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.celestialReferenceTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cr-text-primary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.celestialReferenceBanner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.celestialReferenceBannerText {
+  color: var(--cr-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.celestialReferenceSearchBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 12px 16px;
+}
+
+.celestialReferenceSearchInput {
+  width: 100%;
+  background: var(--cr-bg-tertiary);
+  color: var(--cr-text-primary);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-sm);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+  outline: none;
+  transition: border-color var(--cr-transition-fast);
+  box-sizing: border-box;
+  padding-right: 36px;
+}
+
+.celestialReferenceSearchInput::placeholder {
+  color: var(--cr-text-muted);
+  font-weight: 600;
+}
+
+.celestialReferenceSearchInput:hover {
+  border-color: var(--cr-border-glow);
+}
+
+.celestialReferenceSearchInput:focus {
+  outline: none;
+  border-color: var(--cr-accent-primary);
+}
+
+.celestialReferenceClearButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--cr-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--cr-radius-sm);
+  font-size: 12px;
+  transition: color var(--cr-transition-fast);
+}
+
+.celestialReferenceClearButton:hover {
+  color: var(--cr-text-secondary);
+}
+
+.celestialReferenceActions {
+  display: flex;
+  gap: 8px;
+  margin: 0 16px 12px 16px;
+  flex-shrink: 0;
+}
+
+.celestialReferenceButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--cr-radius-sm);
+  padding: 0.6rem 1rem;;
+  font-weight: 700;
+  font-size: 0.7rem;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.04em;
+  border: 1px solid var(--cr-border-primary);
+  cursor: pointer;
+  transition: all var(--cr-transition-fast);
+  background: var(--cr-bg-tertiary);
+  color: var(--cr-text-secondary);
+  width: 100%;
+}
+
+.celestialReferenceButton:hover {
+  background: var(--cr-bg-elevated);
+  border-color: var(--cr-border-glow);
+  color: var(--cr-text-primary);
+}
+
+.celestialReferenceButton:active {
+  background: var(--cr-bg-tertiary);
+}
+
+.celestialReferenceButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.celestialReferenceButton span {
+  white-space: nowrap;
+}
+
+.celestialReferenceButtonBusy {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.celestialReferenceButtonPrimary {
+  background: var(--cr-bg-elevated);
+  color: var(--cr-text-primary);
+  border-color: var(--cr-border-primary);
+}
+
+.celestialReferenceButtonPrimary:hover:not(:disabled) {
+  background: var(--cr-bg-tertiary);
+  border-color: var(--cr-border-glow);
+}
+
+.celestialReferenceButtonSecondary {
+  background: var(--cr-bg-tertiary);
+  color: var(--cr-text-secondary);
+  border-color: var(--cr-border-primary);
+}
+
+.celestialReferenceButtonSecondary:hover:not(:disabled) {
+  color: var(--cr-text-primary);
+  background: var(--cr-bg-elevated);
+  border-color: var(--cr-border-glow);
+}
+
+.celestialReferenceSpinner {
+  animation: crSpin 1s linear infinite;
+}
+
+@keyframes crSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.celestialReferenceHistory {
+  margin: 0 16px 12px 16px;
+  flex-shrink: 0;
+}
+
+.celestialReferenceHistoryLabel {
+  color: var(--cr-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.celestialReferenceHistoryTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.celestialReferenceHistoryTag {
+  background: var(--cr-bg-tertiary);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-sm);
+  padding: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  color: var(--cr-text-secondary);
+  cursor: pointer;
+  transition: all var(--cr-transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.celestialReferenceHistoryTag:hover {
+  border-color: var(--cr-border-glow);
+  color: var(--cr-text-primary);
+  background: var(--cr-bg-elevated);
+}
+
+.celestialReferenceAlert {
+  background: var(--cr-bg-tertiary);
+  border: 1px solid var(--cr-border-subtle);
+  border-left: 3px solid var(--cr-border-glow);
+  border-radius: var(--cr-radius-sm);
+  padding: 10px 12px;
+  margin: 0 16px 12px 16px;
+  color: var(--cr-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.celestialReferenceList {
+  padding: 12px 16px 16px 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.celestialReferenceList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.celestialReferenceList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.celestialReferenceList::-webkit-scrollbar-thumb {
+  background: var(--cr-border-primary);
+  border-radius: 2px;
+}
+
+.celestialReferenceList::-webkit-scrollbar-thumb:hover {
+  background: var(--cr-border-glow);
+}
+
+.celestialReferenceWelcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  background: var(--cr-bg-surface);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-md);
+}
+
+.celestialReferenceWelcomeIcon {
+  font-size: 2rem;
+  color: var(--cr-text-tertiary);
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.celestialReferenceWelcomeTitle {
+  color: var(--cr-text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 8px 0;
+}
+
+.celestialReferenceWelcomeText {
+  color: var(--cr-text-muted);
+  max-width: 24rem;
+  line-height: 1.5;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+  margin: 0 0 16px 0;
+}
+
+.celestialReferenceExampleTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.celestialReferenceExampleTag {
+  background: var(--cr-bg-elevated);
+  color: var(--cr-text-secondary);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-sm);
+  padding: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  cursor: pointer;
+  transition: all var(--cr-transition-fast);
+}
+
+.celestialReferenceExampleTag:hover {
+  background: var(--cr-bg-tertiary);
+  border-color: var(--cr-border-glow);
+  color: var(--cr-text-primary);
+}
+
+.celestialReferenceResults {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.celestialReferenceRow {
+  display: flex;
+  gap: 10px;
+  background: var(--cr-bg-tertiary);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-sm);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--cr-transition-fast);
+  flex-shrink: 0;
+}
+
+.celestialReferenceRow:hover {
+  border-color: var(--cr-border-glow);
+  background: var(--cr-bg-elevated);
+}
+
+.celestialReferenceRowActive {
+  border-color: var(--cr-accent-primary);
+  background: var(--cr-bg-elevated);
+}
+
+.celestialReferenceRowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.celestialReferenceRowTitle {
+  color: var(--cr-text-primary);
+  font-weight: 700;
+  font-size: 11px;
+  font-family: var(--cr-font-system);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.celestialReferenceRowTitleOn {
+  color: var(--cr-text-primary);
+}
+
+.celestialReferenceRowSub {
+  color: var(--cr-text-tertiary);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--cr-font-system);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.celestialReferenceRowSubOn {
+  color: var(--cr-text-tertiary);
+}
+
+.celestialReferenceSync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.celestialReferenceSyncIcon {
+  color: var(--cr-status-nominal);
+  font-size: 9px;
+}
+
+.celestialReferenceSync span {
+  color: var(--cr-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.celestialReferenceContent {
+  background: var(--cr-bg-secondary);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 48px);
+}
+
+.celestialReferenceEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--cr-text-tertiary);
+  font-weight: 600;
+  font-size: 11px;
+  font-family: var(--cr-font-system);
+  background: var(--cr-bg-surface);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-md);
+  margin: 16px;
+  max-height: 180px;
+  box-sizing: border-box;
+}
+
+.celestialReferenceEmptyIcon {
+  font-size: 2rem;
+  color: var(--cr-text-tertiary);
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.celestialReferenceEmptyTitle {
+  color: var(--cr-text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.celestialReferenceEmptyText {
+  color: var(--cr-text-muted);
+  max-width: 24rem;
+  line-height: 1.5;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+}
+
+.celestialReferenceDetail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.celestialReferenceDetailHead {
+  flex-shrink: 0;
+  background: var(--cr-bg-secondary);
+  border-bottom: 1px solid var(--cr-border-primary);
+  padding: 16px 20px;
+}
+
+.celestialReferenceSpecInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.celestialReferenceSpecText {
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.celestialReferenceSpecName {
+  color: var(--cr-text-primary);
+  font-weight: 700;
+  font-size: 14px;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.celestialReferenceSpecId {
+  color: var(--cr-text-tertiary);
+  font-size: 10px;
+  font-family: var(--cr-font-mono);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.celestialReferenceExportRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.celestialReferenceLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 20px;
+  color: var(--cr-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+}
+
+.celestialReferenceLoadingSpinner {
+  animation: crSpin 1s linear infinite;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.celestialReferenceDetailBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  background: var(--cr-bg-base);
+}
+
+.celestialReferenceDetailBody::-webkit-scrollbar {
+  width: 4px;
+}
+
+.celestialReferenceDetailBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.celestialReferenceDetailBody::-webkit-scrollbar-thumb {
+  background: var(--cr-border-primary);
+  border-radius: 2px;
+}
+
+.celestialReferenceDetailBody::-webkit-scrollbar-thumb:hover {
+  background: var(--cr-border-glow);
+}
+
+.celestialReferenceOverview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.celestialReferenceImageWrap {
+  background: var(--cr-bg-surface);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-md);
+  padding: 16px;
+  text-align: center;
+}
+
+.celestialReferenceImage {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: var(--cr-radius-sm);
+  opacity: 0.9;
+}
+
+.celestialReferenceSections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.celestialReferenceSec {
+  background: transparent;
+}
+
+.celestialReferenceSecHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--cr-bg-surface);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-md);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.celestialReferenceSecIcon {
+  background: var(--cr-bg-elevated);
+  color: var(--cr-text-secondary);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-sm);
+  padding: 6px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.celestialReferenceSecTitle {
+  color: var(--cr-text-secondary);
+  font-weight: 700;
+  font-size: 10px;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.celestialReferenceFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.celestialReferencePropertyCategory {
+  background: var(--cr-bg-surface);
+  border: 1px solid var(--cr-border-primary);
+  border-radius: var(--cr-radius-md);
+  padding: 12px;
+}
+
+.celestialReferencePropertyCategoryTitle {
+  color: var(--cr-text-tertiary);
+  font-weight: 700;
+  font-size: 10px;
+  font-family: var(--cr-font-system);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cr-border-subtle);
+}
+
+.celestialReferenceCell {
+  background: var(--cr-bg-tertiary);
+  border: 1px solid var(--cr-border-subtle);
+  border-radius: var(--cr-radius-sm);
+  padding: 10px 12px;
+  transition: border-color var(--cr-transition-fast);
+  margin-bottom: 6px;
+}
+
+.celestialReferenceCell:last-child {
+  margin-bottom: 0;
+}
+
+.celestialReferenceCell:hover {
+  border-color: var(--cr-border-glow);
+}
+
+.celestialReferenceCellKey {
+  color: var(--cr-text-tertiary);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--cr-font-system);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.celestialReferenceCellVal {
+  color: var(--cr-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--cr-font-system);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.celestialReferenceFootNote {
+  color: var(--cr-text-muted);
+  font-size: 10px;
+  font-family: var(--cr-font-system);
+  font-weight: 600;
+  text-align: right;
+  padding-top: 12px;
+  border-top: 1px solid var(--cr-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 1024px) {
+  .celestialReferenceMain {
+    grid-template-columns: 280px 1fr;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .celestialReferenceTitle {
+    font-size: 11px;
+  }
+
+  .celestialReferenceLogo {
+    height: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .celestialReferenceContainer {
+    position: fixed;
+    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    top: 60px;
+  }
+
+  .celestialReferenceMain {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 120px);
+    max-height: none;
+    padding: 12px;
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .celestialReferenceMain::after {
+    content: "";
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .celestialReferenceSidebar {
+    height: auto;
+    max-height: none;
+    min-height: auto;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  .celestialReferenceContent {
+    height: auto;
+    min-height: 50vh;
+    max-height: none;
+    flex: none;
+    overflow: visible;
+  }
+
+  .celestialReferenceDetailHead {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  .celestialReferenceSpecInfo {
+    justify-content: center;
+  }
+
+  .celestialReferenceSpecText {
+    text-align: center;
+  }
+
+  .celestialReferenceExportRow {
+    justify-content: center;
+  }
+
+  .celestialReferenceDetailBody {
+    padding: 12px;
+    gap: 12px;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    flex: none;
+  }
+
+  .celestialReferenceDetail {
+    height: auto;
+    overflow: visible;
+  }
+
+  .celestialReferenceFields {
+    padding: 0 8px;
+  }
+
+  .celestialReferenceSidebarHeader {
+    padding: 12px;
+  }
+
+  .celestialReferenceSearchBox {
+    margin: 8px 12px;
+  }
+
+  .celestialReferenceActions {
+    margin: 0 12px 8px 12px;
+  }
+
+  .celestialReferenceHistory {
+    margin: 0 12px 10px 12px;
+  }
+
+  .celestialReferenceAlert {
+    margin: 0 12px 10px 12px;
+  }
+
+  .celestialReferenceList {
+    padding: 8px 12px;
+  }
+
+  .celestialReferenceEmpty {
+    margin: 12px;
+    padding: 16px;
+  }
+
+  .celestialReferenceImageWrap {
+    padding: 12px;
+  }
+
+  .celestialReferenceContainer::-webkit-scrollbar {
+    width: 4px;
+    display: block;
+  }
+
+  .celestialReferenceContainer::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .celestialReferenceContainer::-webkit-scrollbar-thumb {
+    background: var(--cr-border-primary);
+    border-radius: 2px;
+  }
+
+  .celestialReferenceContainer::-webkit-scrollbar-thumb:hover {
+    background: var(--cr-border-glow);
+  }
+}
+
+@media (max-width: 480px) {
+  .celestialReferenceMain {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .celestialReferenceTitleLeft {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .celestialReferenceTitle {
+    font-size: 10px;
+  }
+
+  .celestialReferenceLogo {
+    height: 24px;
+  }
+
+  .celestialReferenceBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .celestialReferenceButton {
+    padding: 6px 8px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .celestialReferenceButton span {
+    display: none;
+  }
+
+  .celestialReferenceHistoryTag {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .celestialReferenceExampleTag {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .celestialReferenceRow {
+    padding: 10px;
+    margin-bottom: 4px;
+  }
+
+  .celestialReferenceRowTitle {
+    font-size: 10px;
+  }
+
+  .celestialReferenceRowSub {
+    font-size: 9px;
+  }
+
+  .celestialReferenceDetailHead {
+    padding: 10px;
+  }
+
+  .celestialReferenceSpecName {
+    font-size: 12px;
+  }
+
+  .celestialReferenceSpecId {
+    font-size: 9px;
+  }
+
+  .celestialReferenceDetailBody {
+    padding: 10px;
+  }
+
+  .celestialReferenceSecHead {
+    padding: 10px 12px;
+  }
+
+  .celestialReferenceSecTitle {
+    font-size: 9px;
+  }
+
+  .celestialReferenceCell {
+    padding: 8px 10px;
+  }
+
+  .celestialReferenceCellKey {
+    font-size: 8px;
+  }
+
+  .celestialReferenceCellVal {
+    font-size: 10px;
+  }
+
+  .celestialReferencePropertyCategoryTitle {
+    font-size: 9px;
+  }
+
+  .celestialReferenceWelcomeTitle {
+    font-size: 11px;
+  }
+
+  .celestialReferenceWelcomeText {
+    font-size: 10px;
+  }
+
+  .celestialReferenceEmptyTitle {
+    font-size: 11px;
+  }
+
+  .celestialReferenceEmptyText {
+    font-size: 10px;
+  }
+
+  .celestialReferenceImageWrap {
+    padding: 10px;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .celestialReferenceRow,
+  .celestialReferenceCell,
+  .celestialReferenceSearchInput {
+    border-width: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celestialReferenceButton,
+  .celestialReferenceRow,
+  .celestialReferenceHistoryTag,
+  .celestialReferenceCell,
+  .celestialReferenceSearchInput {
+    transition: none;
+  }
+
+  .celestialReferenceSpinner,
+  .celestialReferenceLoadingSpinner {
+    animation: none;
+  }
+}
