@@ -858,6 +858,15 @@ body {
   padding-bottom: 20px;
 }
 
+@media (max-width: 700px) {
+  .dinosatEarthCondPanel,
+  .dinosatEarthCondPanelTriple,
+  .dinosatEarthCondPanelDouble,
+  .dinosatEarthCondPanelSingle {
+    width: 100%; 
+  }
+}
+
 .dinosatEarthCondPanel h3 {
   display: flex;
   align-items: center;
@@ -1133,6 +1142,12 @@ body {
   gap: var(--ec-spacing-md);
   align-items: stretch;
   overflow: scroll;
+}
+
+@media (max-width: 700px) {
+  .dinosatEarthCondOverviewGrid {
+    flex-direction: column;
+  }
 }
 
 .dinosatEarthCondSystemsGrid {
@@ -2812,4 +2827,42 @@ body {
   font-weight: 700;
   color: var(--ec-text-tertiary);
   white-space: nowrap;
+}
+
+.dinosatEarthCondChartDescription {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(100, 116, 139, 0.08);
+  border-radius: 6px;
+  border-left: 3px solid rgba(100, 116, 139, 0.4);
+}
+
+.dinosatEarthCondChartAxesInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.dinosatEarthCondChartAxesInfo span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dinosatEarthCondChartAxesInfo strong {
+  color: rgba(203, 213, 225, 0.95);
+  font-weight: 600;
+}
+
+.dinosatEarthCondChartDescriptionText {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.55;
+  color: rgba(148, 163, 184, 0.85);
+  text-align: left;
 }

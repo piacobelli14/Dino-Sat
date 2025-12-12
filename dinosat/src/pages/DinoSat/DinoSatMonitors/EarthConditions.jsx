@@ -1049,6 +1049,15 @@ export default function EarthConditions() {
                 <span>1 = Open window, 0 = Constrained window</span>
               </div>
               {renderDynamicChart(windowTimelineChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (24-hour forecast period)</span>
+                  <span><strong>Y-Axis:</strong> Window Status (binary: 0 or 1)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays the predicted launch window availability over the next 24 hours based on conjunction analysis and space traffic data. A value of 1 indicates an open window with no conjunction constraints, allowing for safe launch operations. A value of 0 indicates a constrained period where space traffic conflicts or conjunction risks require the window to be closed. Launch controllers use this timeline to identify optimal launch opportunities and plan hold procedures around constrained periods.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1285,6 +1294,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(windHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Wind Speed (m/s)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays surface wind speed measurements recorded over the past 30 days at the launch site. Wind speed is a critical launch constraint as excessive winds can affect vehicle stability during liftoff and early ascent phases. The data helps identify diurnal patterns, seasonal trends, and anomalous weather events that may impact launch scheduling decisions.
+                  </p>
+                </div>
               </div>
             )}
             {gustHistoryChart && (
@@ -1294,6 +1312,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(gustHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Wind Gusts (m/s)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows peak wind gust measurements over the past 30 days. Gusts represent sudden, brief increases in wind speed that can impose dynamic loads on the launch vehicle structure during ground operations and early flight. Gust factors are essential for structural load calculations and determining pad access safety during fueling operations.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -1307,6 +1334,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(tempHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Temperature (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart tracks ambient air temperature variations over the past 30 days. Temperature affects propellant density, material properties, and thermal protection system performance during pre-launch and ascent. Extreme temperatures may require propellant loading adjustments and can impact battery performance, hydraulic systems, and avionics thermal management.
+                  </p>
+                </div>
               </div>
             )}
             {pressureHistoryChart && (
@@ -1316,6 +1352,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(pressureHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Barometric Pressure (hPa)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays barometric pressure readings over the past 30 days. Atmospheric pressure influences air density calculations critical for aerodynamic modeling and engine performance predictions. Pressure trends also indicate approaching weather systems that may affect launch operations, with rapidly falling pressure often signaling deteriorating conditions.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -1329,6 +1374,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(cloudCoverHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Cloud Cover (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows cloud coverage percentage over the past 30 days. Cloud cover affects optical tracking capabilities, lightning risk assessment, and compliance with visual flight rules for range safety. High cloud cover may trigger cumulus cloud and lightning avoidance rules, potentially causing launch delays or scrubs.
+                  </p>
+                </div>
               </div>
             )}
             {humidityHistoryChart && (
@@ -1338,6 +1392,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(humidityHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Relative Humidity (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays relative humidity measurements over the past 30 days. Humidity levels impact triboelectric charging potential, fog formation probability, and certain material performance characteristics. High humidity combined with temperature variations can lead to condensation on vehicle surfaces and may affect sensitive electronic components.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -1372,6 +1435,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(kpHistoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (recent observation period)</span>
+                    <span><strong>Y-Axis:</strong> Kp Index (0-9 scale)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the planetary K-index (Kp) measurements over recent observation periods. The Kp index quantifies geomagnetic storm intensity on a 0-9 scale, with higher values indicating increased radiation hazards and potential communication disruptions. Values above 5 indicate geomagnetic storm conditions that may affect spacecraft electronics, GPS accuracy, and high-frequency radio communications critical for launch operations.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -2134,6 +2206,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(seismicChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (1-year observation period)</span>
+                  <span><strong>Y-Axis:</strong> Earthquake Magnitude (Richter scale)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays seismic activity recorded within the monitoring radius of the launch site over the past year. Each data point represents an individual earthquake event plotted by its magnitude on the Richter scale. Seismic activity is monitored because ground vibrations can affect launch vehicle structural integrity during pre-launch operations, impact sensitive instrumentation calibration, and potentially damage ground support equipment. Significant seismic events (M4.5+) within close proximity may trigger hold procedures for detailed structural inspections.
+                </p>
+              </div>
               {historicalSeismic?.statistics && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>Events: {historicalSeismic.statistics.totalEvents ?? 0}</span>
@@ -2163,6 +2244,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(weatherTempChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Temperature (°C)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart tracks ambient air temperature variations over the past 7 days at the ground operations site. Temperature monitoring is critical for propellant loading operations as it affects fuel density and tank pressurization requirements. Extreme temperatures may require adjustments to propellant mass calculations, impact battery performance and avionics thermal management, and affect the structural properties of composite materials on the launch vehicle. Temperature trends also help predict fog formation and icing conditions.
+                </p>
+              </div>
               {historicalWeather?.statistics?.temperature && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalWeather.statistics.temperature.min !== null && historicalWeather.statistics.temperature.min !== undefined ? historicalWeather.statistics.temperature.min.toFixed(1) : "—"} °C</span>
@@ -2182,6 +2272,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(weatherWindChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Wind Speed (m/s)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays surface wind speed measurements recorded over the past 7 days at the ground operations facility. Wind conditions directly impact pad crew safety, crane operations for payload integration, and rollout procedures for mobile launch platforms. Sustained winds above operational limits require work stoppages and may delay vehicle transport. The historical pattern helps identify typical diurnal wind cycles and predict optimal windows for outdoor operations.
+                </p>
+              </div>
               {historicalWeather?.statistics?.windSpeed && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalWeather.statistics.windSpeed.min !== null && historicalWeather.statistics.windSpeed.min !== undefined ? historicalWeather.statistics.windSpeed.min.toFixed(1) : "—"} m/s</span>
@@ -2202,6 +2301,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(weatherPressureChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Barometric Pressure (hPa)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays barometric pressure readings over the past 7 days at the ground operations site. Atmospheric pressure directly affects air density calculations used in aerodynamic modeling and engine performance predictions. Pressure trends serve as key indicators of approaching weather systems—rapidly falling pressure typically signals deteriorating conditions and potential storm activity, while rising pressure generally indicates clearing weather. Ground operations planners use these trends to anticipate weather windows for critical outdoor activities.
+                </p>
+              </div>
               {historicalWeather?.statistics?.pressure && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalWeather.statistics.pressure.min !== null && historicalWeather.statistics.pressure.min !== undefined ? historicalWeather.statistics.pressure.min.toFixed(0) : "—"} hPa</span>
@@ -2230,6 +2338,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(protonChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Proton Flux (particle flux units, pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays high-energy proton flux measurements (≥10 MeV) from GOES satellite observations over the past 7 days. Elevated proton flux levels indicate solar energetic particle events that pose radiation hazards to spacecraft electronics and can cause single-event upsets in avionics systems. Flux values exceeding 10 pfu trigger radiation storm warnings and may require launch delays to protect sensitive payload components and ensure crew safety for crewed missions.
+                  </p>
+                </div>
               </div>
             )}
             {electronChart && (
@@ -2239,6 +2356,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(electronChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Electron Flux (particle flux units, pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows relativistic electron flux measurements (≥2 MeV) over the past 7 days. High-energy electrons in the radiation belts can cause deep dielectric charging in spacecraft, leading to electrostatic discharge events that damage electronic components. Elevated electron flux is particularly concerning for satellites passing through the outer radiation belt and can affect the operational lifetime of spacecraft electronics. Flux levels above 1000 pfu indicate enhanced radiation belt conditions.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -2252,6 +2378,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(xrayChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> X-ray Flux (W/m²)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays solar X-ray flux measurements over the past 7 days, which indicate solar flare activity. X-ray flux is classified on a logarithmic scale from A (lowest) through B, C, M, to X (highest) class flares. M-class and X-class flares can cause radio blackouts affecting high-frequency communications used for range safety, ionospheric disturbances impacting GPS accuracy, and are often precursors to solar energetic particle events. Sudden increases in X-ray flux require immediate assessment of communication system integrity.
+                  </p>
+                </div>
               </div>
             )}
             {geomagChart && (
@@ -2261,6 +2396,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(geomagChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Interplanetary Magnetic Field Bz Component (nT)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the north-south component (Bz) of the interplanetary magnetic field over the past 7 days. When Bz turns strongly southward (negative values), it allows solar wind energy to couple efficiently into Earth's magnetosphere, triggering geomagnetic storms. Sustained Bz values below -10 nT typically result in significant geomagnetic activity that can affect spacecraft attitude control systems, increase atmospheric drag on low-Earth orbit satellites, and cause GPS positioning errors. This parameter is a key predictor of impending geomagnetic disturbances.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -2273,6 +2417,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(solarWindChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Solar Wind Speed (km/s)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays solar wind velocity measurements over the past 7 days from upstream solar wind monitors. Normal solar wind speeds range from 300-500 km/s, while high-speed streams from coronal holes can exceed 700 km/s. Elevated solar wind speeds increase the dynamic pressure on Earth's magnetosphere, compressing it and enhancing geomagnetic activity. Combined with a southward Bz component, high solar wind speeds significantly increase the probability of geomagnetic storms that can affect spacecraft operations and ground-based systems.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -2378,6 +2531,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("COMPUTED", "small")}
                 </div>
                 {renderDynamicChart(trajectoryChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Altitude (m)</span>
+                    <span><strong>Y-Axis:</strong> Dynamic Pressure (Pa)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the computed dynamic pressure profile along the ascent trajectory. Dynamic pressure (Q) represents the aerodynamic force per unit area acting on the vehicle and is calculated as Q = ½ρv², where ρ is atmospheric density and v is velocity. The maximum dynamic pressure (Max Q) occurs during the transonic region and represents the point of greatest structural stress on the vehicle. Launch commit criteria typically specify Max Q limits to ensure structural integrity throughout the flight envelope.
+                  </p>
+                </div>
               </div>
             )}
             {densityChart && (
@@ -2387,6 +2549,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("COMPUTED", "small")}
                 </div>
                 {renderDynamicChart(densityChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Altitude (m)</span>
+                    <span><strong>Y-Axis:</strong> Atmospheric Density (kg/m³)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the atmospheric density profile versus altitude based on current meteorological conditions. Atmospheric density decreases exponentially with altitude following the barometric formula. Accurate density profiles are essential for aerodynamic load calculations, drag predictions, and trajectory optimization. Deviations from standard atmosphere models due to temperature inversions or weather systems can significantly impact Max Q timing and magnitude.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -2399,6 +2570,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("COMPUTED", "small")}
               </div>
               {renderDynamicChart(createDynamicLineChart("Cd vs Mach", data.flightEnvelope.dragCoefficient.machProfile, "mach", "cd", "", "#f59e0b", false), "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Mach Number</span>
+                  <span><strong>Y-Axis:</strong> Drag Coefficient (Cd)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays the vehicle's drag coefficient as a function of Mach number throughout the flight regime. The drag coefficient typically increases sharply in the transonic region (Mach 0.8-1.2) due to shock wave formation, then gradually decreases at supersonic speeds. This profile is critical for trajectory calculations, propellant consumption predictions, and determining the altitude and timing of maximum dynamic pressure. Accurate Cd modeling ensures proper flight performance margins.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -2496,6 +2676,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("LIVE", "small")}
               </div>
               {renderDynamicChart(shearChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Altitude (m)</span>
+                  <span><strong>Y-Axis:</strong> Wind Shear (m/s/km)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays the vertical wind shear profile from surface to upper atmosphere levels. Wind shear represents the rate of change in wind velocity with altitude and is calculated as the vector difference in wind speed divided by the altitude difference between measurement levels. High shear values indicate rapid wind changes that can induce structural loads and challenge vehicle control systems during ascent. Shear layers exceeding 15 m/s/km require careful evaluation, while values above 25 m/s/km may exceed control authority margins.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -2975,6 +3164,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(capeChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Forecast Hour (T+0 to T+24h)</span>
+                    <span><strong>Y-Axis:</strong> CAPE (J/kg)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the 24-hour forecast of Convective Available Potential Energy (CAPE). CAPE quantifies the amount of energy available for convection and is a primary indicator of thunderstorm potential. Values below 500 J/kg indicate stable conditions, 500-1000 J/kg suggest marginal instability, 1000-2500 J/kg indicate moderate instability with possible thunderstorms, and values above 2500 J/kg signal high instability with potential for severe convective weather including lightning hazards.
+                  </p>
+                </div>
               </div>
             )}
             {liftedIndexChart && (
@@ -2984,6 +3182,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(liftedIndexChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Forecast Hour (T+0 to T+24h)</span>
+                    <span><strong>Y-Axis:</strong> Lifted Index (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the 24-hour forecast of Lifted Index (LI), a measure of atmospheric stability. The Lifted Index compares the temperature of a lifted air parcel to the environmental temperature at 500 hPa. Positive values indicate stable conditions, values near zero suggest marginal stability, and negative values indicate instability. Values below -2°C suggest conditions favorable for thunderstorm development, while values below -6°C indicate severe thunderstorm potential with significant lightning risk.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -3050,6 +3257,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(atmoWind10Chart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Wind Speed at 10m (m/s)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays surface-level wind speed measurements at 10 meters above ground level over the past 30 days. The 10-meter wind is the standard meteorological reference height and directly impacts ground operations including pad access, crane operations, and personnel safety. Historical patterns help identify typical diurnal cycles, seasonal trends, and the frequency of high-wind events that may constrain launch operations.
+                </p>
+              </div>
               {historicalAtmo?.statistics?.wind10m && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalAtmo.statistics.wind10m.min !== null && historicalAtmo.statistics.wind10m.min !== undefined ? historicalAtmo.statistics.wind10m.min.toFixed(1) : "—"} m/s</span>
@@ -3069,6 +3285,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(atmoWind100Chart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Wind Speed at 100m (m/s)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart shows wind speed measurements at 100 meters altitude over the past 30 days. The 100-meter level represents conditions in the boundary layer that the vehicle will encounter immediately after liftoff. These winds are typically stronger than surface winds due to reduced friction and are critical for assessing initial ascent loads, tower clearance dynamics, and early flight control requirements during the first seconds after launch.
+                </p>
+              </div>
               {historicalAtmo?.statistics?.wind100m && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalAtmo.statistics.wind100m.min !== null && historicalAtmo.statistics.wind100m.min !== undefined ? historicalAtmo.statistics.wind100m.min.toFixed(1) : "—"} m/s</span>
@@ -3087,6 +3312,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(atmoGustChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Wind Gust Speed (m/s)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays peak wind gust measurements over the past 30 days. Wind gusts represent sudden, brief increases in wind speed that impose dynamic loads on the vehicle structure during ground operations and early flight. Gust factors (ratio of gust speed to sustained wind) are essential for structural load calculations and determining safe conditions for pad operations, fueling, and launch commit decisions.
+                </p>
+              </div>
               {historicalAtmo?.statistics?.gustEvents && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>severe gusts (&gt;15 m/s): {historicalAtmo.statistics.gustEvents.count ?? 0}</span>
@@ -3105,6 +3339,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(atmoTempChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Surface Temperature (°C)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart tracks surface air temperature over the past 30 days. Temperature directly affects atmospheric density calculations used in trajectory modeling and Max Q predictions. It also impacts propellant density for loading calculations, thermal protection system requirements, and ground support equipment operation. Extreme temperatures may trigger additional pre-launch procedures or constraint violations.
+                </p>
+              </div>
               {historicalAtmo?.statistics?.temperature && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalAtmo.statistics.temperature.min !== null && historicalAtmo.statistics.temperature.min !== undefined ? historicalAtmo.statistics.temperature.min.toFixed(1) : "—"} °C</span>
@@ -3147,6 +3390,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(cloudTotalChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Total Cloud Cover (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays total cloud coverage percentage over the past 30 days, combining all cloud layers from surface to high altitude. Cloud cover affects optical tracking system performance, range safety visibility requirements, and compliance with flight rules regarding cumulus cloud penetration. Historical patterns help identify typical clear-sky windows and the probability of meeting visibility constraints for planned launch times.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -3157,6 +3409,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(cloudLowChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Low Cloud Cover (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows low-level cloud coverage (below approximately 2000m) over the past 30 days. Low clouds are particularly critical for launch operations as the vehicle must transit through this layer during the initial ascent phase. Low cloud conditions may trigger cumulus cloud avoidance rules, affect optical tracking acquisition, and indicate potential precipitation or icing hazards during the critical first minutes of flight.
+                  </p>
+                </div>
                 {historicalCloud?.statistics?.lowCover && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>avg: {historicalCloud.statistics.lowCover.mean !== null && historicalCloud.statistics.lowCover.mean !== undefined ? historicalCloud.statistics.lowCover.mean.toFixed(1) : "—"}%</span>
@@ -3175,6 +3436,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(precipChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Precipitation (mm)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays precipitation accumulation over the past 30 days. Precipitation is a critical launch constraint as rain can damage thermal protection systems, affect vehicle aerodynamics, and trigger triboelectric charging hazards. Any measurable precipitation within the flight path typically results in launch scrub. Historical patterns help assess seasonal precipitation trends and the likelihood of dry launch windows.
+                </p>
+              </div>
               {historicalCloud?.statistics?.precipitation && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>total: {historicalCloud.statistics.precipitation.totalMm !== null && historicalCloud.statistics.precipitation.totalMm !== undefined ? historicalCloud.statistics.precipitation.totalMm.toFixed(1) : "—"} mm</span>
@@ -3221,6 +3491,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(surfaceRHChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Relative Humidity (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays surface-level relative humidity measurements over the past 30 days. Humidity affects triboelectric charging potential during vehicle transit through the atmosphere, condensation formation on cryogenic tank surfaces, and overall atmospheric density calculations. Very low humidity can increase static electricity risks, while high humidity combined with low dewpoint depression indicates fog formation potential.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -3231,6 +3510,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(dewpointDepressionChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Dewpoint Depression (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows dewpoint depression (temperature minus dewpoint) over the past 30 days. Dewpoint depression indicates how close the air is to saturation—smaller values mean higher condensation and fog risk. Values below 2-3°C indicate high fog probability, while larger spreads indicate drier conditions. This metric is critical for assessing visibility forecasts and condensation risks on vehicle surfaces during pre-launch operations.
+                  </p>
+                </div>
                 {historicalHumidity?.statistics?.dewpointDepression && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalHumidity.statistics.dewpointDepression.min !== null && historicalHumidity.statistics.dewpointDepression.min !== undefined ? historicalHumidity.statistics.dewpointDepression.min.toFixed(1) : "—"} °C</span>
@@ -3288,6 +3576,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(inversionIndicatorChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (30-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Inversion Strength Index</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays the temperature inversion strength indicator over the past 30 days. Temperature inversions occur when temperature increases with altitude rather than decreasing, creating stable atmospheric layers that can trap pollutants and exhaust plumes near the surface. Strong inversions impact acoustic propagation causing enhanced sound levels at distance, affect toxic plume dispersion modeling, and increase fog formation probability. Higher index values indicate stronger inversion conditions.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -3563,6 +3860,15 @@ export default function EarthConditions() {
                   <span>Predicted values for upcoming hours based on NOAA space weather models.</span>
                 </div>
                 {renderDynamicChart(kpChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Forecast Time (hours ahead)</span>
+                    <span><strong>Y-Axis:</strong> Kp Index (0-9 scale)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the forecasted planetary K-index (Kp) for upcoming hours based on NOAA Space Weather Prediction Center models. The Kp index quantifies geomagnetic disturbance on a 0-9 scale, where values 0-3 indicate quiet conditions, 4 indicates unsettled conditions, and 5+ indicates geomagnetic storm levels. Higher Kp values correlate with increased radiation belt activity, GPS accuracy degradation, and potential impacts to spacecraft attitude control and communications systems.
+                  </p>
+                </div>
                 {data.kIndexHorizon?.trend && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>Trend: {data.kIndexHorizon.trend}</span>
@@ -3755,6 +4061,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(spaceWeatherKpChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Kp Index (0-9 scale)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays historical Kp index measurements over the past 7 days. The Kp index is a global geomagnetic activity indicator derived from ground-based magnetometer networks worldwide. Tracking Kp history helps identify geomagnetic storm patterns, assess the persistence of disturbed conditions, and correlate space weather events with observed effects on spacecraft systems. Sustained elevated Kp values indicate prolonged periods of enhanced radiation belt activity and increased risk to sensitive electronics.
+                </p>
+              </div>
               {historicalSpaceWeather?.statistics?.kpIndex && (
                 <div className="dinosatEarthCondStatsSummary">
                   <span>min: {historicalSpaceWeather.statistics.kpIndex.min !== null && historicalSpaceWeather.statistics.kpIndex.min !== undefined ? historicalSpaceWeather.statistics.kpIndex.min.toFixed(1) : "—"}</span>
@@ -3884,6 +4199,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(proton10Chart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Proton Flux ≥10 MeV (pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the flux of solar energetic protons with energies ≥10 MeV measured by GOES satellites over the past 7 days. This energy threshold is commonly used for solar proton event (SPE) detection. Flux values exceeding 10 pfu indicate an S1 (Minor) radiation storm, with higher levels triggering more severe classifications. These protons can cause single-event upsets in spacecraft electronics, degrade solar panel performance, and pose radiation hazards during EVA operations.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.proton10MeV && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.proton10MeV.min !== null && historicalRad.statistics.proton10MeV.min !== undefined ? historicalRad.statistics.proton10MeV.min.toFixed(2) : "—"} pfu</span>
@@ -3901,6 +4225,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(proton50Chart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Proton Flux ≥50 MeV (pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the flux of higher-energy solar protons (≥50 MeV) over the past 7 days. These more energetic protons have greater penetrating power and can affect electronics behind shielding that would stop lower-energy particles. Elevated ≥50 MeV flux is particularly concerning for crewed missions and sensitive payloads. The ≥50 MeV channel provides early indication of the hardness spectrum of solar particle events.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.proton50MeV && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.proton50MeV.min !== null && historicalRad.statistics.proton50MeV.min !== undefined ? historicalRad.statistics.proton50MeV.min.toFixed(2) : "—"} pfu</span>
@@ -3922,6 +4255,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(proton100Chart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Proton Flux ≥100 MeV (pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the flux of very high-energy protons (≥100 MeV) over the past 7 days. These extremely energetic particles can penetrate substantial shielding and pose the greatest radiation threat to astronauts and sensitive electronics. Ground-level enhancement (GLE) events, where solar protons are detected by surface neutron monitors, require ≥100 MeV protons. Elevated flux at this energy indicates the most severe solar particle events.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.proton100MeV && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.proton100MeV.min !== null && historicalRad.statistics.proton100MeV.min !== undefined ? historicalRad.statistics.proton100MeV.min.toFixed(2) : "—"} pfu</span>
@@ -3939,6 +4281,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(electron2Chart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Electron Flux ≥2 MeV (pfu)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows relativistic electron flux (≥2 MeV) measured by GOES satellites over the past 7 days. High-energy electrons in the outer radiation belt can cause deep dielectric charging in spacecraft, where charge accumulates in insulating materials and discharges destructively. Flux levels above 1000 pfu indicate enhanced electron belt conditions, while sustained levels above 10000 pfu present significant risk of electrostatic discharge damage to spacecraft components.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.electron2MeV && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.electron2MeV.min !== null && historicalRad.statistics.electron2MeV.min !== undefined ? historicalRad.statistics.electron2MeV.min.toFixed(0) : "—"} pfu</span>
@@ -3960,6 +4311,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(neutronJungChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Neutron Count Rate (% deviation from baseline)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays neutron monitor data from the Jungfraujoch (JUNG) station in Switzerland over the past 7 days. With a geomagnetic cutoff rigidity of 4.5 GV, JUNG responds to higher-energy cosmic rays and solar particles. Neutron monitors detect secondary particles produced when cosmic rays interact with Earth's atmosphere. Sudden increases (Forbush decreases in reverse) indicate ground-level enhancement events from solar particle storms, while gradual decreases indicate galactic cosmic ray modulation by interplanetary disturbances.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.neutronJung && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.neutronJung.min !== null && historicalRad.statistics.neutronJung.min !== undefined ? historicalRad.statistics.neutronJung.min.toFixed(1) : "—"}%</span>
@@ -3979,6 +4339,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(neutronNewkChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Neutron Count Rate (% deviation from baseline)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows neutron monitor data from the Newark (NEWK) station over the past 7 days. With a lower geomagnetic cutoff rigidity of 2.4 GV compared to JUNG, NEWK is sensitive to a broader range of cosmic ray energies. Comparing data from stations with different cutoff rigidities helps characterize the energy spectrum of solar particle events. Significant deviations from baseline indicate space weather disturbances that affect the radiation environment throughout the magnetosphere.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.neutronNewk && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.neutronNewk.min !== null && historicalRad.statistics.neutronNewk.min !== undefined ? historicalRad.statistics.neutronNewk.min.toFixed(1) : "—"}%</span>
@@ -4002,6 +4371,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(xrayShortChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> X-ray Flux 0.05-0.4nm (W/m²)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays solar X-ray flux in the short wavelength band (0.05-0.4nm) over the past 7 days. This harder X-ray channel responds to the hottest coronal plasma during solar flares and provides information about the impulsive phase of flare events. The ratio between short and long wavelength X-ray channels helps characterize flare temperature and intensity. Elevated short-wavelength flux indicates significant solar activity with potential for associated particle events.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.xrayShort && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.xrayShort.min !== null && historicalRad.statistics.xrayShort.min !== undefined ? historicalRad.statistics.xrayShort.min.toExponential(2) : "—"} W/m²</span>
@@ -4019,6 +4397,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(xrayLongChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> X-ray Flux 0.1-0.8nm (W/m²)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows solar X-ray flux in the long wavelength band (0.1-0.8nm) over the past 7 days. This channel is used for the standard solar flare classification system: A, B, C, M, and X classes based on peak flux levels. M-class flares (≥10⁻⁵ W/m²) can cause brief HF radio blackouts, while X-class flares (≥10⁻⁴ W/m²) may cause significant ionospheric disturbances affecting GPS and communications. Flare events are identified as spikes in this time series.
+                  </p>
+                </div>
                 {historicalRad?.statistics?.xrayLong && (
                   <div className="dinosatEarthCondStatsSummary">
                     <span>min: {historicalRad.statistics.xrayLong.min !== null && historicalRad.statistics.xrayLong.min !== undefined ? historicalRad.statistics.xrayLong.min.toExponential(2) : "—"} W/m²</span>
@@ -4420,6 +4807,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(landSeaGradientChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (48-hour observation period)</span>
+                    <span><strong>Y-Axis:</strong> Temperature Gradient (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the temperature differential between land and sea surfaces over the past 48 hours. The land-sea gradient is a primary driver of coastal mesoscale circulations including sea breezes and land breezes. Larger positive gradients indicate warmer land relative to sea, promoting onshore flow development. Understanding gradient evolution helps predict wind shift timing and intensity changes that may affect launch operations at coastal facilities.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -4432,6 +4828,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(marineLayerChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (48-hour observation period)</span>
+                  <span><strong>Y-Axis:</strong> Marine Layer Depth (m)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart tracks the vertical extent of the marine layer over the past 48 hours. The marine layer is a cool, moist air mass that forms over ocean surfaces and can extend inland at coastal launch sites. Marine layer depth affects visibility conditions, low-level wind shear characteristics, and temperature inversion strength. Deeper marine layers may indicate persistent low cloud conditions and reduced visibility that could impact optical tracking systems and launch commit criteria.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -4617,6 +5022,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("COMPUTED", "small")}
                 </div>
                 {renderDynamicChart(soundSpeedChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Altitude (m)</span>
+                    <span><strong>Y-Axis:</strong> Sound Speed (m/s)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the vertical profile of sound speed through the atmosphere. Sound speed varies with temperature and humidity, creating layers that can bend, focus, or trap acoustic energy. Temperature inversions create sound speed minima that act as acoustic waveguides, potentially channeling launch noise toward populated areas. This profile is essential for predicting sonic boom propagation patterns and community noise impact assessment during launch operations.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -4781,6 +5195,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(diffElectronChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Electron Flux (e/cm²-s-sr-keV)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays differential electron flux measurements from space weather monitoring satellites over the past 7 days. Differential flux represents electron intensity at specific energy levels, providing insight into radiation belt dynamics and solar energetic particle events. Elevated electron flux can cause spacecraft charging, sensor interference, and increased single event upset rates in avionics systems during ascent through the radiation belts.
+                  </p>
+                </div>
               </div>
             )}
             {radiationBeltChart && (
@@ -4790,6 +5213,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(radiationBeltChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                    <span><strong>Y-Axis:</strong> Electron Flux (e/cm²-s-sr)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the integrated electron flux in Earth's radiation belts over the past 7 days. The Van Allen radiation belts contain trapped energetic particles that pose hazards to spacecraft electronics and astronaut health. Monitoring flux variations helps identify geomagnetic storm impacts and predict radiation exposure during orbital insertion. Enhanced belt populations following solar events may require trajectory modifications or launch delays for crewed missions.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -4822,6 +5254,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("HISTORICAL", "small")}
               </div>
               {renderDynamicChart(diffProtonChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (7-day observation period)</span>
+                  <span><strong>Y-Axis:</strong> Proton Flux (p/cm²-s-sr-MeV)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart displays differential proton flux measurements over the past 7 days. Solar energetic protons pose significant radiation hazards during solar particle events, penetrating spacecraft shielding and causing total ionizing dose accumulation in sensitive electronics. Proton flux monitoring is critical for crew safety assessment on crewed missions and for predicting degradation rates of solar panels and optical sensors during extended operations.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -4866,6 +5307,15 @@ export default function EarthConditions() {
                   <span>Predicted wind speeds for upcoming hours</span>
                 </div>
                 {renderDynamicChart(windForecastChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Wind Speed (m/s)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays probabilistic wind speed forecasts for the upcoming hours. Wind speed is a primary launch constraint affecting vehicle stability during liftoff and early ascent. The forecast helps mission planners identify optimal launch windows and anticipate potential holds due to wind exceedances. Ensemble model outputs provide uncertainty bounds to support risk-informed decision making for launch commit criteria evaluation.
+                  </p>
+                </div>
               </div>
             )}
             {precipForecastChart && (
@@ -4879,6 +5329,15 @@ export default function EarthConditions() {
                   <span>Probability of precipitation for upcoming hours</span>
                 </div>
                 {renderDynamicChart(precipForecastChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Precipitation Probability (%)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the probability of precipitation occurrence over the forecast period. Precipitation is a critical launch constraint due to triboelectric charging risks, lightning potential, and visibility impacts. Even light rain can trigger launch scrubs due to flight termination system antenna performance degradation. The probabilistic format helps identify windows with lowest precipitation risk for launch scheduling optimization.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -4892,6 +5351,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(createDynamicLineChart("Extended Wind Speed", atmosphericForecast.filter(d => d && d.windSpeed !== null && d.windSpeed !== undefined).slice(0, 72), "timestamp", "windSpeed", " m/s", "#22c55e", true), "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (72-hour forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Wind Speed (m/s)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart provides an extended 72-hour wind speed forecast for long-range launch planning. Extended forecasts enable mission planners to identify favorable weather windows days in advance and coordinate ground operations scheduling. While uncertainty increases with forecast lead time, this data supports strategic decisions about propellant loading schedules, crew timelines, and range asset positioning for upcoming launch attempts.
+                  </p>
+                </div>
               </div>
             )}
             {extAtmoTempChart && (
@@ -4901,6 +5369,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(extAtmoTempChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (72-hour forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Temperature (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the 72-hour temperature forecast for the launch site. Temperature affects propellant density calculations, battery performance, and thermal protection system requirements. Extended temperature forecasts help predict sea breeze timing based on land-sea gradient evolution and support planning for temperature-sensitive ground operations such as cryogenic propellant loading and payload processing activities.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -4913,6 +5390,15 @@ export default function EarthConditions() {
                 {renderDataTypeBadge("FORECAST", "small")}
               </div>
               {renderDynamicChart(extAtmoPrecipChart, "dinosatEarthCondChart")}
+              <div className="dinosatEarthCondChartDescription">
+                <div className="dinosatEarthCondChartAxesInfo">
+                  <span><strong>X-Axis:</strong> Time (72-hour forecast period)</span>
+                  <span><strong>Y-Axis:</strong> Precipitation Probability (%)</span>
+                </div>
+                <p className="dinosatEarthCondChartDescriptionText">
+                  This chart shows extended precipitation probability forecasts over the next 72 hours. Long-range precipitation forecasts support strategic launch scheduling and help identify backup launch windows. The extended outlook enables coordination with range safety, tracking assets, and recovery forces that require advance notice for positioning. Higher probability periods may trigger contingency planning for launch delays or scrubs.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -4951,6 +5437,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(extMarineWaveChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (72-hour forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Significant Wave Height (m)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the 72-hour significant wave height forecast for downrange recovery zones. Wave height is a critical constraint for booster recovery operations, crew capsule splashdown, and ship-based tracking asset positioning. Extended marine forecasts enable advance planning for recovery vessel deployment and help identify windows suitable for drone ship landing attempts or crew return operations.
+                  </p>
+                </div>
               </div>
             )}
             {extMarineSSTChart && (
@@ -4960,6 +5455,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("FORECAST", "small")}
                 </div>
                 {renderDynamicChart(extMarineSSTChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (72-hour forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Sea Surface Temperature (°C)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows the 72-hour sea surface temperature forecast. Sea surface temperature influences coastal weather patterns, marine layer development, and fog formation probability. SST gradients drive coastal circulation patterns that affect launch site winds. For crew recovery operations, SST data supports crew survival time calculations and thermal protection requirements in the event of an off-nominal water landing.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -5004,6 +5508,15 @@ export default function EarthConditions() {
                   <span>Predicted geomagnetic activity for upcoming hours</span>
                 </div>
                 {renderDynamicChart(kpForecastChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (forecast period)</span>
+                    <span><strong>Y-Axis:</strong> Kp Index (0-9 scale)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart displays the forecast planetary K-index for upcoming hours. The Kp forecast enables prediction of geomagnetic storm impacts on spacecraft systems and communication links. Values above 5 indicate storm conditions that may cause GPS degradation, HF radio blackouts, and increased radiation exposure during polar crossings. Launch planners use Kp forecasts to assess single event upset risks and communication reliability during critical mission phases.
+                  </p>
+                </div>
               </div>
             )}
             {geomagneticChart && (
@@ -5013,6 +5526,15 @@ export default function EarthConditions() {
                   {renderDataTypeBadge("HISTORICAL", "small")}
                 </div>
                 {renderDynamicChart(geomagneticChart, "dinosatEarthCondChart")}
+                <div className="dinosatEarthCondChartDescription">
+                  <div className="dinosatEarthCondChartAxesInfo">
+                    <span><strong>X-Axis:</strong> Time (recent observation period)</span>
+                    <span><strong>Y-Axis:</strong> Kp Index (0-9 scale)</span>
+                  </div>
+                  <p className="dinosatEarthCondChartDescriptionText">
+                    This chart shows historical Kp index measurements from recent observation periods. The Kp index quantifies disturbances in Earth's magnetic field caused by solar wind interactions. Historical patterns help identify recurring geomagnetic activity cycles and validate forecast accuracy. Sustained elevated Kp values indicate ongoing storm conditions that may have cumulative effects on spacecraft systems and require extended monitoring before launch clearance.
+                  </p>
+                </div>
               </div>
             )}
           </div>
