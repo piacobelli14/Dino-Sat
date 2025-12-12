@@ -2249,7 +2249,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 260px;
+  height: 600px;
   overflow: hidden;
   background: var(--ec-bg-surface);
   border: 1px solid var(--ec-border-primary);
@@ -2829,12 +2829,14 @@ body {
   white-space: nowrap;
 }
 
-.dinosatEarthCondChartDescription {
+.dinosatEarthCondChartDescription, 
+.dinosatEarthCondChartDescriptionMaps {
   margin-top: 12px;
   padding: 12px 14px;
   background: rgba(100, 116, 139, 0.08);
   border-radius: 6px;
   border-left: 3px solid rgba(100, 116, 139, 0.4);
+  margin: 1rem 1rem;
 }
 
 .dinosatEarthCondChartAxesInfo {
