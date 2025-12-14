@@ -803,6 +803,7 @@ export default function NBodySimulator() {
   const bodiesRef = useRef([]);
   const simulationTimeRef = useRef(0);
   const mergedBodyIdsRef = useRef(new Set());
+  const initialBodiesRef = useRef([]);
 
   bodiesRef.current = bodies;
   simulationTimeRef.current = simulationTime;
@@ -2371,6 +2372,26 @@ export default function NBodySimulator() {
     setBodies(prev => {
       const newBodies = [...prev, body];
       initialEnergyRef.current = null;
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
       return newBodies;
     });
     setAddBodyModal(false);
@@ -2379,12 +2400,35 @@ export default function NBodySimulator() {
     calculateOrbitalState, calculateFlybyState, calculateInterstellarState, EARTH_RADIUS_MEAN, G_CODATA]);
 
   const updateBody = useCallback((id, updates) => {
-    setBodies(prev => prev.map(b => {
-      if (b.id === id) {
-        return { ...b, ...updates };
-      }
-      return b;
-    }));
+    setBodies(prev => {
+      const newBodies = prev.map(b => {
+        if (b.id === id) {
+          return { ...b, ...updates };
+        }
+        return b;
+      });
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
+      return newBodies;
+    });
     initialEnergyRef.current = null;
   }, []);
 
@@ -2392,28 +2436,79 @@ export default function NBodySimulator() {
     setBodies(prev => {
       const newBodies = prev.filter(b => b.id !== id);
       initialEnergyRef.current = null;
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
       return newBodies;
     });
     if (selectedBody === id) setSelectedBody(null);
     if (focusedBody === id) setFocusedBody(null);
   }, [selectedBody, focusedBody]);
 
-  const clearAllBodies = useCallback(() => {
+  const clearAllBodies = () => {
     setBodies([]);
     setSelectedBody(null);
     setFocusedBody(null);
     setSimulationTime(0);
+    setIsRunning(false);
     initialEnergyRef.current = null;
+    initialBodiesRef.current = [];
     mergedBodyIdsRef.current.clear();
-  }, []);
+    setPnWarnings([]);
+  };
 
   const resetSimulation = useCallback(() => {
-    setSimulationTime(0);
     setIsRunning(false);
-    setBodies(prev => prev.map(b => ({ ...b, trail: [], positionHistory: null, isDebris: false, orientation: null, omegaBody_x: 0, omegaBody_y: 0 })));
+    setSimulationTime(0);
     initialEnergyRef.current = null;
     setPnWarnings([]);
     mergedBodyIdsRef.current.clear();
+    
+    if (initialBodiesRef.current.length > 0) {
+      setBodies(initialBodiesRef.current.map(ib => ({
+        ...ib,
+        trail: [],
+        visible: true,
+        positionHistory: null,
+        isDebris: false,
+        orientation: null,
+        omegaBody_x: 0,
+        omegaBody_y: 0,
+        errX: 0,
+        errY: 0,
+        errZ: 0,
+        errVx: 0,
+        errVy: 0,
+        errVz: 0
+      })));
+    } else {
+      setBodies(prev => prev.map(b => ({
+        ...b,
+        trail: [],
+        positionHistory: null,
+        isDebris: false,
+        orientation: null,
+        omegaBody_x: 0,
+        omegaBody_y: 0
+      })));
+    }
   }, []);
 
   const formatNumber = (num, decimals = 2) => {
@@ -3280,7 +3375,7 @@ export default function NBodySimulator() {
                   <div className="nbody-section-header"><FontAwesomeIcon icon={faGlobe} /> Bodies ({bodies.length})</div>
                   <div className="dinosatNBBodySimControlActionsLong">
                     <button className="dinosatNBBodySimBtnLong dinosatNBBodySimBtnPrimary" onClick={openAddBodyModal}><FontAwesomeIcon icon={faPlus} /> Add</button>
-                    <button className="dinosatNBBodySimBtnLong dinosatNBBodySimBtnSecondary" onClick={clearAllBodies}><FontAwesomeIcon icon={faTrash} /> Clear</button>
+                    <button className="dinosatNBBodySimBtnLong dinosatNBBodySimBtnSecondary" onClick={() => setBodies([])}><FontAwesomeIcon icon={faTrash} /> Clear</button>
                   </div>
                   <div className="nbody-body-list">
                     {bodies.map(body => (
@@ -3298,7 +3393,7 @@ export default function NBodySimulator() {
                   </div>
                 </div>
                 <div className="dinosatNBBodySimControlActions">
-                  <button className="dinosatNBBodySimBtn dinosatNBBodySimBtnPrimary" onClick={resetSimulation}><FontAwesomeIcon icon={faRedo} /> Reset</button>
+                  <button className="dinosatNBBodySimBtn dinosatNBBodySimBtnPrimary" onClick={() => setBodies([])}><FontAwesomeIcon icon={faRedo} /> Reset</button>
                   <button className="dinosatNBBodySimBtn dinosatNBBodySimBtnSecondary" onClick={() => setHudVisible(!hudVisible)}><FontAwesomeIcon icon={faChartLine} /> Stats HUD</button>
                 </div>
               </div>
