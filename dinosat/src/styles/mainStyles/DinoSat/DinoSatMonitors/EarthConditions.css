@@ -306,6 +306,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--ec-spacing-md);
+  overflow: scroll;
 }
 
 .dinosatEarthCondControlGroupStack {
@@ -317,11 +318,17 @@ body {
   max-width: 100%;
   min-width: 100%;
   border-bottom: 1px solid var(--ec-border-subtle);
-  padding: 1rem;
+  padding: 1rem 1rem 0.6rem 1rem;
   box-sizing: border-box;
 }
 
+.dinosatEarthCondControlGroupStack:last-child {
+  padding-bottom: 0 !important; 
+  margin-bottom: 0 !important; 
+}
+
 .dinosatEarthCondControlGroup,
+.dinosatEarthCondControlGroupCheckboxBig,
 .dinosatEarthCondControlGroupMini,
 .dinosatEarthCondControlGroupSlider {
   display: flex;
@@ -344,7 +351,13 @@ body {
   margin-bottom: 0.8rem;
 }
 
+.dinosatEarthCondControlGroupCheckboxBig {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
 .dinosatEarthCondControlGroup label,
+.dinosatEarthCondControlGroupCheckboxBig label,
 .dinosatEarthCondControlGroupMini label,
 .dinosatEarthCondControlGroupSlider label {
   font-size: 0.6rem;
@@ -382,6 +395,7 @@ body {
   font-family: inherit;
   outline: none;
   transition: border-color var(--ec-transition-fast);
+  margin: 0; 
 }
 
 .dinosatEarthCondSelect,
@@ -511,7 +525,8 @@ body {
   background: var(--ec-border-subtle);
 }
 
-.dinosatEarthCondControlActions {
+.dinosatEarthCondControlActions, 
+.dinosatEarthCondControlActionsLong {
   display: flex;
   flex-direction: column;
   gap: var(--ec-spacing-sm);
@@ -521,9 +536,18 @@ body {
   padding: 1rem;
   background: var(--ec-bg-secondary);
   border-top: 1px solid var(--ec-border-subtle);
+  width: 100%; 
+
 }
 
-.dinosatEarthCondBtn {
+.dinosatEarthCondControlActionsLong {
+  padding: 1rem 0; 
+  display: flex; 
+  flex-wrap: wrap;
+}
+
+.dinosatEarthCondBtn, 
+.dinosatEarthCondBtnLong {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -539,6 +563,10 @@ body {
   cursor: pointer;
   transition: all var(--ec-transition-fast);
   color: var(--ec-text-primary);
+}
+
+.dinosatEarthCondBtnLong { 
+  flex: 1; 
 }
 
 .dinosatEarthCondBtnPrimary {
