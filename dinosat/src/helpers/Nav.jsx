@@ -191,7 +191,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => toggleSubDropdown("sat-trackers")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faClipboard} className="navigationButtonIcon" />
@@ -208,7 +208,7 @@ const DinoLabsNav = ({ activePage }) => {
                         <button
                           className="navigationButtonWrapper"
                           onClick={() => navigate("/satellite-tracker")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                             <FontAwesomeIcon icon={faSatellite} className="navigationButtonIcon" />
@@ -216,34 +216,14 @@ const DinoLabsNav = ({ activePage }) => {
                           </div>
                         </button>
                         
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/comet-tracker")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
-                            Comet Tracker
-                          </div>
-                        </button>
-
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/asteroid-tracker")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
-                            Asteroid Tracker
-                          </div>
-                        </button>
+                        
                       </>
                     )}
 
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => toggleSubDropdown("sat-catalogs")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faTable} className="navigationButtonIcon" />
@@ -259,22 +239,33 @@ const DinoLabsNav = ({ activePage }) => {
                       <>
                         <button
                           className="navigationButtonWrapper"
-                          onClick={() => navigate("/star-catalog")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
+                          onClick={() => navigate("/asteroid-catalog")}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faStar} className="navigationButtonIcon" />
-                            Star Catalog
+                            <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
+                            Asteroid Catalog
+                          </div>
+                        </button>
+
+                        <button
+                          className="navigationButtonWrapper"
+                          onClick={() => navigate("/comet-catalog")}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                        >
+                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                            <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
+                            Comet Catalog
                           </div>
                         </button>
                         
                         <button
                           className="navigationButtonWrapper"
                           onClick={() => navigate("/exoplanet-catalog")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faEarthOceania} className="navigationButtonIcon" />
+                            <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
                             Exoplanet Catalog
                           </div>
                         </button>
@@ -284,7 +275,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => toggleSubDropdown("sat-simulators")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faComputer} className="navigationButtonIcon" />
@@ -301,7 +292,7 @@ const DinoLabsNav = ({ activePage }) => {
                         <button
                           className="navigationButtonWrapper"
                           onClick={() => navigate("/simulator")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                             <FontAwesomeIcon icon={faMobilePhone} className="navigationButtonIcon" />
@@ -314,7 +305,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => toggleSubDropdown("sat-monitoring")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faGauge} className="navigationButtonIcon" />
@@ -331,7 +322,7 @@ const DinoLabsNav = ({ activePage }) => {
                         <button
                           className="navigationButtonWrapper"
                           onClick={() => navigate("/earth-conditions")}
-                          style={{ background: "linear-gradient(135deg, #121418 0%, #1c222c 50%, #2a323e 100%)" }}
+                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                             <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
@@ -344,7 +335,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => navigate("/celestial-catalog")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faBook} className="navigationButtonIcon" />
@@ -379,7 +370,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => navigate("/geode-browse-specimen")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faList} className="navigationButtonIcon" />
@@ -390,7 +381,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => navigate("/geode-add-specimen")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faPlusSquare} className="navigationButtonIcon" />
@@ -401,7 +392,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => navigate("/geode-mineral-catalog")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faDatabase} className="navigationButtonIcon" />
@@ -435,7 +426,7 @@ const DinoLabsNav = ({ activePage }) => {
                     <button
                       className="navigationButtonWrapper"
                       onClick={() => navigate("/sprout-botanical-catalog")}
-                      style={{ background: "linear-gradient(135deg, #0e1014 0%, #181c24 50%, #242a36 100%)" }}
+                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                         <FontAwesomeIcon icon={faDatabase} className="navigationButtonIcon" />

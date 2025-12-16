@@ -8,6 +8,7 @@ import {
   faPlus, faSquarePlus, faBars, faSquareXmark, faSatellite, faChartLine, 
   faChevronDown, faChevronUp, faXmarkSquare, faSquareCheck, faClone 
 } from "@fortawesome/free-solid-svg-icons";
+import * as satelliteJs from 'satellite.js';
 import DinoLabsNav from "../../../helpers/Nav.jsx";
 import "../../../styles/helperStyles/Switch.css";
 import "../../../styles/mainStyles/DinoSat/DinoSatTrackers/Satellites/SatelliteTracker.css";
@@ -333,6 +334,28 @@ export default function SatelliteTracker() {
   };
 
   const computeOrbitPosition = (satellite, currentJD) => {
+    if (satellite.tle && satellite.tle.line1 && satellite.tle.line2) {
+      try {
+        const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
+        const now = new Date(Date.now() + simulationTime.current * 60000);
+        const positionAndVelocity = satelliteJs.propagate(satrec, now);
+        const positionEci = positionAndVelocity.position;
+        
+        if (positionEci) {
+          const earthRadius = 6.371;
+          const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+          const distanceKm = Math.sqrt(positionEci.x * positionEci.x + positionEci.y * positionEci.y + positionEci.z * positionEci.z);
+          const scaleFactor = sceneOrbitRadius / distanceKm;
+          
+          return new THREE.Vector3(
+            positionEci.x * scaleFactor,
+            positionEci.z * scaleFactor,
+            -positionEci.y * scaleFactor
+          );
+        }
+      } catch (e) {}
+    }
+
     const earthRadius = 6.371;
     const orbitRadius = earthRadius + (satellite.altitude / 100);
     const angularVelocity = (2 * Math.PI) / satellite.period;
@@ -352,6 +375,7 @@ export default function SatelliteTracker() {
     
     return position;
   };
+
 
   const createLabel = useCallback((text, color = "#ffffff") => {
     const div = document.createElement("div");
@@ -377,36 +401,53 @@ export default function SatelliteTracker() {
   }, []);
 
   const createOrbitLine = useCallback((satellite) => {
-    const orbitPoints = [];
-    const segments = 64;
-    const earthRadius = 6.371;
-    const orbitRadius = earthRadius + (satellite.altitude / 100);
-    const inclinationRad = (satellite.inclination * Math.PI) / 180;
-    const raanRad = (satellite.raan * Math.PI) / 180;
-
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * (2 * Math.PI);
-      const x = orbitRadius * Math.cos(angle);
-      const y = 0;
-      const z = orbitRadius * Math.sin(angle);
-      const orbitPoint = new THREE.Vector3(x, y, z);
-      
-      orbitPoint.applyAxisAngle(new THREE.Vector3(1, 0, 0), inclinationRad);
-      orbitPoint.applyAxisAngle(new THREE.Vector3(0, 1, 0), raanRad);
-      
-      orbitPoints.push(orbitPoint);
+    if (!satellite.tle || !satellite.tle.line1 || !satellite.tle.line2) {
+      return null;
     }
 
-    const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-    const orbitMaterial = new THREE.LineBasicMaterial({
-      color: satellite.color,
-      transparent: true,
-      opacity: 0.6,
-      linewidth: 1
-    });
-    const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-    orbitLine.visible = showOrbits;
-    return orbitLine;
+    try {
+      const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
+      const orbitPoints = [];
+      const segments = 64;
+      const periodMinutes = satellite.period;
+      const now = new Date(Date.now() + simulationTime.current * 60000);
+      
+      const earthRadius = 6.371;
+      const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+
+      for (let i = 0; i <= segments; i++) {
+        const timeOffset = (i / segments) * periodMinutes;
+        const pointTime = new Date(now.getTime() + timeOffset * 60000);
+        const positionAndVelocity = satelliteJs.propagate(satrec, pointTime);
+        const positionEci = positionAndVelocity.position;
+
+        if (positionEci) {
+          const distanceKm = Math.sqrt(positionEci.x * positionEci.x + positionEci.y * positionEci.y + positionEci.z * positionEci.z);
+          const scaleFactor = sceneOrbitRadius / distanceKm;
+          
+          orbitPoints.push(new THREE.Vector3(
+            positionEci.x * scaleFactor,
+            positionEci.z * scaleFactor,
+            -positionEci.y * scaleFactor
+          ));
+        }
+      }
+
+      if (orbitPoints.length < 2) return null;
+
+      const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+      const orbitMaterial = new THREE.LineBasicMaterial({
+        color: satellite.color,
+        transparent: true,
+        opacity: 0.6,
+        linewidth: 1
+      });
+      const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+      orbitLine.visible = showOrbits;
+      return orbitLine;
+    } catch (e) {
+      return null;
+    }
   }, [showOrbits]);
 
   const createTrailLine = useCallback((satellite) => {
@@ -428,6 +469,48 @@ export default function SatelliteTracker() {
     trailLine.visible = showTrails;
     return trailLine;
   }, [showTrails]);
+
+  const updateTrailPositions = useCallback((satellite, trail) => {
+    if (!satellite.tle || !satellite.tle.line1 || !satellite.tle.line2) return;
+
+    try {
+      const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
+      const positions = trail.geometry.attributes.position.array;
+      const colors = trail.geometry.attributes.color.array;
+      const color = new THREE.Color(satellite.color);
+      const now = new Date(Date.now() + simulationTime.current * 60000);
+      
+      const earthRadius = 6.371;
+      const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+      const trailMinutes = satellite.period / 4;
+
+      for (let i = 0; i < PERFORMANCE_CONSTANTS.TRAIL_LENGTH; i++) {
+        const timeOffset = -(i / PERFORMANCE_CONSTANTS.TRAIL_LENGTH) * trailMinutes;
+        const pointTime = new Date(now.getTime() + timeOffset * 60000);
+        const positionAndVelocity = satelliteJs.propagate(satrec, pointTime);
+        const positionEci = positionAndVelocity.position;
+
+        if (positionEci) {
+          const distanceKm = Math.sqrt(positionEci.x * positionEci.x + positionEci.y * positionEci.y + positionEci.z * positionEci.z);
+          const scaleFactor = sceneOrbitRadius / distanceKm;
+
+          const idx = i * 3;
+          positions[idx] = positionEci.x * scaleFactor;
+          positions[idx + 1] = positionEci.z * scaleFactor;
+          positions[idx + 2] = -positionEci.y * scaleFactor;
+
+          const fade = Math.pow((PERFORMANCE_CONSTANTS.TRAIL_LENGTH - i) / PERFORMANCE_CONSTANTS.TRAIL_LENGTH, 1.5);
+          colors[idx] = color.r * fade;
+          colors[idx + 1] = color.g * fade;
+          colors[idx + 2] = color.b * fade;
+        }
+      }
+
+      trail.geometry.attributes.position.needsUpdate = true;
+      trail.geometry.attributes.color.needsUpdate = true;
+      trail.geometry.setDrawRange(0, PERFORMANCE_CONSTANTS.TRAIL_LENGTH);
+    } catch (e) {}
+  }, []);
 
   const updateSpatialGrid = useCallback(() => {
     spatialGrid.clear();
@@ -530,8 +613,10 @@ export default function SatelliteTracker() {
 
       if (showOrbits && !orbitLinesRef.current[satellite.id] && satellite.category !== "Deep Space") {
         const orbitLine = createOrbitLine(satellite);
-        satelliteGroupRef.current.add(orbitLine);
-        orbitLinesRef.current[satellite.id] = orbitLine;
+        if (orbitLine) {  // Add this null check
+          satelliteGroupRef.current.add(orbitLine);
+          orbitLinesRef.current[satellite.id] = orbitLine;
+        }
       }
 
       if (showTrails && !trailLinesRef.current[satellite.id] && satellite.category !== "Deep Space") {
@@ -549,41 +634,9 @@ export default function SatelliteTracker() {
         
         if (showTrails && frameCountRef.current % 4 === 0) {
           const trail = trailLinesRef.current[satellite.id];
-          const positions = trail.geometry.attributes.position.array;
-          const colors = trail.geometry.attributes.color.array;
-          const color = new THREE.Color(satellite.color);
-
-          const earthRadius = 6.371;
-          const orbitRadius = earthRadius + (satellite.altitude / 100);
-          const angularVelocity = (2 * Math.PI) / satellite.period;
-          const phase = (satellite.id.charCodeAt(0) % 100) * 0.1;
-          const inclinationRad = (satellite.inclination * Math.PI) / 180;
-          const raanRad = (satellite.raan * Math.PI) / 180;
-
-          for (let i = 0; i < PERFORMANCE_CONSTANTS.TRAIL_LENGTH; i++) {
-            const trailAngle = (simulationTime.current * angularVelocity) + phase - (i * 0.05);
-            const trailX = orbitRadius * Math.cos(trailAngle);
-            const trailY = 0;
-            const trailZ = orbitRadius * Math.sin(trailAngle);
-            const trailPoint = new THREE.Vector3(trailX, trailY, trailZ);
-            
-            trailPoint.applyAxisAngle(new THREE.Vector3(1, 0, 0), inclinationRad);
-            trailPoint.applyAxisAngle(new THREE.Vector3(0, 1, 0), raanRad);
-
-            const idx = i * 3;
-            positions[idx] = trailPoint.x;
-            positions[idx + 1] = trailPoint.y;
-            positions[idx + 2] = trailPoint.z;
-
-            const fade = Math.pow((PERFORMANCE_CONSTANTS.TRAIL_LENGTH - i) / PERFORMANCE_CONSTANTS.TRAIL_LENGTH, 1.5);
-            colors[idx] = color.r * fade;
-            colors[idx + 1] = color.g * fade;
-            colors[idx + 2] = color.b * fade;
+          if (trail) {
+            updateTrailPositions(satellite, trail);
           }
-
-          trail.geometry.attributes.position.needsUpdate = true;
-          trail.geometry.attributes.color.needsUpdate = true;
-          trail.geometry.setDrawRange(0, PERFORMANCE_CONSTANTS.TRAIL_LENGTH);
         }
       }
     });
@@ -2330,4 +2383,4 @@ END`;
       </div>
     </div>
   );
-}
+} 

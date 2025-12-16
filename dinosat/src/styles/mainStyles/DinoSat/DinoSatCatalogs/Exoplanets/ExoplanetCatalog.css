@@ -949,6 +949,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   gap: var(--st-spacing-md);
+  overflow: scroll; 
 }
 
 .dinosatExoplanetHUDSectionItem span:first-child {
@@ -1024,4 +1025,73 @@
     max-width: 100px;
     font-size: 0.5rem;
   }
+}
+
+.dinoSatExoplanetToursList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+  padding: var(--st-spacing-md);
+  border-bottom: 1px solid var(--st-border-subtle);
+}
+
+.dinoSatExoplanetTourButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--st-spacing-xs);
+  padding: var(--st-spacing-sm) var(--st-spacing-md);
+  background: var(--st-bg-tertiary);
+  border: 1px solid var(--st-border-primary);
+  border-left: 3px solid var(--st-accent-primary);
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.dinoSatExoplanetTourButton:hover {
+  background: var(--st-bg-elevated);
+  border-color: var(--st-border-glow);
+  border-left-color: var(--st-accent-primary);
+}
+
+.dinoSatExoplanetTourButton:active {
+  transform: scale(0.98);
+}
+
+.dinoSatExoplanetTourName {
+  display: flex;
+  align-items: center;
+  gap: var(--st-spacing-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--st-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.dinoSatExoplanetTourDesc {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--st-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetTourButton {
+  border-left-color: rgba(0, 255, 136, 0.5);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetTourButton:hover {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.3);
+  border-left-color: #00ff88;
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetTourName {
+  color: rgba(0, 255, 170, 0.9);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetTourDesc {
+  color: rgba(0, 255, 170, 0.5);
 }

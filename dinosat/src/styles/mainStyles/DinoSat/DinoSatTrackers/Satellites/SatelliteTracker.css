@@ -947,6 +947,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   gap: var(--st-spacing-md);
+    overflow: scroll; 
 }
 
 .dinosatSatelliteHUDSectionItem span:first-child {

@@ -92,6 +92,9 @@
     width: 40vw;
     background: rgba(255,255,255,0.0); 
     overflow: scroll;
+    height: 100%; 
+    min-height: 100%; 
+    max-height: 100%; 
 }
 
 .registerBlockTouch {
@@ -100,9 +103,16 @@
     justify-content: flex-start;
     align-items: center;
     width: 100%;
-    max-height: calc(100% - 69px);  
-    min-height: calc(100% - 69px); 
+    height: 100%; 
+    min-height: 100%; 
+    max-height: 100%; 
     overflow: hidden; 
+}
+
+@media (min-width: 1200px) {
+    .registerBlock {
+        justify-content: center;
+    }
 }
 
 @media (min-width: 700px) {
