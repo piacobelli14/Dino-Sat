@@ -161,7 +161,6 @@
 @media (max-width: 699px) {
     .loginBlock {
         width: 100%; 
-        justify-content: center; 
     }
 }
 
