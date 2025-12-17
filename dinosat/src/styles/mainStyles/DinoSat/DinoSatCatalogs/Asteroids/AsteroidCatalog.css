@@ -262,7 +262,7 @@
 }
 
 .dinoSatAsteroidSideBarThemeSelectorStatusIndicator {
-  padding: var(--ast-spacing-xs) var(--ast-spacing-sm);
+  padding: var(--ast-spacing-sm) var(--ast-spacing-sm);
   background: var(--ast-bg-elevated);
   border: 1px solid var(--ast-border-subtle);
   border-left: 3px solid var(--ast-status-nominal);
@@ -271,6 +271,7 @@
   font-weight: 700;
   color: var(--ast-text-secondary);
   letter-spacing: 0.04em;
+  width: 100%; 
   text-transform: uppercase;
 }
 
@@ -376,7 +377,7 @@
 
 .dinoSatAsteroidSelectButton {
   flex: 1;
-  padding: var(--ast-spacing-sm) var(--ast-spacing-xs);
+  padding: var(--ast-spacing-sm) 1rem;
   background: var(--ast-bg-tertiary);
   border: 1px solid var(--ast-border-primary);
   border-radius: var(--ast-radius-sm);
@@ -740,6 +741,8 @@
   transition: all var(--ast-transition-normal);
   pointer-events: auto;
   user-select: none;
+  max-height: 90%; 
+  overflow: scroll;
 }
 
 .dinoSatAsteroidControlsPanel.asteroid-collapsed {
@@ -1025,4 +1028,152 @@
     max-width: 100px;
     font-size: 0.5rem;
   }
+}
+
+.dinoSatAsteroidBloomControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ast-spacing-sm);
+  margin-top: var(--ast-spacing-sm);
+  padding: var(--ast-spacing-md);
+  background: var(--ast-bg-elevated);
+  border: 1px solid var(--ast-border-primary);
+  border-radius: var(--ast-radius-sm);
+  pointer-events: auto;
+}
+
+.dinoSatAsteroidBloomSlider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ast-spacing-md);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--ast-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--ast-spacing-xs) 0;
+}
+
+.dinoSatAsteroidBloomSlider span:first-child {
+  min-width: 70px;
+  color: var(--ast-text-muted);
+}
+
+.dinoSatAsteroidBloomSlider span:last-child {
+  min-width: 40px;
+  text-align: right;
+  color: var(--ast-accent-primary);
+  font-family: var(--ast-font-mono);
+  font-size: 0.65rem;
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 6px;
+  background: var(--ast-bg-tertiary);
+  border: 1px solid var(--ast-border-subtle);
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+  margin: 0 var(--ast-spacing-xs);
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--ast-accent-primary);
+  border: 2px solid var(--ast-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  margin-top: -5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--ast-bg-tertiary);
+  border: 1px solid var(--ast-border-subtle);
+  border-radius: 3px;
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--ast-accent-primary);
+  border: 2px solid var(--ast-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-thumb:active {
+  cursor: grabbing;
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomControls {
+  background: rgba(0, 15, 25, 0.95);
+  border-color: rgba(0, 255, 136, 0.25);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider span:last-child {
+  color: #00ff88;
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"] {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.asteroid-theme-neon .dinoSatAsteroidBloomSlider input[type="range"]::-moz-range-track {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
 }

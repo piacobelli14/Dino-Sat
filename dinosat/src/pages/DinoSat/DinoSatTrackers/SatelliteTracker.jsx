@@ -2,6 +2,12 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import * as THREE from "three";
 import * as TWEEN from "three/examples/jsm/libs/tween.module.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
+import { Line2 } from "three/examples/jsm/lines/Line2";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faInfoCircle, faTh, faTimes, faPlay, faPause, faRedo, faBorderAll, 
@@ -26,7 +32,12 @@ export default function SatelliteTracker() {
     "Weather": "#66BB6A",
     "Communication": "#AB47BC",
     "Navigation": "#42A5F5",
-    "Scientific": "#EF5350"
+    "Scientific": "#EF5350",
+    "Debris": "#808080",
+    "CubeSat": "#E91E63",
+    "Amateur": "#9C27B0",
+    "Earth Observation": "#00BCD4",
+    "Spy/Reconnaissance": "#FF5722"
   };
 
   const SPEED_OPTIONS = [
@@ -42,15 +53,15 @@ export default function SatelliteTracker() {
   const FPS_OPTIONS = [30, 60, 120, 144];
 
   const PERFORMANCE_CONSTANTS = {
-    MAX_VISIBLE_SATELLITES: 3000,
+    MAX_VISIBLE_SATELLITES: 8000,
     LOD_DISTANCES: [50, 200, 1000, 5000],
     BATCH_SIZE: 500,
     UPDATE_FREQUENCY: 2,
     LABEL_DISTANCE_THRESHOLD: 300,
     FRUSTUM_MARGIN: 1.5,
-    PRESELECT_COUNT: 50,
-    VIRTUAL_SCROLL_ITEM_HEIGHT: 45,
-    VIRTUAL_SCROLL_BUFFER: 5,
+    PRESELECT_COUNT: 100,
+    VIRTUAL_SCROLL_ITEM_HEIGHT: 40,
+    VIRTUAL_SCROLL_BUFFER: 10,
     TRAIL_LENGTH: 30
   };
 
@@ -75,8 +86,17 @@ export default function SatelliteTracker() {
     TWO_PI: Math.PI * 2.0,
     PI_HALF: Math.PI / 2.0,
     DEG_TO_RAD: Math.PI / 180.0,
-    RAD_TO_DEG: 180.0 / Math.PI
+    RAD_TO_DEG: 180.0 / Math.PI,
+    SCALE_FACTOR: 200
   };
+
+  const BLOOM_PARAMS = {
+    strength: 0.6,
+    radius: 0.3,
+    threshold: 0.3
+  };
+
+  const NON_BLOOM_LAYER = 1;
 
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState([]);
@@ -96,6 +116,14 @@ export default function SatelliteTracker() {
   const [showTrails, setShowTrails] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
+  const [showEquatorialGrid, setShowEquatorialGrid] = useState(true);
+  const [showAxisMarkers, setShowAxisMarkers] = useState(true);
+  const [showAltitudeBands, setShowAltitudeBands] = useState(true);
+  const [showDistanceRings, setShowDistanceRings] = useState(true);
+  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const [bloomStrength, setBloomStrength] = useState(0.6);
+  const [bloomRadius, setBloomRadius] = useState(0.3);
+  const [bloomThreshold, setBloomThreshold] = useState(0.3);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
@@ -134,6 +162,8 @@ export default function SatelliteTracker() {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
+  const composerRef = useRef(null);
+  const bloomPassRef = useRef(null);
   const labelRendererRef = useRef(null);
   const cameraRef = useRef(null);
   const earthRef = useRef(null);
@@ -143,6 +173,10 @@ export default function SatelliteTracker() {
   const lastFpsTime = useRef(0);
   const actualFpsRef = useRef(60);
   const gridRef = useRef(null);
+  const equatorialGridRef = useRef(null);
+  const axisMarkersRef = useRef(null);
+  const altitudeBandsRef = useRef(null);
+  const distanceRingsRef = useRef(null);
   const hudPanelRef = useRef(null);
   const legendPanelRef = useRef(null);
   const controlsPanelRef = useRef(null);
@@ -164,6 +198,13 @@ export default function SatelliteTracker() {
   const tempQuaternion = useRef(new THREE.Quaternion());
   const tempColor = useRef(new THREE.Color());
   const spatialGridRef = useRef(new Map());
+  const sunPositionRef = useRef(new THREE.Vector3(1000000, 500000, 1000000));
+  const sensorConeRef = useRef(null);
+  const sensorFootprintRef = useRef(null);
+  const sensorLineRef = useRef(null);
+  const sensorGroupRef = useRef(null);
+  const sunLightRef = useRef(null);
+  const groundTrackRef = useRef(null);
 
   class CSS2DObject extends THREE.Object3D {
     constructor(element) {
@@ -221,6 +262,237 @@ export default function SatelliteTracker() {
   }
 
   const spatialGrid = useMemo(() => new SpatialGrid(100), []);
+
+  const createTextSprite = (text, color) => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    const fontSize = 14;
+    const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    context.font = `600 ${fontSize}px ${fontFamily}`;
+    const textMetrics = context.measureText(text);
+    const textWidth = Math.ceil(textMetrics.width);
+    const padding = 6;
+    const canvasWidth = Math.max(64, textWidth + padding * 2 + 4);
+    const canvasHeight = fontSize + padding * 2 + 4;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    const colorHex = `#${color.toString(16).padStart(6, "0")}`;
+    context.fillStyle = "rgba(10, 12, 15, 0.85)";
+    const radius = 3;
+    context.beginPath();
+    context.roundRect(2, 2, canvas.width - 4, canvas.height - 4, radius);
+    context.fill();
+    context.strokeStyle = colorHex;
+    context.lineWidth = 1;
+    context.globalAlpha = 0.6;
+    context.stroke();
+    context.globalAlpha = 1;
+    context.font = `600 ${fontSize}px ${fontFamily}`;
+    context.fillStyle = colorHex;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.globalAlpha = 0.9;
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, sizeAttenuation: false });
+    const sprite = new THREE.Sprite(material);
+    const aspect = canvasWidth / canvasHeight;
+    sprite.scale.set(0.035 * aspect, 0.035, 1);
+    sprite.layers.set(NON_BLOOM_LAYER);
+    return sprite;
+  };
+
+  const createEquatorialGrid = () => {
+    const group = new THREE.Group();
+    group.name = "EquatorialGrid";
+    const earthRadius = 6.371;
+    const gridRadius = 250;
+    const radialSegments = 24;
+
+    for (let i = 0; i < radialSegments; i++) {
+      const angle = (i / radialSegments) * Math.PI * 2;
+      const points = [
+        new THREE.Vector3(earthRadius * Math.cos(angle), 0, earthRadius * Math.sin(angle)),
+        new THREE.Vector3(gridRadius * Math.cos(angle), 0, gridRadius * Math.sin(angle))
+      ];
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x4a5a6a, 
+        transparent: true, 
+        opacity: 0.25 
+      });
+      const line = new THREE.Line(lineGeometry, lineMaterial);
+      group.add(line);
+    }
+
+    const distances = [20, 40, 60, 80, 100, 150, 200, 250];
+    distances.forEach(dist => {
+      const circlePoints = [];
+      for (let i = 0; i <= 64; i++) {
+        const angle = (i / 64) * Math.PI * 2;
+        circlePoints.push(new THREE.Vector3(dist * Math.cos(angle), 0, dist * Math.sin(angle)));
+      }
+      const circleGeometry = new THREE.BufferGeometry().setFromPoints(circlePoints);
+      const circleMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x4a5a6a, 
+        transparent: true, 
+        opacity: 0.15 
+      });
+      const circle = new THREE.Line(circleGeometry, circleMaterial);
+      group.add(circle);
+    });
+
+    return group;
+  };
+
+  const createAxisMarkers = () => {
+    const group = new THREE.Group();
+    group.name = "AxisMarkers";
+    const earthRadius = 6.371;
+    const axisLength = 200;
+    const axisRadius = 0.1;
+
+    const xGeometry = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLength, 8);
+    const xMaterial = new THREE.MeshBasicMaterial({ color: 0x6a9a9a, transparent: true, opacity: 0.7 });
+    const xAxis = new THREE.Mesh(xGeometry, xMaterial);
+    xAxis.rotation.z = -Math.PI / 2;
+    xAxis.position.set(axisLength / 2 + earthRadius, 0, 0);
+    group.add(xAxis);
+
+    const yGeometry = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLength, 8);
+    const yMaterial = new THREE.MeshBasicMaterial({ color: 0x6a9a6a, transparent: true, opacity: 0.7 });
+    const yAxis = new THREE.Mesh(yGeometry, yMaterial);
+    yAxis.position.set(0, axisLength / 2 + earthRadius, 0);
+    group.add(yAxis);
+
+    const zGeometry = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLength, 8);
+    const zMaterial = new THREE.MeshBasicMaterial({ color: 0x6a6a9a, transparent: true, opacity: 0.7 });
+    const zAxis = new THREE.Mesh(zGeometry, zMaterial);
+    zAxis.rotation.x = Math.PI / 2;
+    zAxis.position.set(0, 0, axisLength / 2 + earthRadius);
+    group.add(zAxis);
+
+    const xLabel = createTextSprite("X (Vernal Eq.)", 0x8ababa);
+    xLabel.position.set(axisLength + earthRadius + 12, 2, 0);
+    group.add(xLabel);
+
+    const yLabel = createTextSprite("Y (90E Long)", 0x8aba8a);
+    yLabel.position.set(0, axisLength + earthRadius + 12, 0);
+    group.add(yLabel);
+
+    const zLabel = createTextSprite("Z (North Pole)", 0x8a8aba);
+    zLabel.position.set(0, 2, axisLength + earthRadius + 12);
+    group.add(zLabel);
+
+    const originLabel = createTextSprite("Earth Center", 0x999999);
+    originLabel.position.set(0, -earthRadius - 4, 0);
+    group.add(originLabel);
+
+    return group;
+  };
+
+  const createAltitudeBands = () => {
+    const group = new THREE.Group();
+    group.name = "AltitudeBands";
+    const earthRadius = 6.371;
+    const scaleFactor = 200;
+
+    const bands = [
+      { name: "LEO (200-2000 km)", innerRadius: earthRadius + (200/scaleFactor), outerRadius: earthRadius + (2000/scaleFactor), color: 0x4ECDC4 },
+      { name: "MEO (2000-20000 km)", innerRadius: earthRadius + (2000/scaleFactor), outerRadius: earthRadius + (20000/scaleFactor), color: 0xFF9500 },
+      { name: "GEO (35786 km)", innerRadius: earthRadius + (35000/scaleFactor), outerRadius: earthRadius + (36500/scaleFactor), color: 0xFF6B6B }
+    ];
+
+    bands.forEach((band, index) => {
+      const innerPoints = [];
+      const outerPoints = [];
+      for (let i = 0; i <= 64; i++) {
+        const angle = (i / 64) * Math.PI * 2;
+        innerPoints.push(new THREE.Vector3(band.innerRadius * Math.cos(angle), 0, band.innerRadius * Math.sin(angle)));
+        outerPoints.push(new THREE.Vector3(band.outerRadius * Math.cos(angle), 0, band.outerRadius * Math.sin(angle)));
+      }
+
+      const innerCurve = new THREE.CatmullRomCurve3(innerPoints, true);
+      const innerTube = new THREE.TubeGeometry(innerCurve, 64, 0.05, 6, true);
+      const innerMaterial = new THREE.MeshBasicMaterial({ color: band.color, transparent: true, opacity: 0.5 });
+      const innerMesh = new THREE.Mesh(innerTube, innerMaterial);
+      group.add(innerMesh);
+
+      const outerCurve = new THREE.CatmullRomCurve3(outerPoints, true);
+      const outerTube = new THREE.TubeGeometry(outerCurve, 64, 0.05, 6, true);
+      const outerMaterial = new THREE.MeshBasicMaterial({ color: band.color, transparent: true, opacity: 0.5 });
+      const outerMesh = new THREE.Mesh(outerTube, outerMaterial);
+      group.add(outerMesh);
+
+      if (band.name.includes("GEO")) {
+        const ringGeometry = new THREE.RingGeometry(band.innerRadius, band.outerRadius, 64);
+        const ringMaterial = new THREE.MeshBasicMaterial({ 
+          color: band.color, 
+          transparent: true, 
+          opacity: 0.1, 
+          side: THREE.DoubleSide 
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = -Math.PI / 2;
+        group.add(ring);
+      }
+
+      const labelAngle = (index * 60 + 30) * Math.PI / 180;
+      const labelRadius = (band.innerRadius + band.outerRadius) / 2;
+      const label = createTextSprite(band.name, band.color);
+      label.position.set(labelRadius * Math.cos(labelAngle), 1, labelRadius * Math.sin(labelAngle));
+      group.add(label);
+    });
+
+    return group;
+  };
+
+  const createDistanceRings = () => {
+    const group = new THREE.Group();
+    group.name = "DistanceRings";
+    const earthRadius = 6.371;
+    const scaleFactor = 200;
+
+    const distances = [
+      { km: 500, label: "500 km" },
+      { km: 1000, label: "1,000 km" },
+      { km: 2000, label: "2,000 km" },
+      { km: 5000, label: "5,000 km" },
+      { km: 10000, label: "10,000 km" },
+      { km: 20000, label: "20,000 km" },
+      { km: 35786, label: "GEO 35,786 km" }
+    ];
+
+    distances.forEach((dist, index) => {
+      const radius = earthRadius + (dist.km / scaleFactor);
+      const points = [];
+      for (let i = 0; i <= 128; i++) {
+        const angle = (i / 128) * Math.PI * 2;
+        points.push(new THREE.Vector3(radius * Math.cos(angle), 0, radius * Math.sin(angle)));
+      }
+
+      const curve = new THREE.CatmullRomCurve3(points, true);
+      const tubeGeometry = new THREE.TubeGeometry(curve, 128, 0.03, 6, true);
+      const isGeo = dist.km === 35786;
+      const tubeMaterial = new THREE.MeshBasicMaterial({ 
+        color: isGeo ? 0xFF6B6B : 0x5a6a7a, 
+        transparent: true, 
+        opacity: isGeo ? 0.7 : 0.35 
+      });
+      const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+      group.add(tube);
+
+      const labelAngle = (index * 45) * Math.PI / 180;
+      const label = createTextSprite(dist.label, isGeo ? 0xFF6B6B : 0x7a8a9a);
+      label.position.set(radius * Math.cos(labelAngle), 0.5, radius * Math.sin(labelAngle));
+      group.add(label);
+    });
+
+    return group;
+  };
 
   const julianDateFromElements = (epochYear, epochDay) => {
     let year = epochYear;
@@ -343,7 +615,7 @@ export default function SatelliteTracker() {
         
         if (positionEci) {
           const earthRadius = 6.371;
-          const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+          const sceneOrbitRadius = earthRadius + (satellite.altitude / ORBITAL_CONSTANTS.SCALE_FACTOR);
           const distanceKm = Math.sqrt(positionEci.x * positionEci.x + positionEci.y * positionEci.y + positionEci.z * positionEci.z);
           const scaleFactor = sceneOrbitRadius / distanceKm;
           
@@ -357,7 +629,7 @@ export default function SatelliteTracker() {
     }
 
     const earthRadius = 6.371;
-    const orbitRadius = earthRadius + (satellite.altitude / 100);
+    const orbitRadius = earthRadius + (satellite.altitude / ORBITAL_CONSTANTS.SCALE_FACTOR);
     const angularVelocity = (2 * Math.PI) / satellite.period;
     const phase = (satellite.id.charCodeAt(0) % 100) * 0.1;
     const angle = (simulationTime.current * angularVelocity) + phase;
@@ -367,6 +639,9 @@ export default function SatelliteTracker() {
     const z = orbitRadius * Math.sin(angle);
     const position = new THREE.Vector3(x, y, z);
     
+    const argPerigeeRad = ((satellite.argOfPerigee || 0) * Math.PI) / 180;
+    position.applyAxisAngle(new THREE.Vector3(0, 1, 0), argPerigeeRad);
+    
     const inclinationRad = (satellite.inclination * Math.PI) / 180;
     position.applyAxisAngle(new THREE.Vector3(1, 0, 0), inclinationRad);
     
@@ -375,6 +650,173 @@ export default function SatelliteTracker() {
     
     return position;
   };
+
+  const checkEclipse = (satellitePosition) => {
+    const sunPosition = sunPositionRef.current;
+    const earthRadius = 6.371;
+    
+    const sunDir = sunPosition.clone().normalize();
+    const satPos = satellitePosition.clone();
+    
+    const projectionLength = satPos.dot(sunDir);
+    
+    if (projectionLength < 0) {
+      const closestPointOnAxis = sunDir.clone().multiplyScalar(projectionLength);
+      const perpDistance = satPos.clone().sub(closestPointOnAxis).length();
+      
+      const satDistance = satPos.length();
+      const sunDistance = sunPosition.length();
+      const sunRadius = 696000 / 1000;
+      const umbraAngle = Math.atan(sunRadius / sunDistance);
+      const umbraRadius = earthRadius - Math.abs(projectionLength) * Math.tan(umbraAngle);
+      const penumbraRadius = earthRadius + Math.abs(projectionLength) * Math.tan(umbraAngle);
+      
+      if (perpDistance < umbraRadius) {
+        return { inShadow: true, shadowFactor: 0.15 };
+      } else if (perpDistance < penumbraRadius) {
+        const t = (perpDistance - umbraRadius) / (penumbraRadius - umbraRadius);
+        return { inShadow: true, shadowFactor: 0.15 + (0.85 * t) };
+      }
+    }
+    
+    return { inShadow: false, shadowFactor: 1.0 };
+  };
+
+  const updateSensorFootprint = useCallback((satelliteId) => {
+    if (!sensorGroupRef.current || !satelliteGroupRef.current) return;
+    
+    if (!satelliteId) {
+      sensorGroupRef.current.visible = false;
+      return;
+    }
+    
+    const data = satelliteDataRef.current.get(satelliteId);
+    const satellite = satellites.find(s => s.id === satelliteId);
+    
+    if (!data || !data.position || !satellite) {
+      sensorGroupRef.current.visible = false;
+      return;
+    }
+    
+    const position = data.position;
+    const earthRadius = 6.371;
+    const earthCenter = new THREE.Vector3(0, 0, 0);
+    const dist = position.distanceTo(earthCenter);
+    
+    if (dist <= earthRadius) {
+      sensorGroupRef.current.visible = false;
+      return;
+    }
+    
+    const alpha = Math.acos(earthRadius / dist);
+    const coneRadius = earthRadius * Math.sin(alpha);
+    const coneHeight = dist - (earthRadius * Math.cos(alpha));
+    
+    const direction = position.clone().normalize().negate();
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+    
+    sensorGroupRef.current.position.copy(position);
+    sensorGroupRef.current.quaternion.copy(quaternion);
+    
+    if (sensorLineRef.current) {
+      sensorLineRef.current.scale.set(1, coneHeight, 1);
+      sensorLineRef.current.position.set(0, -coneHeight / 2, 0);
+      sensorLineRef.current.material.color.set(satellite.color);
+    }
+    
+    if (sensorFootprintRef.current) {
+      sensorFootprintRef.current.position.set(0, -coneHeight - 0.02, 0);
+      sensorFootprintRef.current.scale.set(coneRadius, coneRadius, 1);
+      sensorFootprintRef.current.material.color.set(satellite.color);
+    }
+    
+    if (sensorConeRef.current) {
+      sensorConeRef.current.geometry.dispose();
+      sensorConeRef.current.geometry = new THREE.ConeGeometry(coneRadius * 0.3, coneHeight, 32, 1, true);
+      sensorConeRef.current.position.set(0, -coneHeight / 2, 0);
+      sensorConeRef.current.material.color.set(satellite.color);
+    }
+    
+    sensorGroupRef.current.visible = true;
+  }, [satellites]);
+
+  const updateGroundTrack = useCallback((satelliteId) => {
+    if (!groundTrackRef.current) return;
+    
+    if (!satelliteId) {
+      groundTrackRef.current.visible = false;
+      return;
+    }
+    
+    const satellite = satellites.find(s => s.id === satelliteId);
+    if (!satellite || !satellite.tle || !satellite.tle.line1 || !satellite.tle.line2) {
+      groundTrackRef.current.visible = false;
+      return;
+    }
+    
+    try {
+      const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
+      const positions = [];
+      const earthRadius = 6.371;
+      const groundOffset = 0.02;
+      const now = new Date(Date.now() + simulationTime.current * 60000);
+      const trackDuration = satellite.period * 1.5;
+      const numPoints = 200;
+      
+      for (let i = 0; i < numPoints; i++) {
+        const timeOffset = (i / numPoints) * trackDuration - (trackDuration * 0.25);
+        const pointTime = new Date(now.getTime() + timeOffset * 60000);
+        const positionAndVelocity = satelliteJs.propagate(satrec, pointTime);
+        const positionEci = positionAndVelocity.position;
+        
+        if (positionEci) {
+          const gmst = satelliteJs.gstime(pointTime);
+          const positionGd = satelliteJs.eciToGeodetic(positionEci, gmst);
+          
+          const lat = positionGd.latitude;
+          const lng = positionGd.longitude;
+          
+          const x = (earthRadius + groundOffset) * Math.cos(lat) * Math.cos(lng);
+          const y = (earthRadius + groundOffset) * Math.sin(lat);
+          const z = -(earthRadius + groundOffset) * Math.cos(lat) * Math.sin(lng);
+          
+          if (positions.length >= 3) {
+            const prevX = positions[positions.length - 3];
+            const prevZ = positions[positions.length - 1];
+            const dist = Math.sqrt((x - prevX) * (x - prevX) + (z - prevZ) * (z - prevZ));
+            if (dist > earthRadius * 0.5) {
+              positions.push(NaN, NaN, NaN);
+            }
+          }
+          
+          positions.push(x, y, z);
+        }
+      }
+      
+      if (positions.length >= 6) {
+        const cleanPositions = [];
+        for (let i = 0; i < positions.length; i += 3) {
+          if (!isNaN(positions[i])) {
+            cleanPositions.push(positions[i], positions[i + 1], positions[i + 2]);
+          }
+        }
+        
+        if (cleanPositions.length >= 6) {
+          groundTrackRef.current.geometry.setPositions(cleanPositions);
+          groundTrackRef.current.computeLineDistances();
+          groundTrackRef.current.material.color.set(satellite.color);
+          groundTrackRef.current.visible = true;
+        } else {
+          groundTrackRef.current.visible = false;
+        }
+      } else {
+        groundTrackRef.current.visible = false;
+      }
+    } catch (e) {
+      groundTrackRef.current.visible = false;
+    }
+  }, [satellites]);
 
 
   const createLabel = useCallback((text, color = "#ffffff") => {
@@ -413,7 +855,7 @@ export default function SatelliteTracker() {
       const now = new Date(Date.now() + simulationTime.current * 60000);
       
       const earthRadius = 6.371;
-      const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+      const sceneOrbitRadius = earthRadius + (satellite.altitude / ORBITAL_CONSTANTS.SCALE_FACTOR);
 
       for (let i = 0; i <= segments; i++) {
         const timeOffset = (i / segments) * periodMinutes;
@@ -435,14 +877,24 @@ export default function SatelliteTracker() {
 
       if (orbitPoints.length < 2) return null;
 
-      const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-      const orbitMaterial = new THREE.LineBasicMaterial({
+      const positions = [];
+      orbitPoints.forEach(point => {
+        positions.push(point.x, point.y, point.z);
+      });
+
+      const orbitGeometry = new LineGeometry();
+      orbitGeometry.setPositions(positions);
+
+      const orbitMaterial = new LineMaterial({
         color: satellite.color,
         transparent: true,
-        opacity: 0.6,
-        linewidth: 1
+        opacity: 0.7,
+        linewidth: 2.5,
+        resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
       });
-      const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+
+      const orbitLine = new Line2(orbitGeometry, orbitMaterial);
+      orbitLine.computeLineDistances();
       orbitLine.visible = showOrbits;
       return orbitLine;
     } catch (e) {
@@ -451,21 +903,21 @@ export default function SatelliteTracker() {
   }, [showOrbits]);
 
   const createTrailLine = useCallback((satellite) => {
-    const trailPositions = new Float32Array(PERFORMANCE_CONSTANTS.TRAIL_LENGTH * 3);
-    const trailColors = new Float32Array(PERFORMANCE_CONSTANTS.TRAIL_LENGTH * 3);
-    const trailGeometry = new THREE.BufferGeometry();
-    trailGeometry.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3));
-    trailGeometry.setAttribute("color", new THREE.BufferAttribute(trailColors, 3));
+    const positions = new Array(PERFORMANCE_CONSTANTS.TRAIL_LENGTH * 3).fill(0);
 
-    const trailMaterial = new THREE.LineBasicMaterial({
-      vertexColors: true,
+    const trailGeometry = new LineGeometry();
+    trailGeometry.setPositions(positions);
+
+    const trailMaterial = new LineMaterial({
+      color: satellite.color,
       transparent: true,
       opacity: 0.9,
-      linewidth: 2,
-      blending: THREE.AdditiveBlending
+      linewidth: 3,
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
     });
 
-    const trailLine = new THREE.Line(trailGeometry, trailMaterial);
+    const trailLine = new Line2(trailGeometry, trailMaterial);
+    trailLine.computeLineDistances();
     trailLine.visible = showTrails;
     return trailLine;
   }, [showTrails]);
@@ -475,13 +927,11 @@ export default function SatelliteTracker() {
 
     try {
       const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
-      const positions = trail.geometry.attributes.position.array;
-      const colors = trail.geometry.attributes.color.array;
-      const color = new THREE.Color(satellite.color);
+      const positions = [];
       const now = new Date(Date.now() + simulationTime.current * 60000);
       
       const earthRadius = 6.371;
-      const sceneOrbitRadius = earthRadius + (satellite.altitude / 100);
+      const sceneOrbitRadius = earthRadius + (satellite.altitude / ORBITAL_CONSTANTS.SCALE_FACTOR);
       const trailMinutes = satellite.period / 4;
 
       for (let i = 0; i < PERFORMANCE_CONSTANTS.TRAIL_LENGTH; i++) {
@@ -494,21 +944,18 @@ export default function SatelliteTracker() {
           const distanceKm = Math.sqrt(positionEci.x * positionEci.x + positionEci.y * positionEci.y + positionEci.z * positionEci.z);
           const scaleFactor = sceneOrbitRadius / distanceKm;
 
-          const idx = i * 3;
-          positions[idx] = positionEci.x * scaleFactor;
-          positions[idx + 1] = positionEci.z * scaleFactor;
-          positions[idx + 2] = -positionEci.y * scaleFactor;
-
-          const fade = Math.pow((PERFORMANCE_CONSTANTS.TRAIL_LENGTH - i) / PERFORMANCE_CONSTANTS.TRAIL_LENGTH, 1.5);
-          colors[idx] = color.r * fade;
-          colors[idx + 1] = color.g * fade;
-          colors[idx + 2] = color.b * fade;
+          positions.push(
+            positionEci.x * scaleFactor,
+            positionEci.z * scaleFactor,
+            -positionEci.y * scaleFactor
+          );
         }
       }
 
-      trail.geometry.attributes.position.needsUpdate = true;
-      trail.geometry.attributes.color.needsUpdate = true;
-      trail.geometry.setDrawRange(0, PERFORMANCE_CONSTANTS.TRAIL_LENGTH);
+      if (positions.length >= 6) {
+        trail.geometry.setPositions(positions);
+        trail.computeLineDistances();
+      }
     } catch (e) {}
   }, []);
 
@@ -577,10 +1024,14 @@ export default function SatelliteTracker() {
 
       const position = computeOrbitPosition(satellite, currentJD);
       
+      const eclipseResult = checkEclipse(position);
+      
       satelliteDataRef.current.set(satellite.id, {
         position: position.clone(),
         lastUpdate: Date.now(),
-        instanceIndex
+        instanceIndex,
+        inShadow: eclipseResult.inShadow,
+        shadowFactor: eclipseResult.shadowFactor
       });
 
       if (visibleSatellitesRef.current.has(satellite.id)) {
@@ -588,8 +1039,10 @@ export default function SatelliteTracker() {
         satelliteInstanceRef.current.setMatrixAt(instanceIndex, tempMatrix.current);
         glowInstanceRef.current.setMatrixAt(instanceIndex, tempMatrix.current);
 
-        tempColor.current.setHex(satellite.color.replace("#", "0x"));
-        satelliteInstanceRef.current.setColorAt(instanceIndex, tempColor.current);
+        const baseColor = new THREE.Color(satellite.color);
+        const hdrBoost = 1.0 + eclipseResult.shadowFactor * 2.0;
+        const finalColor = baseColor.multiplyScalar(hdrBoost * eclipseResult.shadowFactor);
+        satelliteInstanceRef.current.setColorAt(instanceIndex, finalColor);
 
         instanceIndex++;
       }
@@ -613,7 +1066,7 @@ export default function SatelliteTracker() {
 
       if (showOrbits && !orbitLinesRef.current[satellite.id] && satellite.category !== "Deep Space") {
         const orbitLine = createOrbitLine(satellite);
-        if (orbitLine) {  // Add this null check
+        if (orbitLine) {
           satelliteGroupRef.current.add(orbitLine);
           orbitLinesRef.current[satellite.id] = orbitLine;
         }
@@ -875,7 +1328,8 @@ export default function SatelliteTracker() {
   const handleControlsMouseDown = useCallback((e) => {
     if (e.target.closest(".satellite-collapse-icon") || 
         e.target.closest(".dinoSatSatelliteControlButton") || 
-        e.target.closest(".satellite-trail-slider")) return;
+        e.target.closest(".satellite-trail-slider") ||
+        e.target.closest(".dinoSatSatelliteBloomControls")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingControls(true);
@@ -1109,19 +1563,17 @@ END`;
   }, []);
 
   const togglePlay = useCallback(() => setIsPlaying(!isPlaying), [isPlaying]);
-
   const toggleOrbits = useCallback(() => setShowOrbits(!showOrbits), [showOrbits]);
-
   const toggleTrails = useCallback(() => setShowTrails(!showTrails), [showTrails]);
-
   const toggleLabels = useCallback(() => setShowLabels(!showLabels), [showLabels]);
-
   const toggleGrid = useCallback(() => setShowGrid(!showGrid), [showGrid]);
-
+  const toggleEquatorialGrid = useCallback(() => setShowEquatorialGrid(!showEquatorialGrid), [showEquatorialGrid]);
+  const toggleAxisMarkers = useCallback(() => setShowAxisMarkers(!showAxisMarkers), [showAxisMarkers]);
+  const toggleAltitudeBands = useCallback(() => setShowAltitudeBands(!showAltitudeBands), [showAltitudeBands]);
+  const toggleDistanceRings = useCallback(() => setShowDistanceRings(!showDistanceRings), [showDistanceRings]);
+  const toggleBloom = useCallback(() => setBloomEnabled(!bloomEnabled), [bloomEnabled]);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(!sidebarCollapsed), [sidebarCollapsed]);
-
   const toggleLegend = useCallback(() => setLegendCollapsed(!legendCollapsed), [legendCollapsed]);
-
   const toggleControls = useCallback(() => setControlsCollapsed(!controlsCollapsed), [controlsCollapsed]);
 
   const toggleHUD = useCallback(() => {
@@ -1133,7 +1585,7 @@ END`;
 
   const resetCamera = useCallback(() => {
     if (cameraRef.current) {
-      cameraRef.current.position.set(100, 50, 100);
+      cameraRef.current.position.set(150, 80, 150);
       cameraRef.current.lookAt(0, 0, 0);
     }
   }, []);
@@ -1201,12 +1653,13 @@ END`;
     const height = mountRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000011, 0.00002);
+    scene.fog = new THREE.FogExp2(0x050508, 0.00002);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 8000);
-    camera.position.set(100, 50, 100);
+    camera.position.set(150, 80, 150);
     camera.lookAt(0, 0, 0);
+    camera.layers.enableAll();
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
@@ -1216,10 +1669,27 @@ END`;
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000008, 1);
+    renderer.setClearColor(0x030305, 1);
     renderer.shadowMap.enabled = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
+
+    const composer = new EffectComposer(renderer);
+    composerRef.current = composer;
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      BLOOM_PARAMS.strength,
+      BLOOM_PARAMS.radius,
+      BLOOM_PARAMS.threshold
+    );
+    bloomPassRef.current = bloomPass;
+    composer.addPass(bloomPass);
 
     const labelRenderer = document.createElement("div");
     labelRenderer.style.cssText = `
@@ -1234,7 +1704,7 @@ END`;
     mountRef.current.appendChild(labelRenderer);
     labelRendererRef.current = labelRenderer;
 
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x606065, 0.5);
     scene.add(ambientLight);
 
     const earthGroup = new THREE.Group();
@@ -1257,45 +1727,137 @@ END`;
     const landMasses = new THREE.Mesh(landGeometry, landMaterial);
     earthGroup.add(landMasses);
 
-    const cloudGeometry = new THREE.SphereGeometry(6.38, 16, 16);
+    const cloudGeometry = new THREE.SphereGeometry(6.375, 16, 16);
     const cloudMaterial = new THREE.MeshPhongMaterial({
       color: 0xFFFFFF,
       transparent: true,
-      opacity: 0.3
+      opacity: 0.25
     });
     const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
     earthGroup.add(clouds);
 
-    const atmosphereGeometry = new THREE.SphereGeometry(6.8, 16, 16);
-    const atmosphereMaterial = new THREE.MeshBasicMaterial({
-      color: 0x87CEEB,
+    const atmosphereGeometry = new THREE.SphereGeometry(6.42, 64, 64);
+    const atmosphereVertexShader = `
+      varying vec3 vNormal;
+      varying vec3 vPositionNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vPositionNormal = normalize((modelViewMatrix * vec4(position, 1.0)).xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const atmosphereFragmentShader = `
+      varying vec3 vNormal;
+      varying vec3 vPositionNormal;
+      void main() {
+        float intensity = pow(0.6 - dot(vNormal, vPositionNormal), 3.0);
+        vec3 innerColor = vec3(0.85, 0.9, 0.95);
+        vec3 outerColor = vec3(0.4, 0.5, 0.6);
+        vec3 atmosphereColor = mix(innerColor, outerColor, intensity);
+        float hdrBoost = 1.0 + intensity * 0.8;
+        gl_FragColor = vec4(atmosphereColor * hdrBoost, 1.0) * intensity * 0.7;
+      }
+    `;
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+      vertexShader: atmosphereVertexShader,
+      fragmentShader: atmosphereFragmentShader,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
       transparent: true,
-      opacity: 0.25,
-      side: THREE.BackSide
+      depthWrite: false
     });
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     earthGroup.add(atmosphere);
 
+    const innerAtmosphereGeometry = new THREE.SphereGeometry(6.375, 64, 64);
+    const innerAtmosphereVertexShader = `
+      varying vec3 vNormal;
+      varying vec3 vSunDirection;
+      varying float vIntensity;
+      uniform vec3 sunPosition;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vSunDirection = normalize(sunPosition - worldPosition.xyz);
+        float sunDot = dot(vNormal, vSunDirection);
+        vIntensity = max(0.0, sunDot);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const innerAtmosphereFragmentShader = `
+      varying vec3 vNormal;
+      varying vec3 vSunDirection;
+      varying float vIntensity;
+      void main() {
+        float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.0);
+        vec3 dayColorInner = vec3(0.9, 0.92, 0.95);
+        vec3 dayColorOuter = vec3(0.5, 0.55, 0.6);
+        vec3 sunsetColor = vec3(1.0, 0.7, 0.4);
+        vec3 nightColor = vec3(0.03, 0.04, 0.06);
+        float terminator = smoothstep(-0.1, 0.3, vIntensity);
+        vec3 dayColor = mix(dayColorOuter, dayColorInner, fresnel);
+        vec3 twilightColor = mix(sunsetColor, dayColor, smoothstep(0.0, 0.25, vIntensity));
+        vec3 color = mix(nightColor, twilightColor, terminator);
+        float hdrBoost = 1.0 + vIntensity * 0.8;
+        float alpha = fresnel * 0.35 * (0.3 + 0.7 * vIntensity);
+        gl_FragColor = vec4(color * hdrBoost, alpha);
+      }
+    `;
+    const innerAtmosphereMaterial = new THREE.ShaderMaterial({
+      vertexShader: innerAtmosphereVertexShader,
+      fragmentShader: innerAtmosphereFragmentShader,
+      uniforms: {
+        sunPosition: { value: sunPositionRef.current }
+      },
+      blending: THREE.AdditiveBlending,
+      side: THREE.FrontSide,
+      transparent: true,
+      depthWrite: false
+    });
+    const innerAtmosphere = new THREE.Mesh(innerAtmosphereGeometry, innerAtmosphereMaterial);
+    earthGroup.add(innerAtmosphere);
+
     const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1.5);
-    sunLight.position.set(100, 50, 100);
-    earthGroup.add(sunLight);
+    sunLight.position.copy(sunPositionRef.current.clone().normalize().multiplyScalar(100));
+    scene.add(sunLight);
+    sunLightRef.current = sunLight;
 
     scene.add(earthGroup);
     earthRef.current = earthGroup;
 
-    const polarGrid = new THREE.PolarGridHelper(150, 16, 8, 64, 0x444444, 0x111111);
+    const polarGrid = new THREE.PolarGridHelper(300, 16, 8, 64, 0x444448, 0x222225);
     polarGrid.visible = showGrid;
     scene.add(polarGrid);
     gridRef.current = polarGrid;
+
+    const equatorialGrid = createEquatorialGrid();
+    equatorialGrid.visible = showEquatorialGrid;
+    scene.add(equatorialGrid);
+    equatorialGridRef.current = equatorialGrid;
+
+    const axisMarkers = createAxisMarkers();
+    axisMarkers.visible = showAxisMarkers;
+    scene.add(axisMarkers);
+    axisMarkersRef.current = axisMarkers;
+
+    const altitudeBands = createAltitudeBands();
+    altitudeBands.visible = showAltitudeBands;
+    scene.add(altitudeBands);
+    altitudeBandsRef.current = altitudeBands;
+
+    const distanceRings = createDistanceRings();
+    distanceRings.visible = showDistanceRings;
+    scene.add(distanceRings);
+    distanceRingsRef.current = distanceRings;
 
     const satelliteGroup = new THREE.Group();
     scene.add(satelliteGroup);
     satelliteGroupRef.current = satelliteGroup;
 
-    const satelliteGeometry = new THREE.SphereGeometry(0.8, 8, 8);
+    const satelliteGeometry = new THREE.SphereGeometry(0.5, 8, 8);
     const satelliteMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
-      opacity: 0.95
+      opacity: 1.0
     });
     const satelliteInstance = new THREE.InstancedMesh(
       satelliteGeometry, 
@@ -1309,10 +1871,10 @@ END`;
     satelliteGroup.add(satelliteInstance);
     satelliteInstanceRef.current = satelliteInstance;
 
-    const glowGeometry = new THREE.SphereGeometry(2.4, 8, 8);
+    const glowGeometry = new THREE.SphereGeometry(1.2, 8, 8);
     const glowMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.2,
       side: THREE.BackSide
     });
     const glowInstance = new THREE.InstancedMesh(
@@ -1323,6 +1885,77 @@ END`;
     glowInstance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     satelliteGroup.add(glowInstance);
     glowInstanceRef.current = glowInstance;
+
+    const sensorGroup = new THREE.Group();
+    sensorGroup.visible = false;
+    scene.add(sensorGroup);
+    sensorGroupRef.current = sensorGroup;
+
+    const sensorLineMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide
+    });
+    const sensorLineGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1, 8);
+    const sensorLine = new THREE.Mesh(sensorLineGeometry, sensorLineMaterial);
+    sensorGroup.add(sensorLine);
+    sensorLineRef.current = sensorLine;
+
+    const sensorConeMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const sensorConeGeometry = new THREE.ConeGeometry(0.5, 1, 32, 1, true);
+    const sensorCone = new THREE.Mesh(sensorConeGeometry, sensorConeMaterial);
+    sensorGroup.add(sensorCone);
+    sensorConeRef.current = sensorCone;
+
+    const sensorFootprintMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const sensorFootprintGeometry = new THREE.RingGeometry(0.92, 1.0, 64);
+    const sensorFootprint = new THREE.Mesh(sensorFootprintGeometry, sensorFootprintMaterial);
+    sensorFootprint.rotation.x = Math.PI / 2;
+    sensorGroup.add(sensorFootprint);
+    sensorFootprintRef.current = sensorFootprint;
+
+    const sensorFootprintFillMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.08,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const sensorFootprintFillGeometry = new THREE.CircleGeometry(1.0, 64);
+    const sensorFootprintFill = new THREE.Mesh(sensorFootprintFillGeometry, sensorFootprintFillMaterial);
+    sensorFootprintFill.rotation.x = Math.PI / 2;
+    sensorFootprint.add(sensorFootprintFill);
+
+    const groundTrackPositions = new Array(200 * 3).fill(0);
+    const groundTrackGeometry = new LineGeometry();
+    groundTrackGeometry.setPositions(groundTrackPositions);
+    const groundTrackMaterial = new LineMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 2,
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
+    });
+    const groundTrack = new Line2(groundTrackGeometry, groundTrackMaterial);
+    groundTrack.computeLineDistances();
+    groundTrack.visible = false;
+    scene.add(groundTrack);
+    groundTrackRef.current = groundTrack;
 
     const starsGeometry = new THREE.BufferGeometry();
     const starCount = 8000;
@@ -1343,16 +1976,20 @@ END`;
       const starType = Math.random();
       let baseColor, intensity, size;
 
-      if (starType < 0.7) {
-        baseColor = { r: 0.8, g: 0.9, b: 1.0 };
+      if (starType < 0.5) {
+        baseColor = { r: 0.9, g: 0.95, b: 1.0 };
         intensity = 0.7 + Math.random() * 0.3;
         size = 1.0 + Math.random() * 0.5;
+      } else if (starType < 0.7) {
+        baseColor = { r: 1.0, g: 0.95, b: 0.85 };
+        intensity = 0.75 + Math.random() * 0.25;
+        size = 1.2 + Math.random() * 0.8;
       } else if (starType < 0.85) {
-        baseColor = { r: 1.0, g: 0.6, b: 0.2 };
+        baseColor = { r: 1.0, g: 0.7, b: 0.4 };
         intensity = 0.8 + Math.random() * 0.2;
-        size = 2.0 + Math.random() * 1.0;
+        size = 1.8 + Math.random() * 1.0;
       } else {
-        baseColor = { r: 0.9, g: 0.9, b: 1.0 };
+        baseColor = { r: 0.95, g: 0.92, b: 1.0 };
         intensity = 0.6 + Math.random() * 0.3;
         size = 0.5 + Math.random() * 0.3;
       }
@@ -1380,7 +2017,7 @@ END`;
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       
-          float twinkle = sin(time * 1.5 + position.x * 0.01 + position.y * 0.01) * 0.2 + 0.8;
+          float twinkle = sin(time * 1.5 + position.x * 0.01 + position.y * 0.01) * 0.15 + 0.85;
       
           gl_PointSize = size * twinkle * (200.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
@@ -1395,8 +2032,11 @@ END`;
       
           float alpha = 1.0 - smoothstep(0.0, 0.5, distance);
           alpha *= alpha;
+          
+          float coreBrightness = smoothstep(0.2, 0.0, distance) * 1.2;
+          vec3 hdrColor = vColor * (1.0 + coreBrightness);
       
-          gl_FragColor = vec4(vColor, alpha);
+          gl_FragColor = vec4(hdrColor, alpha * 0.9);
         }
       `,
       transparent: true,
@@ -1424,10 +2064,27 @@ END`;
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(newWidth, newHeight);
+      composer.setSize(newWidth, newHeight);
+      bloomPass.resolution.set(newWidth, newHeight);
+
+      Object.values(orbitLinesRef.current).forEach(line => {
+        if (line && line.material && line.material.resolution) {
+          line.material.resolution.set(newWidth, newHeight);
+        }
+      });
+      Object.values(trailLinesRef.current).forEach(line => {
+        if (line && line.material && line.material.resolution) {
+          line.material.resolution.set(newWidth, newHeight);
+        }
+      });
+      
+      if (groundTrackRef.current && groundTrackRef.current.material && groundTrackRef.current.material.resolution) {
+        groundTrackRef.current.material.resolution.set(newWidth, newHeight);
+      }
     };
 
     window.addEventListener("resize", handleResize);
-    renderer.render(scene, camera);
+    composer.render();
     setSceneInitialized(true);
 
     return () => {
@@ -1458,6 +2115,19 @@ END`;
         }
       });
 
+      if (sensorGroupRef.current) {
+        sensorGroupRef.current.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        });
+      }
+
+      if (groundTrackRef.current) {
+        groundTrackRef.current.geometry.dispose();
+        groundTrackRef.current.material.dispose();
+      }
+
+      composer.dispose();
       window.removeEventListener("resize", handleResize);
       controls.dispose();
       scene.traverse(child => {
@@ -1491,6 +2161,39 @@ END`;
       gridRef.current.visible = showGrid;
     }
   }, [showGrid]);
+
+  useEffect(() => {
+    if (equatorialGridRef.current) {
+      equatorialGridRef.current.visible = showEquatorialGrid;
+    }
+  }, [showEquatorialGrid]);
+
+  useEffect(() => {
+    if (axisMarkersRef.current) {
+      axisMarkersRef.current.visible = showAxisMarkers;
+    }
+  }, [showAxisMarkers]);
+
+  useEffect(() => {
+    if (altitudeBandsRef.current) {
+      altitudeBandsRef.current.visible = showAltitudeBands;
+    }
+  }, [showAltitudeBands]);
+
+  useEffect(() => {
+    if (distanceRingsRef.current) {
+      distanceRingsRef.current.visible = showDistanceRings;
+    }
+  }, [showDistanceRings]);
+
+  useEffect(() => {
+    if (bloomPassRef.current) {
+      bloomPassRef.current.enabled = bloomEnabled;
+      bloomPassRef.current.strength = bloomStrength;
+      bloomPassRef.current.radius = bloomRadius;
+      bloomPassRef.current.threshold = bloomThreshold;
+    }
+  }, [bloomEnabled, bloomStrength, bloomRadius, bloomThreshold]);
 
   useEffect(() => {
     Object.keys(labelsRef.current).forEach(satelliteId => {
@@ -1546,7 +2249,7 @@ END`;
   ]);
 
   useEffect(() => {
-    if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+    if (!sceneRef.current || !composerRef.current || !cameraRef.current) return;
 
     let animationId;
     let lastTime = performance.now();
@@ -1613,6 +2316,18 @@ END`;
             gmst = gmst % (2 * Math.PI);
             if (gmst < 0) gmst += 2 * Math.PI;
             earthRef.current.rotation.y = gmst;
+
+            const sunAngle = gmst + Math.PI;
+            const sunDistance = 1000000;
+            sunPositionRef.current.set(
+              sunDistance * Math.cos(sunAngle),
+              sunDistance * 0.4,
+              sunDistance * Math.sin(sunAngle)
+            );
+
+            if (sunLightRef.current) {
+              sunLightRef.current.position.copy(sunPositionRef.current.clone().normalize().multiplyScalar(100));
+            }
           }
 
           if (frameCountRef.current % PERFORMANCE_CONSTANTS.UPDATE_FREQUENCY === 0) {
@@ -1625,11 +2340,32 @@ END`;
           if (frameCountRef.current % PERFORMANCE_CONSTANTS.UPDATE_FREQUENCY === 0) {
             updateLabels();
           }
+
+          if (selectedSatellite) {
+            updateSensorFootprint(selectedSatellite);
+            if (frameCountRef.current % 10 === 0) {
+              updateGroundTrack(selectedSatellite);
+            }
+          } else {
+            updateSensorFootprint(null);
+            updateGroundTrack(null);
+          }
         }
 
         controlsRef.current.update();
         TWEEN.update(time);
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        
+        if (bloomEnabled) {
+          cameraRef.current.layers.set(0);
+          composerRef.current.render();
+          cameraRef.current.layers.set(NON_BLOOM_LAYER);
+          rendererRef.current.autoClear = false;
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+          rendererRef.current.autoClear = true;
+          cameraRef.current.layers.enableAll();
+        } else {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
       }
     };
 
@@ -1642,8 +2378,9 @@ END`;
     };
   }, [
     satellites, earthRotation, earthRotationData, showTrails, showOrbits, showLabels, 
-    isPlaying, speedMultiplier, targetFps, updateLabels, performFrustumCulling, 
-    updateInstancedMeshes, updateSpatialGrid, updateOrbitsAndTrails
+    isPlaying, speedMultiplier, targetFps, bloomEnabled, updateLabels, performFrustumCulling, 
+    updateInstancedMeshes, updateSpatialGrid, updateOrbitsAndTrails, selectedSatellite, 
+    updateSensorFootprint, updateGroundTrack
   ]);
 
   useEffect(() => {
@@ -1732,6 +2469,24 @@ END`;
   const activeSatellites = satellites.filter(s => s.active).length;
   const sgp4Count = satellites.filter(s => s.propagationModel === "SGP4").length;
   const sdp4Count = satellites.filter(s => s.propagationModel === "SDP4").length;
+
+  const eclipseStats = useMemo(() => {
+    let inShadow = 0;
+    let sunlit = 0;
+    satellites.forEach(satellite => {
+      if (satellite.active) {
+        const data = satelliteDataRef.current.get(satellite.id);
+        if (data) {
+          if (data.inShadow) {
+            inShadow++;
+          } else {
+            sunlit++;
+          }
+        }
+      }
+    });
+    return { inShadow, sunlit };
+  }, [satellites, performanceStats]);
 
   const categoryCounts = satellites.reduce((acc, satellite) => {
     if (satellite.active) {
@@ -2034,18 +2789,34 @@ END`;
             </div>
             {!controlsCollapsed && (
               <div className="dinoSatSatellitePanelContent">
-                <button className="dinoSatSatelliteControlButton" onClick={resetCamera} aria-label="Reset camera">
-                  Reset Camera
-                </button>
-                <button className="dinoSatSatelliteControlButton" onClick={toggleOrbits} aria-label={showOrbits ? "Hide orbits" : "Show orbits"}>
-                  {showOrbits ? "Hide" : "Show"} Orbits
-                </button>
-                <button className="dinoSatSatelliteControlButton" onClick={toggleTrails} aria-label={showTrails ? "Hide trails" : "Show trails"}>
-                  {showTrails ? "Hide" : "Show"} Trails
-                </button>
-                <button className="dinoSatSatelliteControlButton" onClick={toggleLabels} aria-label={showLabels ? "Hide labels" : "Show labels"}>
-                  {showLabels ? "Hide" : "Show"} Labels
-                </button>
+                <button className="dinoSatSatelliteControlButton" onClick={resetCamera}>Reset Camera</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleOrbits}>{showOrbits ? "Hide" : "Show"} Orbits</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleTrails}>{showTrails ? "Hide" : "Show"} Trails</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleLabels}>{showLabels ? "Hide" : "Show"} Labels</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleBloom}>{bloomEnabled ? "Disable" : "Enable"} Bloom</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleAxisMarkers}>{showAxisMarkers ? "Hide" : "Show"} Axes</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleEquatorialGrid}>{showEquatorialGrid ? "Hide" : "Show"} Grid</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleAltitudeBands}>{showAltitudeBands ? "Hide" : "Show"} Alt Bands</button>
+                <button className="dinoSatSatelliteControlButton" onClick={toggleDistanceRings}>{showDistanceRings ? "Hide" : "Show"} Dist Rings</button>
+                {bloomEnabled && (
+                  <div className="dinoSatSatelliteBloomControls">
+                    <div className="dinoSatSatelliteBloomSlider">
+                      <span>Strength</span>
+                      <input type="range" min="0" max="5" step="0.1" value={bloomStrength} onChange={(e) => setBloomStrength(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomStrength.toFixed(1)}</span>
+                    </div>
+                    <div className="dinoSatSatelliteBloomSlider">
+                      <span>Radius</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomRadius} onChange={(e) => setBloomRadius(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomRadius.toFixed(2)}</span>
+                    </div>
+                    <div className="dinoSatSatelliteBloomSlider">
+                      <span>Threshold</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomThreshold} onChange={(e) => setBloomThreshold(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomThreshold.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2063,172 +2834,85 @@ END`;
             >
               <div className="dinoSatSatelliteHUDPanelHeader">
                 <span>Performance HUD - Drag to Move</span>
-                <button className="dinoSatSatelliteCloseButton" onClick={toggleHUD} aria-label="Close HUD">
-                  <FontAwesomeIcon icon={faXmarkSquare} />
-                </button>
+                <button className="dinoSatSatelliteCloseButton" onClick={toggleHUD}><FontAwesomeIcon icon={faXmarkSquare} /></button>
               </div>
               <div className="dinoSatSatelliteHUDContent">
                 <div className="dinosatSatelliteHUDSection">
-                  <h4 style={{ "marginTop": 0 }}>Performance Metrics</h4>
+                  <h4>Coordinate System</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Render Time:</span>
-                      <span>{performanceStats.renderTime}ms</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Target FPS:</span>
-                      <span>{targetFps}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Actual FPS:</span>
-                      <span>{actualFps}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Draw Calls:</span>
-                      <span>{performanceStats.drawCalls}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Triangles:</span>
-                      <span>{performanceStats.triangles.toLocaleString()}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Memory Usage:</span>
-                      <span>{performanceStats.memoryUsage} objects</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Visible Satellites:</span>
-                      <span style={{ color: "#00ff00" }}>{performanceStats.visibleSatellites}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Culled Satellites:</span>
-                      <span style={{ color: "#ffaa00" }}>{performanceStats.culledSatellites}</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Reference Frame:</span><span>ECI J2000.0</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Origin:</span><span>Earth Center</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>X-Axis:</span><span>Vernal Equinox</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Y-Axis:</span><span>90E Longitude</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Z-Axis:</span><span>North Pole</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Units:</span><span>km (scaled)</span></div>
                   </div>
                 </div>
-
                 <div className="dinosatSatelliteHUDSection">
-                  <h4>Optimization Status</h4>
+                  <h4>Post-Processing</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Instanced Rendering:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Frustum Culling:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>LOD System:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Virtual Scrolling:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Spatial Partitioning:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Label Pooling:</span>
-                      <span style={{ color: "#00ff00" }}>Active</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Bloom:</span><span style={{ color: bloomEnabled ? "#4ECDC4" : "#888888" }}>{bloomEnabled ? "Enabled" : "Disabled"}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Bloom Strength:</span><span>{bloomStrength.toFixed(2)}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Bloom Radius:</span><span>{bloomRadius.toFixed(2)}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Bloom Threshold:</span><span>{bloomThreshold.toFixed(2)}</span></div>
                   </div>
                 </div>
-
+                <div className="dinosatSatelliteHUDSection">
+                  <h4>Performance Metrics</h4>
+                  <div className="dinosatSatelliteHUDSectionGrid">
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Render Time:</span><span>{performanceStats.renderTime}ms</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Target FPS:</span><span>{targetFps}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Actual FPS:</span><span>{actualFps}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Draw Calls:</span><span>{performanceStats.drawCalls}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Triangles:</span><span>{performanceStats.triangles.toLocaleString()}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Memory Usage:</span><span>{performanceStats.memoryUsage} objects</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Visible Satellites:</span><span style={{ color: "#00ff00" }}>{performanceStats.visibleSatellites}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Culled Satellites:</span><span style={{ color: "#ffaa00" }}>{performanceStats.culledSatellites}</span></div>
+                  </div>
+                </div>
+                <div className="dinosatSatelliteHUDSection">
+                  <h4>3D Reference Elements</h4>
+                  <div className="dinosatSatelliteHUDSectionGrid">
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Axis Markers:</span><span style={{ color: showAxisMarkers ? "#00ff00" : "#888888" }}>{showAxisMarkers ? "Visible" : "Hidden"}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Equatorial Grid:</span><span style={{ color: showEquatorialGrid ? "#00ff00" : "#888888" }}>{showEquatorialGrid ? "Visible" : "Hidden"}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Altitude Bands:</span><span style={{ color: showAltitudeBands ? "#00ff00" : "#888888" }}>{showAltitudeBands ? "Visible" : "Hidden"}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Distance Rings:</span><span style={{ color: showDistanceRings ? "#00ff00" : "#888888" }}>{showDistanceRings ? "Visible" : "Hidden"}</span></div>
+                  </div>
+                </div>
                 <div className="dinosatSatelliteHUDSection">
                   <h4>Orbital Propagation Status</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>SGP4 Satellites:</span>
-                      <span style={{ color: "#00ff00" }}>{sgp4Count}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>SDP4 Deep Space:</span>
-                      <span style={{ color: "#ffaa00" }}>{sdp4Count}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>TLE Processing Errors:</span>
-                      <span style={{ color: errors.length > 0 ? "#ff4400" : "#00ff00" }}>
-                        {errors.length}
-                      </span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Earth Rotation:</span>
-                      <span style={{ color: earthRotationData ? "#00ff00" : "#ff4400" }}>
-                        {earthRotationData ? "IERS Data" : "Failed"}
-                      </span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Position Data:</span>
-                      <span style={{ color: "#00ff00" }}>SGP4/SDP4</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Max Rendering:</span>
-                      <span style={{ color: "#00ff00" }}>{PERFORMANCE_CONSTANTS.MAX_VISIBLE_SATELLITES}</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>SGP4 Satellites:</span><span style={{ color: "#00ff00" }}>{sgp4Count}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>SDP4 Deep Space:</span><span style={{ color: "#ffaa00" }}>{sdp4Count}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>TLE Processing Errors:</span><span style={{ color: errors.length > 0 ? "#ff4400" : "#00ff00" }}>{errors.length}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Earth Rotation:</span><span style={{ color: earthRotationData ? "#00ff00" : "#ff4400" }}>{earthRotationData ? "IERS Data" : "Failed"}</span></div>
                   </div>
                 </div>
-
                 <div className="dinosatSatelliteHUDSection">
                   <h4>Data Status</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Active Satellites:</span>
-                      <span>{activeSatellites}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Total Objects:</span>
-                      <span>{satellites.length}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Preselected Count:</span>
-                      <span>{PERFORMANCE_CONSTANTS.PRESELECT_COUNT}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Data Sources:</span>
-                      <span>CelesTrak, IERS</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>API Errors:</span>
-                      <span style={{ color: errors.length > 0 ? "#ff4400" : "#00ff00" }}>
-                        {errors.length}
-                      </span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Speed Multiplier:</span>
-                      <span>{speedMultiplier}x</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Simulation Time:</span>
-                      <span>{currentTime}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Architecture:</span>
-                      <span style={{ color: "#00ff00" }}>Optimized</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Active Satellites:</span><span>{activeSatellites}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Total Objects:</span><span>{satellites.length}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Data Sources:</span><span>CelesTrak, IERS</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Speed Multiplier:</span><span>{speedMultiplier}x</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Simulation Time:</span><span>{currentTime}</span></div>
                   </div>
                 </div>
-
                 <div className="dinosatSatelliteHUDSection">
                   <h4>Fleet Statistics</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Active LEO:</span>
-                      <span>{categoryCounts["LEO"] || 0}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Active MEO:</span>
-                      <span>{categoryCounts["MEO"] || 0}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Active GEO:</span>
-                      <span>{categoryCounts["GEO"] || 0}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Deep Space:</span>
-                      <span>{categoryCounts["Deep Space"] || 0}</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Active LEO:</span><span>{categoryCounts["LEO"] || 0}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Active MEO:</span><span>{categoryCounts["MEO"] || 0}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Active GEO:</span><span>{categoryCounts["GEO"] || 0}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Deep Space:</span><span>{categoryCounts["Deep Space"] || 0}</span></div>
+                  </div>
+                </div>
+                <div className="dinosatSatelliteHUDSection">
+                  <h4>Eclipse Physics</h4>
+                  <div className="dinosatSatelliteHUDSectionGrid">
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Satellites Sunlit:</span><span style={{ color: "#00ff00" }}>{eclipseStats.sunlit}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Satellites In Shadow:</span><span style={{ color: "#ff8800" }}>{eclipseStats.inShadow}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Shadow Model:</span><span style={{ color: "#00ff00" }}>Umbra/Penumbra</span></div>
                   </div>
                 </div>
               </div>
@@ -2248,131 +2932,57 @@ END`;
             >
               <div className="dinoSatSatelliteHUDPanelHeader">
                 <span>{detailedSatellite.name}</span>
-                <button className="dinoSatSatelliteCloseButton" onClick={() => setDetailedSatellite(null)} aria-label="Close details">
-                  <FontAwesomeIcon icon={faXmarkSquare} />
-                </button>
+                <button className="dinoSatSatelliteCloseButton" onClick={() => setDetailedSatellite(null)}><FontAwesomeIcon icon={faXmarkSquare} /></button>
               </div>
               <div className="dinoSatSatelliteHUDContent">
                 <div className="dinoSatSatelliteModelViewer"></div>
-
                 <div className="dinosatSatelliteHUDSection">
                   <h4>Basic Information</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Name:</span>
-                      <span>{detailedSatellite.name}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>NORAD ID:</span>
-                      <span>{detailedSatellite.noradId}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Category:</span>
-                      <span>{detailedSatellite.category}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Status:</span>
-                      <span style={{ color: detailedSatellite.status === "Active" ? "#00ff00" : "#ff4400" }}>
-                        {detailedSatellite.status}
-                      </span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Propagation Model:</span>
-                      <span style={{ color: detailedSatellite.hasTLE ? "#00ff00" : "#ffaa00" }}>
-                        {detailedSatellite.propagationModel || "No TLE"}
-                      </span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Data Source:</span>
-                      <span>{detailedSatellite.source}</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Name:</span><span>{detailedSatellite.name}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>NORAD ID:</span><span>{detailedSatellite.noradId}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Category:</span><span>{detailedSatellite.category}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Status:</span><span style={{ color: detailedSatellite.status === "Active" ? "#00ff00" : "#ff4400" }}>{detailedSatellite.status}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Propagation Model:</span><span style={{ color: detailedSatellite.hasTLE ? "#00ff00" : "#ffaa00" }}>{detailedSatellite.propagationModel || "No TLE"}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Data Source:</span><span>{detailedSatellite.source}</span></div>
                   </div>
                 </div>
-
                 <div className="dinosatSatelliteHUDSection">
                   <h4>Orbital Parameters</h4>
                   <div className="dinosatSatelliteHUDSectionGrid">
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Altitude:</span>
-                      <span>{detailedSatellite.altitude} km</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Apogee:</span>
-                      <span>{detailedSatellite.apogee} km</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Perigee:</span>
-                      <span>{detailedSatellite.perigee} km</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Inclination:</span>
-                      <span>{detailedSatellite.inclination}°</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Orbital Period:</span>
-                      <span>{detailedSatellite.period.toFixed(2)} minutes</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Eccentricity:</span>
-                      <span>{detailedSatellite.eccentricity}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>RAAN:</span>
-                      <span>{detailedSatellite.raan}°</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Arg of Perigee:</span>
-                      <span>{detailedSatellite.argOfPerigee}°</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Mean Anomaly:</span>
-                      <span>{detailedSatellite.meanAnomaly}°</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Semi-Major Axis:</span>
-                      <span>{detailedSatellite.semiMajorAxis} km</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Velocity:</span>
-                      <span>{detailedSatellite.velocity} km/s</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Mean Motion:</span>
-                      <span>{detailedSatellite.meanMotion} rev/day</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Epoch Year:</span>
-                      <span>{detailedSatellite.epochYear}</span>
-                    </div>
-                    <div className="dinosatSatelliteHUDSectionItem">
-                      <span>Epoch Day:</span>
-                      <span>{detailedSatellite.epochDay}</span>
-                    </div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Altitude:</span><span>{detailedSatellite.altitude} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Apogee:</span><span>{detailedSatellite.apogee} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Perigee:</span><span>{detailedSatellite.perigee} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Inclination:</span><span>{detailedSatellite.inclination}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Orbital Period:</span><span>{detailedSatellite.period.toFixed(2)} minutes</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Eccentricity:</span><span>{detailedSatellite.eccentricity}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>RAAN:</span><span>{detailedSatellite.raan}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Arg of Perigee:</span><span>{detailedSatellite.argOfPerigee}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Mean Anomaly:</span><span>{detailedSatellite.meanAnomaly}</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Mean Semi-Major Axis:</span><span>{detailedSatellite.semiMajorAxis} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Velocity:</span><span>{detailedSatellite.velocity} km/s</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Mean Motion:</span><span>{detailedSatellite.meanMotion} rev/day</span></div>
                   </div>
                 </div>
-
+                <div className="dinosatSatelliteHUDSection">
+                  <h4>Sensor Coverage</h4>
+                  <div className="dinosatSatelliteHUDSectionGrid">
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Horizon Distance:</span><span>{Math.round(Math.sqrt(Math.pow(6371 + detailedSatellite.altitude, 2) - Math.pow(6371, 2)))} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Footprint Radius:</span><span>{Math.round(6371 * Math.acos(6371 / (6371 + detailedSatellite.altitude)) * 180 / Math.PI * 111)} km</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Coverage Area:</span><span>{(Math.PI * Math.pow(6371 * Math.acos(6371 / (6371 + detailedSatellite.altitude)), 2) / 1000000).toFixed(2)} M km2</span></div>
+                    <div className="dinosatSatelliteHUDSectionItem"><span>Earth Coverage:</span><span>{((1 - Math.cos(Math.acos(6371 / (6371 + detailedSatellite.altitude)))) / 2 * 100).toFixed(2)}%</span></div>
+                  </div>
+                </div>
                 {detailedSatellite.hasTLE && (
                   <div className="dinosatSatelliteHUDSection">
                     <h4>Performance Data</h4>
                     <div className="dinosatSatelliteHUDSectionGrid">
-                      <div className="dinosatSatelliteHUDSectionItem">
-                        <span>Rendering Method:</span>
-                        <span style={{ color: "#00ff00" }}>Instanced</span>
-                      </div>
-                      <div className="dinosatSatelliteHUDSectionItem">
-                        <span>Position Source:</span>
-                        <span style={{ color: "#00ff00" }}>SGP4/SDP4</span>
-                      </div>
-                      <div className="dinosatSatelliteHUDSectionItem">
-                        <span>Visibility:</span>
-                        <span style={{ color: visibleSatellitesRef.current.has(detailedSatellite.id) ? "#00ff00" : "#ff4400" }}>
-                          {visibleSatellitesRef.current.has(detailedSatellite.id) ? "Visible" : "Culled"}
-                        </span>
-                      </div>
-                      <div className="dinosatSatelliteHUDSectionItem">
-                        <span>Coordinate Frame:</span>
-                        <span>ECI J2000.0</span>
-                      </div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Rendering Method:</span><span style={{ color: "#00ff00" }}>Instanced</span></div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Position Source:</span><span style={{ color: "#00ff00" }}>SGP4/SDP4</span></div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Visibility:</span><span style={{ color: visibleSatellitesRef.current.has(detailedSatellite.id) ? "#00ff00" : "#ff4400" }}>{visibleSatellitesRef.current.has(detailedSatellite.id) ? "Visible" : "Culled"}</span></div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Coordinate Frame:</span><span>ECI J2000.0</span></div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Eclipse Status:</span><span style={{ color: satelliteDataRef.current.get(detailedSatellite.id)?.inShadow ? "#ff8800" : "#00ff00" }}>{satelliteDataRef.current.get(detailedSatellite.id)?.inShadow ? "In Shadow" : "Sunlit"}</span></div>
+                      <div className="dinosatSatelliteHUDSectionItem"><span>Illumination:</span><span>{Math.round((satelliteDataRef.current.get(detailedSatellite.id)?.shadowFactor || 1.0) * 100)}%</span></div>
                     </div>
                   </div>
                 )}
@@ -2383,4 +2993,4 @@ END`;
       </div>
     </div>
   );
-} 
+}

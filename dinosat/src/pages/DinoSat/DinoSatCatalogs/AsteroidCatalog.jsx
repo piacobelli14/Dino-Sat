@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import * as THREE from "three";
 import * as TWEEN from "three/examples/jsm/libs/tween.module.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faInfoCircle, faTimes, faRedo, 
@@ -17,13 +20,13 @@ export default function AsteroidCatalog() {
     "C-type": "#4a4a4a",
     "S-type": "#CD853F",
     "M-type": "#A9A9A9",
-    "V-type": "#8B0000",
+    "V-type": "#6A0DAD",
     "E-type": "#F5F5DC",
-    "P-type": "#800000",
+    "P-type": "#5D4E37",
     "D-type": "#654321",
     "A-type": "#FFD700",
     "Q-type": "#DEB887",
-    "R-type": "#DC143C",
+    "R-type": "#20B2AA",
     "B-type": "#1a1a2e",
     "F-type": "#2d2d44",
     "G-type": "#3d3d5c",
@@ -35,11 +38,11 @@ export default function AsteroidCatalog() {
   };
 
   const ORBIT_CLASS_COLORS = {
-    "NEA": "#FF6B6B",
-    "Aten": "#FF4500",
+    "NEA": "#4ECDC4",
+    "Aten": "#FFA500",
     "Apollo": "#FFD700",
-    "Amor": "#4ECDC4",
-    "Atira": "#FF1493",
+    "Amor": "#45B7D1",
+    "Atira": "#DA70D6",
     "MBA": "#45B7D1",
     "IMB": "#96CEB4",
     "OMB": "#FFEAA7",
@@ -52,7 +55,19 @@ export default function AsteroidCatalog() {
     "KBO": "#E6E6FA",
     "SDO": "#DEB887",
     "Comet": "#00CED1",
+    "Mars-crossing": "#E6A547",
     "Unknown": "#888888"
+  };
+
+  const PLANET_EPHEMERIDES = {
+    Mercury: { a: 0.38709927, e: 0.20563593, i: 7.00497902, L: 252.25032350, w: 77.45779628, node: 48.33076593, a_dot: 0.00000037, e_dot: 0.00001906, i_dot: -0.00594749, L_dot: 149472.67411175, w_dot: 0.16047689, node_dot: -0.12534081, color: 0x8c8c8c },
+    Venus: { a: 0.72333566, e: 0.00677672, i: 3.39467605, L: 181.97909950, w: 131.60246718, node: 76.67984255, a_dot: 0.00000390, e_dot: -0.00004107, i_dot: -0.00078890, L_dot: 58517.81538729, w_dot: 0.00268329, node_dot: -0.27769418, color: 0xe6c87a },
+    Earth: { a: 1.00000261, e: 0.01671123, i: -0.00001531, L: 100.46457166, w: 102.93768193, node: 0.0, a_dot: 0.00000562, e_dot: -0.00004392, i_dot: -0.01294668, L_dot: 35999.37244981, w_dot: 0.32327364, node_dot: 0.0, color: 0x4a8aff },
+    Mars: { a: 1.52371034, e: 0.09339410, i: 1.84969142, L: -4.55343205, w: -23.94362959, node: 49.55953891, a_dot: 0.00001847, e_dot: 0.00007882, i_dot: -0.00813131, L_dot: 19140.30268499, w_dot: 0.44441088, node_dot: -0.29257343, color: 0xc46a4a },
+    Jupiter: { a: 5.20288700, e: 0.04838624, i: 1.30439695, L: 34.39644051, w: 14.72832050, node: 100.47390909, a_dot: -0.00011607, e_dot: -0.00013253, i_dot: -0.00183714, L_dot: 3034.74612775, w_dot: 0.21252668, node_dot: 0.20469106, color: 0xd4a574 },
+    Saturn: { a: 9.53667594, e: 0.05386179, i: 2.48599187, L: 49.95424423, w: 92.59887831, node: 113.66242448, a_dot: -0.00125060, e_dot: -0.00050991, i_dot: 0.00193609, L_dot: 1222.49362201, w_dot: -0.41897216, node_dot: -0.28867794, color: 0xead6b8 },
+    Uranus: { a: 19.18916464, e: 0.04725744, i: 0.77263783, L: 313.23810451, w: 170.95427630, node: 74.01692503, a_dot: -0.00196176, e_dot: -0.00004397, i_dot: -0.00242939, L_dot: 428.48202785, w_dot: 0.40805281, node_dot: 0.04240589, color: 0x7ec8e3 },
+    Neptune: { a: 30.06992276, e: 0.00859048, i: 1.77004347, L: -55.12002969, w: 44.96476227, node: 131.78422574, a_dot: 0.00026291, e_dot: 0.00005105, i_dot: 0.00035372, L_dot: 218.45945325, w_dot: 0.32241464, node_dot: -0.00508664, color: 0x4169e1 }
   };
 
   const ECCENTRICITY_RANGES = [
@@ -101,8 +116,17 @@ export default function AsteroidCatalog() {
     VIRTUAL_SCROLL_ITEM_HEIGHT: 50,
     VIRTUAL_SCROLL_BUFFER: 10,
     ASTEROID_SIZE_MULTIPLIER: 2.0,
-    SCALE_FACTOR: 30.0
+    SCALE_FACTOR: 30.0,
+    SPEED_OF_LIGHT_AU_PER_DAY: 173.1446
   };
+
+  const BLOOM_PARAMS = {
+    strength: 0.6,
+    radius: 0.3,
+    threshold: 0.3
+  };
+
+  const NON_BLOOM_LAYER = 1;
 
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState([]);
@@ -127,6 +151,10 @@ export default function AsteroidCatalog() {
   const [showAxisMarkers, setShowAxisMarkers] = useState(true);
   const [showPlanetOrbits, setShowPlanetOrbits] = useState(true);
   const [showAsteroidBelt, setShowAsteroidBelt] = useState(false);
+  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const [bloomStrength, setBloomStrength] = useState(BLOOM_PARAMS.strength);
+  const [bloomRadius, setBloomRadius] = useState(BLOOM_PARAMS.radius);
+  const [bloomThreshold, setBloomThreshold] = useState(BLOOM_PARAMS.threshold);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
@@ -163,6 +191,8 @@ export default function AsteroidCatalog() {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
+  const composerRef = useRef(null);
+  const bloomPassRef = useRef(null);
   const labelRendererRef = useRef(null);
   const cameraRef = useRef(null);
   const asteroidGroupRef = useRef(null);
@@ -190,6 +220,7 @@ export default function AsteroidCatalog() {
   const tempMatrix = useRef(new THREE.Matrix4());
   const tempQuaternion = useRef(new THREE.Quaternion());
   const tempColor = useRef(new THREE.Color());
+  const earthPositionRef = useRef({ x: 1, y: 0, z: 0 });
 
   class CSS2DObject extends THREE.Object3D {
     constructor(element) {
@@ -229,6 +260,68 @@ export default function AsteroidCatalog() {
 
   const spatialGrid = useMemo(() => new SpatialGrid(100), []);
 
+  const getJ2000Centuries = useCallback(() => {
+    const now = new Date();
+    const jd = (now.getTime() / 86400000) + 2440587.5;
+    return (jd - 2451545.0) / 36525.0;
+  }, []);
+
+  const calculateApparentMagnitude = useCallback((H, G, r, delta, phaseAngleRad) => {
+    if (!Number.isFinite(H) || !Number.isFinite(r) || !Number.isFinite(delta) || r <= 0 || delta <= 0) {
+      return 20;
+    }
+    const safeG = Number.isFinite(G) ? G : 0.15;
+    const halfPhase = phaseAngleRad / 2;
+    const tanHalfPhase = Math.tan(halfPhase);
+    if (!Number.isFinite(tanHalfPhase) || tanHalfPhase < 0) {
+      return H + 5 * Math.log10(r * delta);
+    }
+    const phi1 = Math.exp(-3.33 * Math.pow(Math.abs(tanHalfPhase), 0.63));
+    const phi2 = Math.exp(-1.87 * Math.pow(Math.abs(tanHalfPhase), 1.22));
+    const phaseIntegral = (1 - safeG) * phi1 + safeG * phi2;
+    if (!Number.isFinite(phaseIntegral) || phaseIntegral <= 0) {
+      return H + 5 * Math.log10(r * delta);
+    }
+    return H + 5 * Math.log10(r * delta) - 2.5 * Math.log10(phaseIntegral);
+  }, []);
+
+  const calculatePlanetPosition = useCallback((planetData, T) => {
+    const a = planetData.a + planetData.a_dot * T;
+    const e = planetData.e + planetData.e_dot * T;
+    const iDeg = planetData.i + planetData.i_dot * T;
+    const L = planetData.L + planetData.L_dot * T;
+    const wBar = planetData.w + planetData.w_dot * T;
+    const node = planetData.node + planetData.node_dot * T;
+    const argPeri = wBar - node;
+    const M = ((L - wBar) % 360 + 360) % 360;
+    const MRad = M * Math.PI / 180;
+    const iRad = iDeg * Math.PI / 180;
+    const omRad = node * Math.PI / 180;
+    const wRad = argPeri * Math.PI / 180;
+    let E = MRad;
+    for (let iter = 0; iter < 50; iter++) {
+      const dE = (E - e * Math.sin(E) - MRad) / (1 - e * Math.cos(E));
+      E = E - dE;
+      if (Math.abs(dE) < 1e-8) break;
+    }
+    const cosE = Math.cos(E);
+    const sinE = Math.sin(E);
+    const nu = Math.atan2(Math.sqrt(1 - e * e) * sinE, cosE - e);
+    const r = a * (1 - e * cosE);
+    const xOrb = r * Math.cos(nu);
+    const yOrb = r * Math.sin(nu);
+    const cosOm = Math.cos(omRad);
+    const sinOm = Math.sin(omRad);
+    const cosW = Math.cos(wRad);
+    const sinW = Math.sin(wRad);
+    const cosI = Math.cos(iRad);
+    const sinI = Math.sin(iRad);
+    const x = (cosOm * cosW - sinOm * sinW * cosI) * xOrb + (-cosOm * sinW - sinOm * cosW * cosI) * yOrb;
+    const y = (sinOm * cosW + cosOm * sinW * cosI) * xOrb + (-sinOm * sinW + cosOm * cosW * cosI) * yOrb;
+    const z = (sinW * sinI) * xOrb + (cosW * sinI) * yOrb;
+    return { x, y, z, r, a, e, iRad, omRad, wRad };
+  }, []);
+
   const calculateAsteroidPosition = useCallback((asteroid) => {
     let x = asteroid.heliocentricX;
     let y = asteroid.heliocentricY;
@@ -242,7 +335,7 @@ export default function AsteroidCatalog() {
       const iDeg = asteroid.inclination || 0;
       const omDeg = asteroid.longAscNode || 0;
       const wDeg = asteroid.argPerihelion || 0;
-      const mDeg = asteroid.meanAnomaly || asteroid.currentMeanAnomaly || 0;
+      const mDeg = asteroid.currentMeanAnomaly ?? asteroid.meanAnomaly ?? 0;
       
       const i = iDeg * Math.PI / 180;
       const om = omDeg * Math.PI / 180;
@@ -307,20 +400,33 @@ export default function AsteroidCatalog() {
     );
   };
 
-  const getAsteroidSize = (absoluteMag, diameter) => {
-    if (diameter && diameter > 0) {
-      const baseSize = 0.8;
-      const scaleFactor = 0.4;
-      const sizeFactor = Math.log10(diameter + 1) + 1;
-      return Math.max(0.15, Math.min(6.0, baseSize * sizeFactor * scaleFactor)) * PERFORMANCE_CONSTANTS.ASTEROID_SIZE_MULTIPLIER;
-    }
-    if (absoluteMag && !isNaN(absoluteMag)) {
-      const baseSize = 1.2;
-      const magFactor = Math.max(0.2, (25 - absoluteMag) / 15);
-      return Math.max(0.15, Math.min(5.0, baseSize * magFactor)) * PERFORMANCE_CONSTANTS.ASTEROID_SIZE_MULTIPLIER;
-    }
-    return 0.8 * PERFORMANCE_CONSTANTS.ASTEROID_SIZE_MULTIPLIER;
-  };
+  const getAsteroidVisualSize = useCallback((asteroid, earthPos) => {
+    const x = asteroid.computedX;
+    const y = asteroid.computedY;
+    const z = asteroid.computedZ;
+    if (x === null || y === null || z === null) return { visualSize: 1.0, phaseAngle: 0, apparentMag: 20, distToSun: 1, distToEarth: 1 };
+    const distToSun = Math.sqrt(x * x + y * y + z * z);
+    const dx = earthPos.x - x;
+    const dy = earthPos.y - y;
+    const dz = earthPos.z - z;
+    const distToEarth = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const sunVecX = -x / distToSun;
+    const sunVecY = -y / distToSun;
+    const sunVecZ = -z / distToSun;
+    const earthVecLen = distToEarth > 0 ? distToEarth : 1;
+    const earthVecX = dx / earthVecLen;
+    const earthVecY = dy / earthVecLen;
+    const earthVecZ = dz / earthVecLen;
+    const dotProduct = sunVecX * earthVecX + sunVecY * earthVecY + sunVecZ * earthVecZ;
+    const clampedDot = Math.max(-1, Math.min(1, dotProduct));
+    const phaseAngle = Math.acos(clampedDot);
+    const H = asteroid.absoluteMagnitude || 20;
+    const G = asteroid.slopeParameter || 0.15;
+    const apparentMag = calculateApparentMagnitude(H, G, distToSun, distToEarth, phaseAngle);
+    let visualSize = Math.max(0.1, (22 - apparentMag) / 5);
+    visualSize = Math.min(Math.max(visualSize, 0.2), 4.0) * PERFORMANCE_CONSTANTS.ASTEROID_SIZE_MULTIPLIER;
+    return { visualSize, phaseAngle, apparentMag, distToSun, distToEarth };
+  }, [calculateApparentMagnitude]);
 
   const createTextSprite = (text, color) => {
     const canvas = document.createElement("canvas");
@@ -365,6 +471,7 @@ export default function AsteroidCatalog() {
     const sprite = new THREE.Sprite(material);
     const aspect = canvasWidth / canvasHeight;
     sprite.scale.set(0.035 * aspect, 0.035, 1);
+    sprite.layers.set(NON_BLOOM_LAYER);
     return sprite;
   };
 
@@ -379,7 +486,7 @@ export default function AsteroidCatalog() {
     group.name = "AxisMarkers";
     const scale = PERFORMANCE_CONSTANTS.SCALE_FACTOR;
     const length = 6 * scale;
-    const axisRadius = 2.0;
+    const axisRadius = 0.15;
 
     const xGeometry = new THREE.CylinderGeometry(axisRadius, axisRadius, length, 8);
     const xMaterial = new THREE.MeshBasicMaterial({ color: 0x7a5555, transparent: true, opacity: 0.8 });
@@ -414,15 +521,17 @@ export default function AsteroidCatalog() {
     group.add(zLabel);
 
     const sunGeometry = new THREE.SphereGeometry(3, 32, 32);
-    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.95 });
+    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffee88, transparent: true, opacity: 1.0 });
     const sunMarker = new THREE.Mesh(sunGeometry, sunMaterial);
     sunMarker.position.set(0, 0, 0);
+    sunMarker.material.color.multiplyScalar(3.0);
     group.add(sunMarker);
 
     const sunGlowGeometry = new THREE.SphereGeometry(5, 16, 16);
-    const sunGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.3 });
+    const sunGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.5 });
     const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
     sunGlow.position.set(0, 0, 0);
+    sunGlow.material.color.multiplyScalar(2.0);
     group.add(sunGlow);
 
     const sunSprite = createTextSprite("Sun", 0xffdd44);
@@ -432,56 +541,80 @@ export default function AsteroidCatalog() {
     return group;
   };
 
-  const createPlanetOrbits = () => {
+  const applyOrbitalRotation = (xOrb, yOrb, iRad, omRad, wRad) => {
+    const cosOm = Math.cos(omRad);
+    const sinOm = Math.sin(omRad);
+    const cosW = Math.cos(wRad);
+    const sinW = Math.sin(wRad);
+    const cosI = Math.cos(iRad);
+    const sinI = Math.sin(iRad);
+    
+    const x = (cosOm * cosW - sinOm * sinW * cosI) * xOrb + (-cosOm * sinW - sinOm * cosW * cosI) * yOrb;
+    const y = (sinOm * cosW + cosOm * sinW * cosI) * xOrb + (-sinOm * sinW + cosOm * cosW * cosI) * yOrb;
+    const z = (sinW * sinI) * xOrb + (cosW * sinI) * yOrb;
+    
+    return { x, y, z };
+  };
+
+  const createPlanetOrbits = useCallback(() => {
     const group = new THREE.Group();
     group.name = "PlanetOrbits";
     const scale = PERFORMANCE_CONSTANTS.SCALE_FACTOR;
+    const T = getJ2000Centuries();
+    const degToRad = Math.PI / 180;
 
-    const planets = [
-      { name: "Mercury", a: 0.387, e: 0.206, color: 0x8c8c8c, labelAngle: 45 },
-      { name: "Venus", a: 0.723, e: 0.007, color: 0xe6c87a, labelAngle: 70 },
-      { name: "Earth", a: 1.0, e: 0.017, color: 0x4a8aff, labelAngle: 95 },
-      { name: "Mars", a: 1.524, e: 0.093, color: 0xc46a4a, labelAngle: 120 },
-      { name: "Jupiter", a: 5.203, e: 0.048, color: 0xd4a574, labelAngle: 145 },
-      { name: "Saturn", a: 9.537, e: 0.054, color: 0xead6b8, labelAngle: 170 },
-      { name: "Uranus", a: 19.191, e: 0.047, color: 0x7ec8e3, labelAngle: 195 },
-      { name: "Neptune", a: 30.069, e: 0.009, color: 0x4169e1, labelAngle: 220 }
-    ];
-
-    planets.forEach(planet => {
+    Object.entries(PLANET_EPHEMERIDES).forEach(([name, data]) => {
+      const a = data.a + data.a_dot * T;
+      const e = data.e + data.e_dot * T;
+      const iDeg = data.i + data.i_dot * T;
+      const wBarDeg = data.w + data.w_dot * T;
+      const nodeDeg = data.node + data.node_dot * T;
+      const argPeriDeg = wBarDeg - nodeDeg;
+      const iRad = iDeg * degToRad;
+      const omRad = nodeDeg * degToRad;
+      const wRad = argPeriDeg * degToRad;
       const points = [];
       const segments = 128;
-      for (let i = 0; i <= segments; i++) {
-        const theta = (i / segments) * Math.PI * 2;
-        const r = (planet.a * (1 - planet.e * planet.e)) / (1 + planet.e * Math.cos(theta));
-        const x = r * Math.cos(theta) * scale;
-        const z = r * Math.sin(theta) * scale;
-        points.push(new THREE.Vector3(x, 0, z));
+      
+      for (let idx = 0; idx <= segments; idx++) {
+        const theta = (idx / segments) * Math.PI * 2;
+        const r = (a * (1 - e * e)) / (1 + e * Math.cos(theta));
+        const xOrb = r * Math.cos(theta);
+        const yOrb = r * Math.sin(theta);
+        const rotated = applyOrbitalRotation(xOrb, yOrb, iRad, omRad, wRad);
+        const xScaled = rotated.x * scale;
+        const yScaled = rotated.z * scale;
+        const zScaled = -rotated.y * scale;
+        points.push(new THREE.Vector3(xScaled, yScaled, zScaled));
       }
+      
       const orbitCurve = new THREE.CatmullRomCurve3(points, true);
-      const tubeGeometry = new THREE.TubeGeometry(orbitCurve, 128, 1.0, 6, true);
+      const tubeGeometry = new THREE.TubeGeometry(orbitCurve, 128, 0.12, 6, true);
       const tubeMaterial = new THREE.MeshBasicMaterial({
-        color: planet.color,
+        color: data.color,
         transparent: true,
         opacity: 0.4
       });
       const orbit = new THREE.Mesh(tubeGeometry, tubeMaterial);
       group.add(orbit);
 
-      const labelAngleRad = planet.labelAngle * Math.PI / 180;
-      const labelRadius = planet.a * scale;
+      const labelTheta = (45 + Object.keys(PLANET_EPHEMERIDES).indexOf(name) * 25) * degToRad;
+      const labelR = (a * (1 - e * e)) / (1 + e * Math.cos(labelTheta));
+      const labelXOrb = labelR * Math.cos(labelTheta);
+      const labelYOrb = labelR * Math.sin(labelTheta);
+      const labelRotated = applyOrbitalRotation(labelXOrb, labelYOrb, iRad, omRad, wRad);
       const labelPos = new THREE.Vector3(
-        labelRadius * Math.cos(labelAngleRad),
-        2,
-        labelRadius * Math.sin(labelAngleRad)
+        labelRotated.x * scale,
+        labelRotated.z * scale + 2,
+        -labelRotated.y * scale
       );
-      const sprite = createTextSprite(planet.name, planet.color);
+      const sprite = createTextSprite(name, data.color);
       sprite.position.copy(labelPos);
       group.add(sprite);
     });
 
     return group;
-  };
+  }, [getJ2000Centuries]);
 
   const createAsteroidBelt = () => {
     const group = new THREE.Group();
@@ -492,14 +625,14 @@ export default function AsteroidCatalog() {
 
     const innerRing = [];
     const outerRing = [];
-    for (let i = 0; i <= 64; i++) {
-      const theta = (i / 64) * Math.PI * 2;
+    for (let idx = 0; idx <= 64; idx++) {
+      const theta = (idx / 64) * Math.PI * 2;
       innerRing.push(new THREE.Vector3(innerRadius * Math.cos(theta), 0, innerRadius * Math.sin(theta)));
       outerRing.push(new THREE.Vector3(outerRadius * Math.cos(theta), 0, outerRadius * Math.sin(theta)));
     }
 
-    const innerTube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(innerRing, true), 64, 0.2, 6, true);
-    const outerTube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(outerRing, true), 64, 0.2, 6, true);
+    const innerTube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(innerRing, true), 64, 0.05, 6, true);
+    const outerTube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(outerRing, true), 64, 0.05, 6, true);
     const beltMaterial = new THREE.MeshBasicMaterial({ color: 0x6a5a4a, transparent: true, opacity: 0.35 });
 
     group.add(new THREE.Mesh(innerTube, beltMaterial));
@@ -582,6 +715,12 @@ export default function AsteroidCatalog() {
 
   const updateInstancedMeshes = useCallback(() => {
     if (!asteroidInstanceRef.current) return;
+    
+    const T = getJ2000Centuries();
+    const earthData = PLANET_EPHEMERIDES.Earth;
+    const earthPos = calculatePlanetPosition(earthData, T);
+    earthPositionRef.current = { x: earthPos.x, y: earthPos.y, z: earthPos.z };
+    
     let instanceIndex = 0;
 
     asteroids.forEach((asteroid) => {
@@ -601,12 +740,18 @@ export default function AsteroidCatalog() {
         instanceIndex
       });
 
-      const asteroidSize = getAsteroidSize(asteroid.absoluteMagnitude, asteroid.diameter);
-      const scale = new THREE.Vector3(asteroidSize, asteroidSize, asteroidSize);
-      tempMatrix.current.compose(position, tempQuaternion.current, scale);
+      const visualData = getAsteroidVisualSize(asteroid, earthPositionRef.current);
+      const asteroidSize = visualData.visualSize;
+      const phaseIntensity = Math.max(0.3, 1.0 - (visualData.phaseAngle / Math.PI));
+      
+      const scaleVec = new THREE.Vector3(asteroidSize, asteroidSize, asteroidSize);
+      tempMatrix.current.compose(position, tempQuaternion.current, scaleVec);
       asteroidInstanceRef.current.setMatrixAt(instanceIndex, tempMatrix.current);
-      tempColor.current.setHex(asteroid.color.replace("#", "0x"));
-      asteroidInstanceRef.current.setColorAt(instanceIndex, tempColor.current);
+      
+      const baseColor = new THREE.Color(asteroid.color);
+      baseColor.multiplyScalar(phaseIntensity);
+      asteroidInstanceRef.current.setColorAt(instanceIndex, baseColor);
+      
       instanceIndex++;
     });
 
@@ -622,7 +767,7 @@ export default function AsteroidCatalog() {
       ...prev,
       visibleAsteroids: instanceIndex
     }));
-  }, [asteroids]);
+  }, [asteroids, getJ2000Centuries, calculatePlanetPosition, getAsteroidVisualSize]);
 
   const updateLabels = useCallback(() => {
     if (!cameraRef.current || !labelRendererRef.current || !showLabels) {
@@ -651,11 +796,11 @@ export default function AsteroidCatalog() {
       tempVec.project(camera);
       const behind = tempVec.z > 1;
       if (!behind) {
-        const x = (tempVec.x * 0.5 + 0.5) * width;
-        const y = (tempVec.y * -0.5 + 0.5) * height;
-        if (x >= -50 && x <= width + 50 && y >= -50 && y <= height + 50) {
-          label.element.style.left = `${Math.round(x)}px`;
-          label.element.style.top = `${Math.round(y)}px`;
+        const xPos = (tempVec.x * 0.5 + 0.5) * width;
+        const yPos = (tempVec.y * -0.5 + 0.5) * height;
+        if (xPos >= -50 && xPos <= width + 50 && yPos >= -50 && yPos <= height + 50) {
+          label.element.style.left = `${Math.round(xPos)}px`;
+          label.element.style.top = `${Math.round(yPos)}px`;
           label.element.style.display = "block";
         } else {
           label.element.style.display = "none";
@@ -769,7 +914,7 @@ export default function AsteroidCatalog() {
   const handleLegendMouseUp = useCallback(() => setIsDraggingLegend(false), []);
 
   const handleControlsMouseDown = useCallback((e) => {
-    if (e.target.closest(".asteroid-collapse-icon") || e.target.closest(".dinoSatAsteroidControlButton")) return;
+    if (e.target.closest(".asteroid-collapse-icon") || e.target.closest(".dinoSatAsteroidControlButton") || e.target.closest(".dinoSatAsteroidBloomControls")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingControls(true);
@@ -838,10 +983,10 @@ export default function AsteroidCatalog() {
     const containerHeight = virtualScrollRef.current.clientHeight || 400;
     const itemHeight = PERFORMANCE_CONSTANTS.VIRTUAL_SCROLL_ITEM_HEIGHT;
     const buffer = PERFORMANCE_CONSTANTS.VIRTUAL_SCROLL_BUFFER;
-    const startIndex = Math.max(0, Math.floor(virtualScrollOffset / itemHeight) - buffer);
-    const endIndex = Math.min(filteredAsteroids.length - 1, Math.ceil((virtualScrollOffset + containerHeight) / itemHeight) + buffer);
-    const visibleItems = filteredAsteroids.slice(startIndex, endIndex + 1);
-    return { visibleItems, startIndex, endIndex };
+    const startIdx = Math.max(0, Math.floor(virtualScrollOffset / itemHeight) - buffer);
+    const endIdx = Math.min(filteredAsteroids.length - 1, Math.ceil((virtualScrollOffset + containerHeight) / itemHeight) + buffer);
+    const visibleItems = filteredAsteroids.slice(startIdx, endIdx + 1);
+    return { visibleItems, startIndex: startIdx, endIndex: endIdx };
   }, [filteredAsteroids, virtualScrollOffset]);
 
   const exportJSON = useCallback(() => {
@@ -907,10 +1052,10 @@ export default function AsteroidCatalog() {
   const fetchCatalogData = useCallback(async () => {
     setLoading(true);
     setErrors([]);
-    const { asteroids: rawAsteroids, errors, metadata } = await fetchAsteroidData();
+    const { asteroids: rawAsteroids, errors: fetchErrors, metadata } = await fetchAsteroidData();
     const processedAsteroids = processAsteroidPositions(rawAsteroids);
     setAsteroids(processedAsteroids);
-    setErrors(errors);
+    setErrors(fetchErrors);
     setLoadingMetadata(metadata);
     setLoading(false);
   }, [processAsteroidPositions]);
@@ -935,6 +1080,7 @@ export default function AsteroidCatalog() {
   const toggleAxisMarkers = useCallback(() => setShowAxisMarkers(!showAxisMarkers), [showAxisMarkers]);
   const togglePlanetOrbits = useCallback(() => setShowPlanetOrbits(!showPlanetOrbits), [showPlanetOrbits]);
   const toggleAsteroidBelt = useCallback(() => setShowAsteroidBelt(!showAsteroidBelt), [showAsteroidBelt]);
+  const toggleBloom = useCallback(() => setBloomEnabled(!bloomEnabled), [bloomEnabled]);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(!sidebarCollapsed), [sidebarCollapsed]);
   const toggleLegend = useCallback(() => setLegendCollapsed(!legendCollapsed), [legendCollapsed]);
   const toggleControls = useCallback(() => setControlsCollapsed(!controlsCollapsed), [controlsCollapsed]);
@@ -1034,28 +1180,46 @@ export default function AsteroidCatalog() {
     const height = mountRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000011, 0.00001);
+    scene.fog = new THREE.FogExp2(0x050508, 0.00002);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 20000);
     camera.position.set(200, 150, 200);
     camera.lookAt(0, 0, 0);
+    camera.layers.enableAll();
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000005, 1);
+    renderer.setClearColor(0x030305, 1);
     renderer.shadowMap.enabled = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
+
+    const composer = new EffectComposer(renderer);
+    composerRef.current = composer;
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      BLOOM_PARAMS.strength,
+      BLOOM_PARAMS.radius,
+      BLOOM_PARAMS.threshold
+    );
+    bloomPassRef.current = bloomPass;
+    composer.addPass(bloomPass);
 
     const labelRenderer = document.createElement("div");
     labelRenderer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;`;
     mountRef.current.appendChild(labelRenderer);
     labelRendererRef.current = labelRenderer;
 
-    const ambientLight = new THREE.AmbientLight(0x404080, 0.6);
+    const ambientLight = new THREE.AmbientLight(0x606065, 0.5);
     scene.add(ambientLight);
 
     const orbitalPlane = createOrbitalPlane();
@@ -1096,8 +1260,8 @@ export default function AsteroidCatalog() {
     const backgroundStarColors = new Float32Array(backgroundStarCount * 3);
     const backgroundStarSizes = new Float32Array(backgroundStarCount);
 
-    for (let i = 0; i < backgroundStarCount; i++) {
-      const i3 = i * 3;
+    for (let idx = 0; idx < backgroundStarCount; idx++) {
+      const i3 = idx * 3;
       const radius = 3000 + Math.random() * 7000;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.random() * Math.PI;
@@ -1106,13 +1270,14 @@ export default function AsteroidCatalog() {
       backgroundStarPositions[i3 + 2] = radius * Math.cos(phi);
       const starType = Math.random();
       let baseColor, intensity, size;
-      if (starType < 0.6) { baseColor = { r: 0.8, g: 0.9, b: 1.0 }; intensity = 0.6 + Math.random() * 0.4; size = 0.8 + Math.random() * 0.4; }
-      else if (starType < 0.8) { baseColor = { r: 1.0, g: 0.7, b: 0.3 }; intensity = 0.7 + Math.random() * 0.3; size = 1.2 + Math.random() * 0.8; }
-      else { baseColor = { r: 1.0, g: 0.4, b: 0.1 }; intensity = 0.8 + Math.random() * 0.2; size = 1.5 + Math.random() * 1.0; }
+      if (starType < 0.5) { baseColor = { r: 0.9, g: 0.95, b: 1.0 }; intensity = 0.7 + Math.random() * 0.3; size = 1.0 + Math.random() * 0.5; }
+      else if (starType < 0.7) { baseColor = { r: 1.0, g: 0.95, b: 0.85 }; intensity = 0.75 + Math.random() * 0.25; size = 1.2 + Math.random() * 0.8; }
+      else if (starType < 0.85) { baseColor = { r: 1.0, g: 0.7, b: 0.4 }; intensity = 0.8 + Math.random() * 0.2; size = 1.8 + Math.random() * 1.0; }
+      else { baseColor = { r: 0.95, g: 0.92, b: 1.0 }; intensity = 0.6 + Math.random() * 0.3; size = 0.5 + Math.random() * 0.3; }
       backgroundStarColors[i3] = baseColor.r * intensity;
       backgroundStarColors[i3 + 1] = baseColor.g * intensity;
       backgroundStarColors[i3 + 2] = baseColor.b * intensity;
-      backgroundStarSizes[i] = size;
+      backgroundStarSizes[idx] = size;
     }
 
     backgroundStarsGeometry.setAttribute("position", new THREE.BufferAttribute(backgroundStarPositions, 3));
@@ -1128,19 +1293,21 @@ export default function AsteroidCatalog() {
         void main() {
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          float twinkle = sin(time * 0.8 + position.x * 0.005 + position.y * 0.005) * 0.3 + 0.7;
-          gl_PointSize = size * twinkle * (300.0 / -mvPosition.z);
+          float twinkle = sin(time * 1.5 + position.x * 0.01 + position.y * 0.01) * 0.15 + 0.85;
+          gl_PointSize = size * twinkle * (200.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
         varying vec3 vColor;
         void main() {
-          float distance = length(gl_PointCoord - vec2(0.5));
-          if (distance > 0.5) discard;
-          float alpha = 1.0 - smoothstep(0.0, 0.5, distance);
+          float dist = length(gl_PointCoord - vec2(0.5));
+          if (dist > 0.5) discard;
+          float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
           alpha *= alpha;
-          gl_FragColor = vec4(vColor, alpha);
+          float coreBrightness = smoothstep(0.2, 0.0, dist) * 1.2;
+          vec3 hdrColor = vColor * (1.0 + coreBrightness);
+          gl_FragColor = vec4(hdrColor, alpha * 0.9);
         }
       `,
       transparent: true,
@@ -1168,10 +1335,12 @@ export default function AsteroidCatalog() {
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(newWidth, newHeight);
+      composer.setSize(newWidth, newHeight);
+      bloomPass.resolution.set(newWidth, newHeight);
     };
 
     window.addEventListener("resize", handleResize);
-    renderer.render(scene, camera);
+    composer.render();
     setSceneInitialized(true);
 
     return () => {
@@ -1189,9 +1358,10 @@ export default function AsteroidCatalog() {
         }
         if (child instanceof THREE.Points) { if (child.geometry) child.geometry.dispose(); if (child.material) child.material.dispose(); }
       });
+      composer.dispose();
       renderer.dispose();
     };
-  }, []);
+  }, [createPlanetOrbits]);
 
   useEffect(() => { if (sceneInitialized) fetchCatalogData(); }, [sceneInitialized, fetchCatalogData]);
 
@@ -1201,6 +1371,15 @@ export default function AsteroidCatalog() {
   useEffect(() => { if (axisMarkersRef.current) axisMarkersRef.current.visible = showAxisMarkers; }, [showAxisMarkers]);
   useEffect(() => { if (planetOrbitsRef.current) planetOrbitsRef.current.visible = showPlanetOrbits; }, [showPlanetOrbits]);
   useEffect(() => { if (asteroidBeltRef.current) asteroidBeltRef.current.visible = showAsteroidBelt; }, [showAsteroidBelt]);
+
+  useEffect(() => {
+    if (bloomPassRef.current) {
+      bloomPassRef.current.enabled = bloomEnabled;
+      bloomPassRef.current.strength = bloomStrength;
+      bloomPassRef.current.radius = bloomRadius;
+      bloomPassRef.current.threshold = bloomThreshold;
+    }
+  }, [bloomEnabled, bloomStrength, bloomRadius, bloomThreshold]);
 
   useEffect(() => {
     Object.keys(labelsRef.current).forEach(asteroidId => {
@@ -1242,7 +1421,7 @@ export default function AsteroidCatalog() {
   }, [isDraggingHud, isDraggingLegend, isDraggingControls, isDraggingDetailed, handleHudMouseMove, handleLegendMouseMove, handleControlsMouseMove, handleDetailedMouseMove, handleHudMouseUp, handleLegendMouseUp, handleControlsMouseUp, handleDetailedMouseUp]);
 
   useEffect(() => {
-    if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+    if (!sceneRef.current || !composerRef.current || !cameraRef.current) return;
     let animationId;
     let lastTime = performance.now();
     let fpsCounter = 0;
@@ -1286,12 +1465,22 @@ export default function AsteroidCatalog() {
         }
         controlsRef.current.update();
         TWEEN.update(time);
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        if (bloomEnabled) {
+          cameraRef.current.layers.set(0);
+          composerRef.current.render();
+          cameraRef.current.layers.set(NON_BLOOM_LAYER);
+          rendererRef.current.autoClear = false;
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+          rendererRef.current.autoClear = true;
+          cameraRef.current.layers.enableAll();
+        } else {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
       }
     };
     animate(performance.now());
     return () => { if (animationId) cancelAnimationFrame(animationId); };
-  }, [asteroids, showLabels, targetFps, updateLabels, updateInstancedMeshes, updateSpatialGrid]);
+  }, [asteroids, showLabels, targetFps, bloomEnabled, updateLabels, updateInstancedMeshes, updateSpatialGrid]);
 
   const activeAsteroids = asteroids.filter(a => a.active).length;
   const typeCounts = asteroids.reduce((acc, asteroid) => { if (asteroid.active) acc[asteroid.asteroidType] = (acc[asteroid.asteroidType] || 0) + 1; return acc; }, {});
@@ -1321,7 +1510,6 @@ export default function AsteroidCatalog() {
                 <div className="dinoSatAsteroidSideBarThemeSelector">
                   <div className="dinoSatAsteroidSideBarThemeSelectorStatusIndicator">
                     Ready
-                    {loadingMetadata && (<div style={{ fontSize: "9px", marginTop: "2px" }}>Sources: {loadingMetadata.successfulSources}/3 | Load: {loadingMetadata.loadTime?.toFixed(0)}ms</div>)}
                   </div>
                 </div>
                 <div className="dinoSatAsteroidSideBarThemeSelector">
@@ -1331,7 +1519,7 @@ export default function AsteroidCatalog() {
                         <span>API Errors ({errors.length})</span>
                         <button onClick={(e) => { e.stopPropagation(); copyAllErrors(); }} aria-label="Copy all errors"><FontAwesomeIcon icon={copiedErrors ? faSquareCheck : faClone} size="sm"/></button>
                       </div>
-                      {showErrors && (<div className="dinoSatAsteroidSideBarThemeSelectorErrorIndicatorList">{errors.map((error, index) => (<div key={index} style={{ opacity: 0.8 }}>{error}</div>))}</div>)}
+                      {showErrors && (<div className="dinoSatAsteroidSideBarThemeSelectorErrorIndicatorList">{errors.map((error, idx) => (<div key={idx} style={{ opacity: 0.8 }}>{error}</div>))}</div>)}
                     </div>
                   )}
                 </div>
@@ -1396,9 +1584,29 @@ export default function AsteroidCatalog() {
               <div className="dinoSatAsteroidPanelContent">
                 <button className="dinoSatAsteroidControlButton" onClick={resetCamera}>Reset Camera</button>
                 <button className="dinoSatAsteroidControlButton" onClick={toggleLabels}>{showLabels ? "Hide" : "Show"} Labels</button>
+                <button className="dinoSatAsteroidControlButton" onClick={toggleBloom}>{bloomEnabled ? "Disable" : "Enable"} Bloom</button>
                 <button className="dinoSatAsteroidControlButton" onClick={toggleAxisMarkers}>{showAxisMarkers ? "Hide" : "Show"} Axes</button>
                 <button className="dinoSatAsteroidControlButton" onClick={togglePlanetOrbits}>{showPlanetOrbits ? "Hide" : "Show"} Planet Orbits</button>
                 <button className="dinoSatAsteroidControlButton" onClick={toggleAsteroidBelt}>{showAsteroidBelt ? "Hide" : "Show"} Asteroid Belt</button>
+                {bloomEnabled && (
+                  <div className="dinoSatAsteroidBloomControls">
+                    <div className="dinoSatAsteroidBloomSlider">
+                      <span>Strength</span>
+                      <input type="range" min="0" max="5" step="0.1" value={bloomStrength} onChange={(e) => setBloomStrength(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomStrength.toFixed(1)}</span>
+                    </div>
+                    <div className="dinoSatAsteroidBloomSlider">
+                      <span>Radius</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomRadius} onChange={(e) => setBloomRadius(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomRadius.toFixed(2)}</span>
+                    </div>
+                    <div className="dinoSatAsteroidBloomSlider">
+                      <span>Threshold</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomThreshold} onChange={(e) => setBloomThreshold(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomThreshold.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1415,6 +1623,15 @@ export default function AsteroidCatalog() {
                     <div className="dinosatAsteroidHUDSectionItem"><span>X-Axis:</span><span>Vernal Equinox</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>Z-Axis:</span><span>North Ecliptic Pole</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>Units:</span><span>AU (Astronomical Units)</span></div>
+                  </div>
+                </div>
+                <div className="dinosatAsteroidHUDSection">
+                  <h4>Post-Processing</h4>
+                  <div className="dinosatAsteroidHUDSectionGrid">
+                    <div className="dinosatAsteroidHUDSectionItem"><span>Bloom:</span><span style={{ color: bloomEnabled ? "#4ECDC4" : "#888888" }}>{bloomEnabled ? "Enabled" : "Disabled"}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>Bloom Strength:</span><span>{bloomStrength.toFixed(2)}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>Bloom Radius:</span><span>{bloomRadius.toFixed(2)}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>Bloom Threshold:</span><span>{bloomThreshold.toFixed(2)}</span></div>
                   </div>
                 </div>
                 <div className="dinosatAsteroidHUDSection">
@@ -1435,8 +1652,8 @@ export default function AsteroidCatalog() {
                     <div className="dinosatAsteroidHUDSectionItem"><span>Total Objects:</span><span>{asteroids.length}</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>Data Source:</span><span>NASA JPL SBDB</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>NEO Count:</span><span style={{ color: "#ffaa00" }}>{loadingMetadata?.neoCount || 0}</span></div>
-                    <div className="dinosatAsteroidHUDSectionItem"><span>PHA Count:</span><span style={{ color: "#ff4400" }}>{loadingMetadata?.phaCount || 0}</span></div>
-                    <div className="dinosatAsteroidHUDSectionItem"><span>API Errors:</span><span style={{ color: errors.length > 0 ? "#ff4400" : "#00ff00" }}>{errors.length}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>PHA Count:</span><span style={{ color: "#ff8800" }}>{loadingMetadata?.phaCount || 0}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>API Errors:</span><span style={{ color: errors.length > 0 ? "#ff8800" : "#00ff00" }}>{errors.length}</span></div>
                   </div>
                 </div>
                 <div className="dinosatAsteroidHUDSection">
@@ -1525,7 +1742,7 @@ export default function AsteroidCatalog() {
                     <div className="dinosatAsteroidHUDSectionItem"><span>MOID (Jupiter):</span><span>{detailedAsteroid.moidJupiter ? `${detailedAsteroid.moidJupiter} AU` : "N/A"}</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>Tisserand (Jupiter):</span><span>{detailedAsteroid.tisserandParameter?.toFixed(4) || "N/A"}</span></div>
                     <div className="dinosatAsteroidHUDSectionItem"><span>Near-Earth Object:</span><span style={{ color: detailedAsteroid.isNEO ? "#ffaa00" : "#00ff00" }}>{detailedAsteroid.isNEO ? "Yes" : "No"}</span></div>
-                    <div className="dinosatAsteroidHUDSectionItem"><span>Potentially Hazardous:</span><span style={{ color: detailedAsteroid.isPHA ? "#ff4400" : "#00ff00" }}>{detailedAsteroid.isPHA ? "Yes" : "No"}</span></div>
+                    <div className="dinosatAsteroidHUDSectionItem"><span>Potentially Hazardous:</span><span style={{ color: detailedAsteroid.isPHA ? "#ff8800" : "#00ff00" }}>{detailedAsteroid.isPHA ? "Yes" : "No"}</span></div>
                   </div>
                 </div>
                 <div className="dinosatAsteroidHUDSection">

@@ -262,7 +262,7 @@
 }
 
 .dinoSatCometSideBarThemeSelectorStatusIndicator {
-  padding: var(--ct-spacing-xs) var(--ct-spacing-sm);
+  padding: var(--ct-spacing-sm) var(--ct-spacing-sm);
   background: var(--ct-bg-elevated);
   border: 1px solid var(--ct-border-subtle);
   border-left: 3px solid var(--ct-status-nominal);
@@ -272,6 +272,7 @@
   color: var(--ct-text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  width: 100%; 
 }
 
 .dinoSatCometSideBarThemeSelectorErrorIndicator {
@@ -376,7 +377,7 @@
 
 .dinoSatCometSelectButton {
   flex: 1;
-  padding: var(--ct-spacing-sm) var(--ct-spacing-xs);
+  padding: var(--ct-spacing-sm) 1rem;
   background: var(--ct-bg-tertiary);
   border: 1px solid var(--ct-border-primary);
   border-radius: var(--ct-radius-sm);
@@ -740,6 +741,8 @@
   transition: all var(--ct-transition-normal);
   pointer-events: auto;
   user-select: none;
+  max-height: 90%; 
+  overflow: scroll;
 }
 
 .dinoSatCometControlsPanel.comet-collapsed {
@@ -1025,4 +1028,152 @@
     max-width: 100px;
     font-size: 0.5rem;
   }
+}
+
+.dinoSatCometBloomControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ct-spacing-sm);
+  margin-top: var(--ct-spacing-sm);
+  padding: var(--ct-spacing-md);
+  background: var(--ct-bg-elevated);
+  border: 1px solid var(--ct-border-primary);
+  border-radius: var(--ct-radius-sm);
+  pointer-events: auto;
+}
+
+.dinoSatCometBloomSlider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ct-spacing-md);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--ct-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--ct-spacing-xs) 0;
+}
+
+.dinoSatCometBloomSlider span:first-child {
+  min-width: 70px;
+  color: var(--ct-text-muted);
+}
+
+.dinoSatCometBloomSlider span:last-child {
+  min-width: 40px;
+  text-align: right;
+  color: var(--ct-accent-primary);
+  font-family: var(--ct-font-mono);
+  font-size: 0.65rem;
+}
+
+.dinoSatCometBloomSlider input[type="range"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 6px;
+  background: var(--ct-bg-tertiary);
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+  margin: 0 var(--ct-spacing-xs);
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--ct-accent-primary);
+  border: 2px solid var(--ct-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  margin-top: -5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--ct-bg-tertiary);
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: 3px;
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--ct-accent-primary);
+  border: 2px solid var(--ct-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatCometBloomSlider input[type="range"]::-moz-range-thumb:active {
+  cursor: grabbing;
+}
+
+.comet-theme-neon .dinoSatCometBloomControls {
+  background: rgba(0, 15, 25, 0.95);
+  border-color: rgba(0, 255, 136, 0.25);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider span:last-child {
+  color: #00ff88;
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"] {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"]::-webkit-slider-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"]::-moz-range-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.comet-theme-neon .dinoSatCometBloomSlider input[type="range"]::-moz-range-track {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
 }

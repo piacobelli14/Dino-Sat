@@ -262,7 +262,7 @@
 }
 
 .dinoSatExoplanetSideBarThemeSelectorStatusIndicator {
-  padding: var(--st-spacing-xs) var(--st-spacing-sm);
+  padding: var(--st-spacing-sm) var(--st-spacing-sm);
   background: var(--st-bg-elevated);
   border: 1px solid var(--st-border-subtle);
   border-left: 3px solid var(--st-status-nominal);
@@ -272,6 +272,7 @@
   color: var(--st-text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  width: 100%; 
 }
 
 .dinoSatExoplanetSideBarThemeSelectorErrorIndicator {
@@ -376,7 +377,7 @@
 
 .dinoSatExoplanetSelectButton {
   flex: 1;
-  padding: var(--st-spacing-sm) var(--st-spacing-xs);
+  padding: var(--st-spacing-sm) 1rem;
   background: var(--st-bg-tertiary);
   border: 1px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
@@ -740,6 +741,8 @@
   transition: all var(--st-transition-normal);
   pointer-events: auto;
   user-select: none;
+  max-height: 90%; 
+  overflow: scroll;
 }
 
 .dinoSatExoplanetControlsPanel.exoplanet-collapsed {
@@ -779,6 +782,15 @@
   flex-direction: column;
   gap: var(--st-spacing-sm);
 }
+
+.dinoSatExoplanetPanelContent small {
+  font-size: 0.6rem; 
+  font-weight: 700;
+  padding: 0.6rem 0; 
+  color: #c1c1c1;
+  opacity: 0.8;
+}
+
 
 .dinosatExoplanetHeaderIcon {
   font-size: 0.6rem;
@@ -1094,4 +1106,152 @@
 
 .exoplanet-theme-neon .dinoSatExoplanetTourDesc {
   color: rgba(0, 255, 170, 0.5);
+}
+
+.dinoSatExoplanetBloomControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+  margin-top: var(--st-spacing-sm);
+  padding: var(--st-spacing-md);
+  background: var(--st-bg-elevated);
+  border: 1px solid var(--st-border-primary);
+  border-radius: var(--st-radius-sm);
+  pointer-events: auto;
+}
+
+.dinoSatExoplanetBloomSlider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-spacing-md);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--st-spacing-xs) 0;
+}
+
+.dinoSatExoplanetBloomSlider span:first-child {
+  min-width: 70px;
+  color: var(--st-text-muted);
+}
+
+.dinoSatExoplanetBloomSlider span:last-child {
+  min-width: 40px;
+  text-align: right;
+  color: var(--st-accent-primary);
+  font-family: var(--st-font-mono);
+  font-size: 0.65rem;
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 6px;
+  background: var(--st-bg-tertiary);
+  border: 1px solid var(--st-border-subtle);
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+  margin: 0 var(--st-spacing-xs);
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--st-accent-primary);
+  border: 2px solid var(--st-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  margin-top: -5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--st-bg-tertiary);
+  border: 1px solid var(--st-border-subtle);
+  border-radius: 3px;
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--st-accent-primary);
+  border: 2px solid var(--st-bg-base);
+  border-radius: 4px;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(106, 122, 138, 0.6);
+}
+
+.dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-thumb:active {
+  cursor: grabbing;
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomControls {
+  background: rgba(0, 15, 25, 0.95);
+  border-color: rgba(0, 255, 136, 0.25);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider span:last-child {
+  color: #00ff88;
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"] {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-thumb {
+  background: #00ff88;
+  border-color: #000a12;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-thumb:hover {
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.exoplanet-theme-neon .dinoSatExoplanetBloomSlider input[type="range"]::-moz-range-track {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
 }

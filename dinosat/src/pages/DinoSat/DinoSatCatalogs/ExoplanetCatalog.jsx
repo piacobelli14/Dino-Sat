@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import * as THREE from "three";
 import * as TWEEN from "three/examples/jsm/libs/tween.module.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faInfoCircle, faTimes, faRedo, 
@@ -138,6 +141,14 @@ export default function ExoplanetCatalog() {
     ORBIT_SEGMENTS: 128
   };
 
+  const BLOOM_PARAMS = {
+    strength: 0.6,
+    radius: 0.3,
+    threshold: 0.3
+  };
+
+  const NON_BLOOM_LAYER = 1;
+
   const EARTH_RADIUS_KM = 6371;
   const JUPITER_RADIUS_KM = 69911;
 
@@ -172,6 +183,10 @@ export default function ExoplanetCatalog() {
   const [showHabitableZone, setShowHabitableZone] = useState(true);
   const [showComparisonGhosts, setShowComparisonGhosts] = useState(false);
   const [animateOrbits, setAnimateOrbits] = useState(true);
+  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const [bloomStrength, setBloomStrength] = useState(BLOOM_PARAMS.strength);
+  const [bloomRadius, setBloomRadius] = useState(BLOOM_PARAMS.radius);
+  const [bloomThreshold, setBloomThreshold] = useState(BLOOM_PARAMS.threshold);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
@@ -212,6 +227,8 @@ export default function ExoplanetCatalog() {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
+  const composerRef = useRef(null);
+  const bloomPassRef = useRef(null);
   const labelRendererRef = useRef(null);
   const cameraRef = useRef(null);
   const planetGroupRef = useRef(null);
@@ -410,7 +427,8 @@ export default function ExoplanetCatalog() {
           bands = smoothstep(0.3, 0.7, bands);
           vec3 color = mix(baseColor, bandColor, bands);
           float light = dot(vNormal, normalize(vec3(1.0, 1.0, 1.0))) * 0.5 + 0.5;
-          gl_FragColor = vec4(color * light, 1.0);
+          float hdrBoost = 1.5;
+          gl_FragColor = vec4(color * light * hdrBoost, 1.0);
         }
       `
     });
@@ -448,8 +466,9 @@ export default function ExoplanetCatalog() {
           
           vec3 color = mix(darkRock, lavaGlow, cracks * 0.8);
           float light = dot(vNormal, normalize(vec3(1.0, 1.0, 1.0))) * 0.3 + 0.7;
+          float hdrBoost = 1.0 + cracks * 3.0;
           
-          gl_FragColor = vec4(color * light, 1.0);
+          gl_FragColor = vec4(color * light * hdrBoost, 1.0);
         }
       `
     });
@@ -490,7 +509,8 @@ export default function ExoplanetCatalog() {
           color += vec3(0.3, 0.5, 0.7) * fresnel * 0.5;
           
           float light = dot(vNormal, normalize(vec3(1.0, 1.0, 1.0))) * 0.5 + 0.5;
-          gl_FragColor = vec4(color * light, 1.0);
+          float hdrBoost = 1.2 + fresnel * 0.5;
+          gl_FragColor = vec4(color * light * hdrBoost, 1.0);
         }
       `
     });
@@ -523,7 +543,8 @@ export default function ExoplanetCatalog() {
           vec3 color = mix(deepBlue, iceBlue, bands * 0.5);
           
           float light = dot(vNormal, normalize(vec3(1.0, 1.0, 1.0))) * 0.5 + 0.5;
-          gl_FragColor = vec4(color * light, 1.0);
+          float hdrBoost = 1.3;
+          gl_FragColor = vec4(color * light * hdrBoost, 1.0);
         }
       `
     });
@@ -629,6 +650,7 @@ export default function ExoplanetCatalog() {
     const sprite = new THREE.Sprite(material);
     const aspect = canvasWidth / canvasHeight;
     sprite.scale.set(0.035 * aspect, 0.035, 1);
+    sprite.layers.set(NON_BLOOM_LAYER);
     return sprite;
   };
 
@@ -651,7 +673,7 @@ export default function ExoplanetCatalog() {
           scaledRadius * Math.sin(theta)
         ));
       }
-      const tubeRadius = idx % 2 === 0 ? 0.4 : 0.2;
+      const tubeRadius = idx % 2 === 0 ? 0.12 : 0.05;
       const tubeGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, true), 128, tubeRadius, 6, true);
       const tubeMaterial = new THREE.MeshBasicMaterial({
         color: idx % 2 === 0 ? majorGridColor : gridColor,
@@ -670,7 +692,7 @@ export default function ExoplanetCatalog() {
         new THREE.Vector3(innerRadius * Math.cos(angleRad), 0, innerRadius * Math.sin(angleRad)),
         new THREE.Vector3(outerRadius * Math.cos(angleRad), 0, outerRadius * Math.sin(angleRad))
       ];
-      const tubeRadius = angle % 90 === 0 ? 0.35 : 0.15;
+      const tubeRadius = angle % 90 === 0 ? 0.12 : 0.05;
       const tubeGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false), 32, tubeRadius, 6, false);
       const tubeMaterial = new THREE.MeshBasicMaterial({
         color: angle % 90 === 0 ? majorGridColor : gridColor,
@@ -721,7 +743,7 @@ export default function ExoplanetCatalog() {
           scaledRadius * Math.sin(theta)
         ));
       }
-      const tubeGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, true), 64, 0.3, 6, true);
+      const tubeGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, true), 64, 0.12, 6, true);
       const tubeMaterial = new THREE.MeshBasicMaterial({
         color: colors[index],
         transparent: true,
@@ -748,7 +770,7 @@ export default function ExoplanetCatalog() {
     const group = new THREE.Group();
     group.name = "AxisMarkers";
     const length = calculateScaledDistance(2000);
-    const axisRadius = 0.4;
+    const axisRadius = 0.15;
 
     const xGeometry = new THREE.CylinderGeometry(axisRadius, axisRadius, length, 8);
     const xMaterial = new THREE.MeshBasicMaterial({ color: 0x7a5555, transparent: true, opacity: 0.8 });
@@ -786,12 +808,14 @@ export default function ExoplanetCatalog() {
     const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.95 });
     const sunMarker = new THREE.Mesh(sunGeometry, sunMaterial);
     sunMarker.position.set(0, 0, 0);
+    sunMarker.material.color.multiplyScalar(3.0);
     group.add(sunMarker);
 
     const sunGlowGeometry = new THREE.SphereGeometry(5, 16, 16);
     const sunGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.3 });
     const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
     sunGlow.position.set(0, 0, 0);
+    sunGlow.material.color.multiplyScalar(2.0);
     group.add(sunGlow);
 
     const sunSprite = createTextSprite("Sol (Origin)", 0xffdd44);
@@ -828,7 +852,7 @@ export default function ExoplanetCatalog() {
         outerRadius * Math.sin(theta)
       ));
     }
-    const ringGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ringPoints, true), 64, 0.3, 6, true);
+    const ringGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ringPoints, true), 64, 0.05, 6, true);
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: 0x8a6a8a,
       transparent: true,
@@ -1094,6 +1118,7 @@ export default function ExoplanetCatalog() {
       transparent: true,
       opacity: 0.95
     });
+    starMaterial.color.multiplyScalar(3.0);
     const star = new THREE.Mesh(starGeometry, starMaterial);
     star.position.set(0, 0, 0);
     systemGroupRef.current.add(star);
@@ -1105,6 +1130,7 @@ export default function ExoplanetCatalog() {
       transparent: true,
       opacity: 0.2
     });
+    starGlowMaterial.color.multiplyScalar(2.0);
     const starGlow = new THREE.Mesh(starGlowGeometry, starGlowMaterial);
     systemGroupRef.current.add(starGlow);
     
@@ -1459,7 +1485,7 @@ export default function ExoplanetCatalog() {
   const handleLegendMouseUp = useCallback(() => setIsDraggingLegend(false), []);
 
   const handleControlsMouseDown = useCallback((e) => {
-    if (e.target.closest(".exoplanet-collapse-icon") || e.target.closest(".dinoSatExoplanetControlButton")) return;
+    if (e.target.closest(".exoplanet-collapse-icon") || e.target.closest(".dinoSatExoplanetControlButton") || e.target.closest(".dinoSatExoplanetBloomControls")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingControls(true);
@@ -1664,6 +1690,7 @@ export default function ExoplanetCatalog() {
   const toggleHabitableZone = useCallback(() => setShowHabitableZone(!showHabitableZone), [showHabitableZone]);
   const toggleComparisonGhosts = useCallback(() => setShowComparisonGhosts(!showComparisonGhosts), [showComparisonGhosts]);
   const toggleAnimateOrbits = useCallback(() => setAnimateOrbits(!animateOrbits), [animateOrbits]);
+  const toggleBloom = useCallback(() => setBloomEnabled(!bloomEnabled), [bloomEnabled]);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(!sidebarCollapsed), [sidebarCollapsed]);
   const toggleLegend = useCallback(() => setLegendCollapsed(!legendCollapsed), [legendCollapsed]);
   const toggleControls = useCallback(() => setControlsCollapsed(!controlsCollapsed), [controlsCollapsed]);
@@ -1771,28 +1798,46 @@ export default function ExoplanetCatalog() {
     const height = mountRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000011, 0.00001);
+    scene.fog = new THREE.FogExp2(0x050508, 0.00002);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 20000);
     camera.position.set(200, 150, 200);
     camera.lookAt(0, 0, 0);
+    camera.layers.enableAll();
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000005, 1);
+    renderer.setClearColor(0x030305, 1);
     renderer.shadowMap.enabled = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
+
+    const composer = new EffectComposer(renderer);
+    composerRef.current = composer;
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      BLOOM_PARAMS.strength,
+      BLOOM_PARAMS.radius,
+      BLOOM_PARAMS.threshold
+    );
+    bloomPassRef.current = bloomPass;
+    composer.addPass(bloomPass);
 
     const labelRenderer = document.createElement("div");
     labelRenderer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;`;
     mountRef.current.appendChild(labelRenderer);
     labelRendererRef.current = labelRenderer;
 
-    const ambientLight = new THREE.AmbientLight(0x404080, 0.6);
+    const ambientLight = new THREE.AmbientLight(0x606065, 0.5);
     scene.add(ambientLight);
 
     const equatorialGrid = createEquatorialGrid();
@@ -1866,9 +1911,10 @@ export default function ExoplanetCatalog() {
       backgroundStarPositions[i3 + 2] = radius * Math.cos(phi);
       const starType = Math.random();
       let baseColor, intensity, size;
-      if (starType < 0.6) { baseColor = { r: 0.8, g: 0.9, b: 1.0 }; intensity = 0.6 + Math.random() * 0.4; size = 0.8 + Math.random() * 0.4; }
-      else if (starType < 0.8) { baseColor = { r: 1.0, g: 0.7, b: 0.3 }; intensity = 0.7 + Math.random() * 0.3; size = 1.2 + Math.random() * 0.8; }
-      else { baseColor = { r: 1.0, g: 0.4, b: 0.1 }; intensity = 0.8 + Math.random() * 0.2; size = 1.5 + Math.random() * 1.0; }
+      if (starType < 0.5) { baseColor = { r: 0.9, g: 0.95, b: 1.0 }; intensity = 0.7 + Math.random() * 0.3; size = 1.0 + Math.random() * 0.5; }
+      else if (starType < 0.7) { baseColor = { r: 1.0, g: 0.95, b: 0.85 }; intensity = 0.75 + Math.random() * 0.25; size = 1.2 + Math.random() * 0.8; }
+      else if (starType < 0.85) { baseColor = { r: 1.0, g: 0.7, b: 0.4 }; intensity = 0.8 + Math.random() * 0.2; size = 1.8 + Math.random() * 1.0; }
+      else { baseColor = { r: 0.95, g: 0.92, b: 1.0 }; intensity = 0.6 + Math.random() * 0.3; size = 0.5 + Math.random() * 0.3; }
       backgroundStarColors[i3] = baseColor.r * intensity;
       backgroundStarColors[i3 + 1] = baseColor.g * intensity;
       backgroundStarColors[i3 + 2] = baseColor.b * intensity;
@@ -1888,8 +1934,8 @@ export default function ExoplanetCatalog() {
         void main() {
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          float twinkle = sin(time * 0.8 + position.x * 0.005 + position.y * 0.005) * 0.3 + 0.7;
-          gl_PointSize = size * twinkle * (300.0 / -mvPosition.z);
+          float twinkle = sin(time * 1.5 + position.x * 0.01 + position.y * 0.01) * 0.15 + 0.85;
+          gl_PointSize = size * twinkle * (200.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -1900,7 +1946,9 @@ export default function ExoplanetCatalog() {
           if (distance > 0.5) discard;
           float alpha = 1.0 - smoothstep(0.0, 0.5, distance);
           alpha *= alpha;
-          gl_FragColor = vec4(vColor, alpha);
+          float coreBrightness = smoothstep(0.2, 0.0, distance) * 1.2;
+          vec3 hdrColor = vColor * (1.0 + coreBrightness);
+          gl_FragColor = vec4(hdrColor, alpha * 0.9);
         }
       `,
       transparent: true,
@@ -1928,10 +1976,12 @@ export default function ExoplanetCatalog() {
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(newWidth, newHeight);
+      composer.setSize(newWidth, newHeight);
+      bloomPass.resolution.set(newWidth, newHeight);
     };
 
     window.addEventListener("resize", handleResize);
-    renderer.render(scene, camera);
+    composer.render();
     setSceneInitialized(true);
 
     return () => {
@@ -1949,6 +1999,7 @@ export default function ExoplanetCatalog() {
         }
         if (child instanceof THREE.Points) { if (child.geometry) child.geometry.dispose(); if (child.material) child.material.dispose(); }
       });
+      composer.dispose();
       renderer.dispose();
     };
   }, []);
@@ -1961,6 +2012,15 @@ export default function ExoplanetCatalog() {
   useEffect(() => { if (axisMarkersRef.current && viewMode === "galaxy") axisMarkersRef.current.visible = showAxisMarkers; }, [showAxisMarkers, viewMode]);
   useEffect(() => { if (galacticPlaneRef.current && viewMode === "galaxy") galacticPlaneRef.current.visible = showGalacticPlane; }, [showGalacticPlane, viewMode]);
   useEffect(() => { if (constellationBoundsRef.current && viewMode === "galaxy") constellationBoundsRef.current.visible = showConstellationBounds; }, [showConstellationBounds, viewMode]);
+
+  useEffect(() => {
+    if (bloomPassRef.current) {
+      bloomPassRef.current.enabled = bloomEnabled;
+      bloomPassRef.current.strength = bloomStrength;
+      bloomPassRef.current.radius = bloomRadius;
+      bloomPassRef.current.threshold = bloomThreshold;
+    }
+  }, [bloomEnabled, bloomStrength, bloomRadius, bloomThreshold]);
 
   useEffect(() => {
     Object.keys(labelsRef.current).forEach(planetId => {
@@ -2002,7 +2062,7 @@ export default function ExoplanetCatalog() {
   }, [isDraggingHud, isDraggingLegend, isDraggingControls, isDraggingDetailed, handleHudMouseMove, handleLegendMouseMove, handleControlsMouseMove, handleDetailedMouseMove, handleHudMouseUp, handleLegendMouseUp, handleControlsMouseUp, handleDetailedMouseUp]);
 
   useEffect(() => {
-    if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+    if (!sceneRef.current || !composerRef.current || !cameraRef.current) return;
     let animationId;
     let lastTime = performance.now();
     let fpsCounter = 0;
@@ -2051,12 +2111,22 @@ export default function ExoplanetCatalog() {
         }
         controlsRef.current.update();
         TWEEN.update(time);
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        if (bloomEnabled) {
+          cameraRef.current.layers.set(0);
+          composerRef.current.render();
+          cameraRef.current.layers.set(NON_BLOOM_LAYER);
+          rendererRef.current.autoClear = false;
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+          rendererRef.current.autoClear = true;
+          cameraRef.current.layers.enableAll();
+        } else {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
       }
     };
     animate(performance.now());
     return () => { if (animationId) cancelAnimationFrame(animationId); };
-  }, [planets, showLabels, targetFps, viewMode, updateLabels, updateInstancedMeshes, updateSpatialGrid, updateSystemView]);
+  }, [planets, showLabels, targetFps, viewMode, bloomEnabled, updateLabels, updateInstancedMeshes, updateSpatialGrid, updateSystemView]);
 
   const activePlanets = planets.filter(p => p.active).length;
   const typeCounts = planets.reduce((acc, planet) => { if (planet.active) acc[planet.planetType] = (acc[planet.planetType] || 0) + 1; return acc; }, {});
@@ -2089,13 +2159,12 @@ export default function ExoplanetCatalog() {
                 <div className="dinoSatExoplanetSideBarThemeSelector">
                   <div className="dinoSatExoplanetSideBarThemeSelectorStatusIndicator">
                     Ready
-                    {loadingMetadata && (<div style={{ fontSize: "9px", marginTop: "2px" }}>Sources: {loadingMetadata.successfulSources}/1 | Load: {loadingMetadata.loadTime?.toFixed(0)}ms</div>)}
                   </div>
                 </div>
                 {viewMode === "system" && (
                   <div className="dinoSatExoplanetSideBarThemeSelector">
                     <button className="dinoSatExoplanetSelectButton" onClick={exitSystemView} style={{ width: "100%" }}>
-                      <FontAwesomeIcon icon={faArrowLeft} /> Return to Galaxy View
+                      Return to Galaxy View
                     </button>
                   </div>
                 )}
@@ -2191,9 +2260,9 @@ export default function ExoplanetCatalog() {
             <div className="dinoSatExoplanetPanelHeader" onClick={handleLegendToggle}><small>Legend</small><span className="dinosatExoplanetHeaderIcon"><FontAwesomeIcon icon={legendCollapsed ? faChevronDown : faChevronUp} /></span></div>
             {!legendCollapsed && (
               <div className="dinoSatExoplanetPanelContent">
-                <div style={{ marginBottom: "8px", fontWeight: "600", fontSize: "10px", opacity: 0.7 }}>Planet Types</div>
+                <small>Planet Types</small>
                 {Object.entries(PLANET_TYPE_COLORS).slice(0, 10).map(([type, color]) => (<div key={type} className="dinoSatExoplanetLegendItem"><div className="dinoSatExoplanetLegendColor" style={{ backgroundColor: color }} /><span>{type}</span></div>))}
-                <div style={{ marginTop: "12px", marginBottom: "8px", fontWeight: "600", fontSize: "10px", opacity: 0.7 }}>Star Spectral Types</div>
+                <small>Star Spectral Types</small>
                 {Object.entries(SPECTRAL_TYPE_COLORS).filter(([t]) => t !== "Unknown").map(([type, color]) => (<div key={type} className="dinoSatExoplanetLegendItem"><div className="dinoSatExoplanetLegendColor" style={{ backgroundColor: color, borderRadius: "50%" }} /><span>{type}-type</span></div>))}
               </div>
             )}
@@ -2205,6 +2274,7 @@ export default function ExoplanetCatalog() {
                 <button className="dinoSatExoplanetControlButton" onClick={resetCamera}>Reset Camera</button>
                 <button className="dinoSatExoplanetControlButton" onClick={toggleLabels}>{showLabels ? "Hide" : "Show"} Labels</button>
                 <button className="dinoSatExoplanetControlButton" onClick={toggleStarColors}>{showStarColors ? "Hide" : "Show"} Star Colors</button>
+                <button className="dinoSatExoplanetControlButton" onClick={toggleBloom}>{bloomEnabled ? "Disable" : "Enable"} Bloom</button>
                 {viewMode === "galaxy" && (
                   <>
                     <button className="dinoSatExoplanetControlButton" onClick={toggleEquatorialGrid}>{showEquatorialGrid ? "Hide" : "Show"} Equatorial Grid</button>
@@ -2223,6 +2293,25 @@ export default function ExoplanetCatalog() {
                     <button className="dinoSatExoplanetControlButton" onClick={toggleAnimateOrbits}>{animateOrbits ? "Pause" : "Play"} Orbits</button>
                   </>
                 )}
+                {bloomEnabled && (
+                  <div className="dinoSatExoplanetBloomControls">
+                    <div className="dinoSatExoplanetBloomSlider">
+                      <span>Strength</span>
+                      <input type="range" min="0" max="5" step="0.1" value={bloomStrength} onChange={(e) => setBloomStrength(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomStrength.toFixed(1)}</span>
+                    </div>
+                    <div className="dinoSatExoplanetBloomSlider">
+                      <span>Radius</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomRadius} onChange={(e) => setBloomRadius(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomRadius.toFixed(2)}</span>
+                    </div>
+                    <div className="dinoSatExoplanetBloomSlider">
+                      <span>Threshold</span>
+                      <input type="range" min="0" max="2" step="0.05" value={bloomThreshold} onChange={(e) => setBloomThreshold(parseFloat(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} />
+                      <span>{bloomThreshold.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2236,6 +2325,15 @@ export default function ExoplanetCatalog() {
                     <div className="dinosatExoplanetHUDSectionItem"><span>Reference Frame:</span><span>{viewMode === "galaxy" ? "Equatorial J2000" : "Host-Centric"}</span></div>
                     <div className="dinosatExoplanetHUDSectionItem"><span>Origin:</span><span>{viewMode === "galaxy" ? "Sol (Solar System)" : systemViewPlanet?.hostName || "N/A"}</span></div>
                     <div className="dinosatExoplanetHUDSectionItem"><span>Units:</span><span>{viewMode === "galaxy" ? "Light-Years (log)" : "AU (linear)"}</span></div>
+                  </div>
+                </div>
+                <div className="dinosatExoplanetHUDSection">
+                  <h4>Post-Processing</h4>
+                  <div className="dinosatExoplanetHUDSectionGrid">
+                    <div className="dinosatExoplanetHUDSectionItem"><span>Bloom:</span><span style={{ color: bloomEnabled ? "#4ECDC4" : "#888888" }}>{bloomEnabled ? "Enabled" : "Disabled"}</span></div>
+                    <div className="dinosatExoplanetHUDSectionItem"><span>Bloom Strength:</span><span>{bloomStrength.toFixed(2)}</span></div>
+                    <div className="dinosatExoplanetHUDSectionItem"><span>Bloom Radius:</span><span>{bloomRadius.toFixed(2)}</span></div>
+                    <div className="dinosatExoplanetHUDSectionItem"><span>Bloom Threshold:</span><span>{bloomThreshold.toFixed(2)}</span></div>
                   </div>
                 </div>
                 <div className="dinosatExoplanetHUDSection">
