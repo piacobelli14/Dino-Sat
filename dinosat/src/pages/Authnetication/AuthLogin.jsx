@@ -51,9 +51,9 @@ const Login = () => {
                 } else {
                     setToken(data.token);
                     if (data.isadmin === true) {
-                        navigate("/satellite-tracker");
+                        navigate("/earth-conditions");
                     } else {
-                        navigate("/satellite-tracker");
+                        navigate("/earth-conditions");
                     }
                 }
             } else if (response.status === 429) {
