@@ -1011,12 +1011,6 @@ export default function EarthConditions() {
                 ["Recommended Launch", launchWindow?.recommendedLaunchTime ? new Date(launchWindow.recommendedLaunchTime).toLocaleTimeString() : "—", ""],
                 ["Target Inclination", conjunctionAssessment?.targetInclination !== undefined && conjunctionAssessment?.targetInclination !== null ? conjunctionAssessment.targetInclination.toFixed(2) : "—", "deg"]
               ])}
-              {launchWindow?.closureReasons?.length > 0 && (
-                <div className="dinosatEarthCondWindowClosureReasons">
-                  <h5>Closure Reasons</h5>
-                  <ul>{launchWindow.closureReasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                </div>
-              )}
             </div>
           </div>
           {launchWindow?.conjunctionEvents?.length > 0 && (
