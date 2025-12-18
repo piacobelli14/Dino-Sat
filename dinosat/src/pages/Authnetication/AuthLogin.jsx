@@ -84,9 +84,9 @@ const Login = () => {
             if (response.status === 200) {
                 setToken(data.token);
                 if (data.isadmin === true) {
-                    navigate("/stackforge");
+                    navigate("/earth-conditions");
                 } else {
-                    navigate("/stackforge");
+                    navigate("/earth-conditions");
                 }
             } else if (response.status === 429) {
                 setLoginError("Too many attempts. Please try again later.");
