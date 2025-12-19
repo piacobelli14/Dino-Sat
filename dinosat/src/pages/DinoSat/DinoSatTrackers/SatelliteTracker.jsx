@@ -731,93 +731,8 @@ export default function SatelliteTracker() {
       sensorFootprintRef.current.material.color.set(satellite.color);
     }
     
-    if (sensorConeRef.current) {
-      sensorConeRef.current.geometry.dispose();
-      sensorConeRef.current.geometry = new THREE.ConeGeometry(coneRadius * 0.3, coneHeight, 32, 1, true);
-      sensorConeRef.current.position.set(0, -coneHeight / 2, 0);
-      sensorConeRef.current.material.color.set(satellite.color);
-    }
-    
     sensorGroupRef.current.visible = true;
   }, [satellites]);
-
-  const updateGroundTrack = useCallback((satelliteId) => {
-    if (!groundTrackRef.current) return;
-    
-    if (!satelliteId) {
-      groundTrackRef.current.visible = false;
-      return;
-    }
-    
-    const satellite = satellites.find(s => s.id === satelliteId);
-    if (!satellite || !satellite.tle || !satellite.tle.line1 || !satellite.tle.line2) {
-      groundTrackRef.current.visible = false;
-      return;
-    }
-    
-    try {
-      const satrec = satelliteJs.twoline2satrec(satellite.tle.line1, satellite.tle.line2);
-      const positions = [];
-      const earthRadius = 6.371;
-      const groundOffset = 0.02;
-      const now = new Date(Date.now() + simulationTime.current * 60000);
-      const trackDuration = satellite.period * 1.5;
-      const numPoints = 200;
-      
-      for (let i = 0; i < numPoints; i++) {
-        const timeOffset = (i / numPoints) * trackDuration - (trackDuration * 0.25);
-        const pointTime = new Date(now.getTime() + timeOffset * 60000);
-        const positionAndVelocity = satelliteJs.propagate(satrec, pointTime);
-        const positionEci = positionAndVelocity.position;
-        
-        if (positionEci) {
-          const gmst = satelliteJs.gstime(pointTime);
-          const positionGd = satelliteJs.eciToGeodetic(positionEci, gmst);
-          
-          const lat = positionGd.latitude;
-          const lng = positionGd.longitude;
-          
-          const x = (earthRadius + groundOffset) * Math.cos(lat) * Math.cos(lng);
-          const y = (earthRadius + groundOffset) * Math.sin(lat);
-          const z = -(earthRadius + groundOffset) * Math.cos(lat) * Math.sin(lng);
-          
-          if (positions.length >= 3) {
-            const prevX = positions[positions.length - 3];
-            const prevZ = positions[positions.length - 1];
-            const dist = Math.sqrt((x - prevX) * (x - prevX) + (z - prevZ) * (z - prevZ));
-            if (dist > earthRadius * 0.5) {
-              positions.push(NaN, NaN, NaN);
-            }
-          }
-          
-          positions.push(x, y, z);
-        }
-      }
-      
-      if (positions.length >= 6) {
-        const cleanPositions = [];
-        for (let i = 0; i < positions.length; i += 3) {
-          if (!isNaN(positions[i])) {
-            cleanPositions.push(positions[i], positions[i + 1], positions[i + 2]);
-          }
-        }
-        
-        if (cleanPositions.length >= 6) {
-          groundTrackRef.current.geometry.setPositions(cleanPositions);
-          groundTrackRef.current.computeLineDistances();
-          groundTrackRef.current.material.color.set(satellite.color);
-          groundTrackRef.current.visible = true;
-        } else {
-          groundTrackRef.current.visible = false;
-        }
-      } else {
-        groundTrackRef.current.visible = false;
-      }
-    } catch (e) {
-      groundTrackRef.current.visible = false;
-    }
-  }, [satellites]);
-
 
   const createLabel = useCallback((text, color = "#ffffff") => {
     const div = document.createElement("div");
@@ -1902,60 +1817,6 @@ END`;
     sensorGroup.add(sensorLine);
     sensorLineRef.current = sensorLine;
 
-    const sensorConeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.15,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
-    const sensorConeGeometry = new THREE.ConeGeometry(0.5, 1, 32, 1, true);
-    const sensorCone = new THREE.Mesh(sensorConeGeometry, sensorConeMaterial);
-    sensorGroup.add(sensorCone);
-    sensorConeRef.current = sensorCone;
-
-    const sensorFootprintMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const sensorFootprintGeometry = new THREE.RingGeometry(0.92, 1.0, 64);
-    const sensorFootprint = new THREE.Mesh(sensorFootprintGeometry, sensorFootprintMaterial);
-    sensorFootprint.rotation.x = Math.PI / 2;
-    sensorGroup.add(sensorFootprint);
-    sensorFootprintRef.current = sensorFootprint;
-
-    const sensorFootprintFillMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.08,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const sensorFootprintFillGeometry = new THREE.CircleGeometry(1.0, 64);
-    const sensorFootprintFill = new THREE.Mesh(sensorFootprintFillGeometry, sensorFootprintFillMaterial);
-    sensorFootprintFill.rotation.x = Math.PI / 2;
-    sensorFootprint.add(sensorFootprintFill);
-
-    const groundTrackPositions = new Array(200 * 3).fill(0);
-    const groundTrackGeometry = new LineGeometry();
-    groundTrackGeometry.setPositions(groundTrackPositions);
-    const groundTrackMaterial = new LineMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.8,
-      linewidth: 2,
-      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
-    });
-    const groundTrack = new Line2(groundTrackGeometry, groundTrackMaterial);
-    groundTrack.computeLineDistances();
-    groundTrack.visible = false;
-    scene.add(groundTrack);
-    groundTrackRef.current = groundTrack;
 
     const starsGeometry = new THREE.BufferGeometry();
     const starCount = 8000;
@@ -2343,12 +2204,8 @@ END`;
 
           if (selectedSatellite) {
             updateSensorFootprint(selectedSatellite);
-            if (frameCountRef.current % 10 === 0) {
-              updateGroundTrack(selectedSatellite);
-            }
           } else {
             updateSensorFootprint(null);
-            updateGroundTrack(null);
           }
         }
 
@@ -2380,7 +2237,7 @@ END`;
     satellites, earthRotation, earthRotationData, showTrails, showOrbits, showLabels, 
     isPlaying, speedMultiplier, targetFps, bloomEnabled, updateLabels, performFrustumCulling, 
     updateInstancedMeshes, updateSpatialGrid, updateOrbitsAndTrails, selectedSatellite, 
-    updateSensorFootprint, updateGroundTrack
+    updateSensorFootprint
   ]);
 
   useEffect(() => {
