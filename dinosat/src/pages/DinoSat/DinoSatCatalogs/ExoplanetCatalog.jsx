@@ -2198,7 +2198,7 @@ export default function ExoplanetCatalog() {
                 <span style={{ marginLeft: "auto" }}><FontAwesomeIcon icon={toursCollapsed ? faChevronDown : faChevronUp} /></span>
               </div>
               {!toursCollapsed && (
-                <div className="dinoSatExoplanetToursList">
+                <div className="dinoSatExoplanetList">
                   {NOTABLE_TOURS.map(tour => (
                     <button key={tour.id} className="dinoSatExoplanetTourButton" onClick={() => goToTour(tour.id)}>
                       <span className="dinoSatExoplanetTourName">{tour.name}</span>
@@ -2207,7 +2207,7 @@ export default function ExoplanetCatalog() {
                   ))}
                   <button className="dinoSatExoplanetTourButton" onClick={showEarthCandidates} style={{ borderColor: "#4CAF50" }}>
                     <span className="dinoSatExoplanetTourName"><FontAwesomeIcon icon={faEarthAmericas} /> Earth 2.0 Candidates</span>
-                    <span className="dinoSatExoplanetTourDesc">Earth-sized planets in habitable zones</span>
+                    <span className="dinoSatExoplanetTourDesc">Earth-sized planets in Habitable Zones</span>
                   </button>
                 </div>
               )}
