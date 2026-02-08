@@ -20,15 +20,7 @@ const Reset = () => {
     const [resetError, setResetError] = useState(""); 
     const [resetEmail, setResetEmail] = useState(""); 
     const [resetCode, setResetCode] = useState(""); 
-    const [checkedResetCode, setCheckedResetCode] = useState(""); 
     const [resendTimer, setResendTimer] = useState(0);
-
-    useEffect(() => {
-        if (resetCode === checkedResetCode && resetCode !== "") {
-            setIsCode(false);
-            setIsReset(true);
-        }
-    }, [resetCode, checkedResetCode]);
 
     useEffect(() => {
         let timerID;
@@ -42,7 +34,7 @@ const Reset = () => {
 
     const handleEmail = async () => {
         try {
-            setResetCode("xxx");
+            setResetError("");
 
             const response = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/reset-password`, {
                 method: "POST",
@@ -56,9 +48,6 @@ const Reset = () => {
             });
 
             if (response.status === 200) {
-                const jsonResponse = await response.json();
-                const code = jsonResponse.data.resetCode;
-                setCheckedResetCode(code);
                 setIsEmail(false); 
                 setIsCode(true); 
                 setResetError(""); 
@@ -66,12 +55,43 @@ const Reset = () => {
             } else if (response.status === 401) {
                 setResetError("That email is not in our system.");
             } else {
-                return;
+                setResetError("Something went wrong. Please try again.");
             }
         } catch (error) {
             setResetError("An error occurred while trying to reset the password. Please try again later.");
         }
     };    
+
+    const handleCode = async () => {
+        setResetError("");
+        if (!resetCode || resetCode.length !== 6) {
+            setResetError("Please enter the 6-digit code sent to your email.");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/verify-reset-code`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: resetEmail,
+                    resetCode,
+                }),
+            });
+
+            if (response.status === 200) {
+                setIsCode(false);
+                setIsReset(true);
+            } else {
+                const jsonResponse = await response.json();
+                setResetError(jsonResponse.message || "Invalid or expired reset code.");
+            }
+        } catch (error) {
+            setResetError("An error occurred. Please try again later.");
+        }
+    };
     
     const handlePassword = async () => {
         setResetError("");
@@ -104,15 +124,19 @@ const Reset = () => {
                     body: JSON.stringify({ 
                         newPassword, 
                         email: resetEmail,
+                        resetCode,
                         software: "dinosat"
                     }),
                 });
 
                 if (response.status === 200) {
                     navigate("/login");
+                } else {
+                    const jsonResponse = await response.json();
+                    setResetError(jsonResponse.message || "Failed to reset password. Please try again.");
                 }
             } catch (error) {
-                return;
+                setResetError("An error occurred. Please try again later.");
             }
         }
     };
@@ -177,15 +201,29 @@ const Reset = () => {
                         {isCode && (
                             <>
                                 <label className="resetPrompt"> 
-                                    Enter the code that was sent to your email.
+                                    Enter the 6-digit code that was sent to your email.
                                 </label>
                                 
                                 <div className="loginInputWrapper">
-                                    <input className="loginInput" placeholder={"Enter your reset code..."} onChange={(e) => setResetCode(e.target.value)}/>
+                                    <input 
+                                        className="loginInput" 
+                                        placeholder={"Enter your reset code..."} 
+                                        maxLength={6}
+                                        onChange={(e) => setResetCode(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                handleCode();
+                                            }
+                                        }}
+                                    />
                                 </div>
 
-                                <button className="loginSupplementalButton" onClick={handleEmail} disabled={resendTimer > 0}>
-                                    {resendTimer > 0 ? `Resend code in ${resendTimer}s` : <>Didn't get a code? <span style={{"color": "#ec4899", "font-weight": "800", "opacity": "1"}}>Click here to try again.</span></>}
+                                <button className="loginInputButton" onClick={handleCode} style={{ background: "linear-gradient(135deg, #4C3B7E, #906EAF)", "margin": 0 }}>
+                                    <label className="loginInputText">Verify Code</label>
+                                </button>
+
+                                <button className="loginSupplementalButton" onClick={() => { setIsEmail(true); setIsCode(false); setResetError(""); }} disabled={resendTimer > 0}>
+                                    {resendTimer > 0 ? `Resend code in ${resendTimer}s` : <>Didn't get a code? <span style={{"color": "#ec4899", "fontWeight": "800", "opacity": "1"}}>Click here to try again.</span></>}
                                 </button>
                             </>
                         )}
