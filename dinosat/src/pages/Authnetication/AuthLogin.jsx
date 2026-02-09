@@ -134,7 +134,7 @@ const Login = () => {
 
                     <div className="loginGridPattern"/>
 
-                    <div className={!isTouchDevice ? "loginBlock" : "loginBlockTouch"} style={{"background-color": "rgba(255, 255, 255, 0.0)"}}>
+                    <div className={!isTouchDevice ? "loginBlock" : "loginBlockTouch"} style={{"backgroundColor": "rgba(255, 255, 255, 0.0)"}}>
                         <img
                             className={!isTouchDevice ? "loginLogo" : "loginLogoTouch"}
                             src="./DinoSatLogo_Text_White.png"
