@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
-
 import { useEffect, useState } from "react";
 import "./styles/App.css";
+import useIsTouchDevice from "./TouchDevice";
+import DinoSatMobile from "./helpers/Mobile";
 
 import Login from "./pages/Authnetication/AuthLogin.jsx";
 import Register from "./pages/Authnetication/AuthRegister.jsx";
@@ -22,6 +23,7 @@ import DinoSproutBotanicalCatalog from "./pages/DinoSprout/DinoSproutBotanicalCa
 
 function App() {
   const [osClass, setOsClass] = useState("");
+  const isTouchDevice = useIsTouchDevice();
 
   useEffect(() => {
     const detectOS = () => {
@@ -41,28 +43,34 @@ function App() {
   return (
     <Router>
       <div className={`App ${osClass}`}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/reset" element={<Reset />} />
-          <Route path="/verify" element={<Verification />} />
+        {!isTouchDevice ? (
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/reset" element={<Reset />} />
+            <Route path="/verify" element={<Verification />} />
 
-          <Route path="/celestial-catalog" element={<ProtectedRoute><CelestialReference /></ProtectedRoute>} />
-          <Route path="/satellite-tracker" element={<ProtectedRoute><SatelliteTracker /></ProtectedRoute>} />
-          <Route path="/comet-catalog" element={<ProtectedRoute><CometCatalog /></ProtectedRoute>} />
-          <Route path="/asteroid-catalog" element={<ProtectedRoute><AsteroidCatalog /></ProtectedRoute>} />
-          <Route path="/exoplanet-catalog" element={<ProtectedRoute><ExoplanetCatalog /></ProtectedRoute>} />
-          <Route path="/earth-conditions" element={<ProtectedRoute><EarthConditions /></ProtectedRoute>} />
-          <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+            <Route path="/celestial-catalog" element={<ProtectedRoute><CelestialReference /></ProtectedRoute>} />
+            <Route path="/satellite-tracker" element={<ProtectedRoute><SatelliteTracker /></ProtectedRoute>} />
+            <Route path="/comet-catalog" element={<ProtectedRoute><CometCatalog /></ProtectedRoute>} />
+            <Route path="/asteroid-catalog" element={<ProtectedRoute><AsteroidCatalog /></ProtectedRoute>} />
+            <Route path="/exoplanet-catalog" element={<ProtectedRoute><ExoplanetCatalog /></ProtectedRoute>} />
+            <Route path="/earth-conditions" element={<ProtectedRoute><EarthConditions /></ProtectedRoute>} />
+            <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
 
-          <Route path="/geode-add-specimen" element={<ProtectedRoute><AddSpecimen /></ProtectedRoute>} />
-          <Route path="/geode-browse-specimen" element={<ProtectedRoute><BrowseSpecimen /></ProtectedRoute>} />
-          <Route path="/geode-mineral-catalog" element={<ProtectedRoute><MineralCatalog /></ProtectedRoute>} />
+            <Route path="/geode-add-specimen" element={<ProtectedRoute><AddSpecimen /></ProtectedRoute>} />
+            <Route path="/geode-browse-specimen" element={<ProtectedRoute><BrowseSpecimen /></ProtectedRoute>} />
+            <Route path="/geode-mineral-catalog" element={<ProtectedRoute><MineralCatalog /></ProtectedRoute>} />
 
-          <Route path="/sprout-botanical-catalog" element={<DinoSproutBotanicalCatalog />} />
+            <Route path="/sprout-botanical-catalog" element={<DinoSproutBotanicalCatalog />} />
 
-          <Route index element={<Navigate to="/login" replace />} />
-        </Routes>
+            <Route index element={<Navigate to="/login" replace />} />
+          </Routes>
+        ) : (
+          <Routes>
+            <Route path="*" element={<DinoSatMobile />} />
+          </Routes>
+        )}
       </div>
     </Router>
   );
