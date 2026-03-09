@@ -3,7 +3,7 @@ import "../styles/helperStyles/Mobile.css";
 
 const DinoSatMobile = () => {
   return (
-    <div className="dinoSatUnavailableContainer">
+    <div className="dinoSatUnavailableContainer" style={{justifyContent: "center"}}>
       <div className="dinoSatUnavailableWrapper">
         <div className="dinoSatUnavailableContent">
           <img
