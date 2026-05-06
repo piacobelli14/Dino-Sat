@@ -215,60 +215,30 @@ const DinoLabsNav = ({ activePage }) => {
                             Satellite Tracker
                           </div>
                         </button>
-                        
-                        
-                      </>
-                    )}
 
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => toggleSubDropdown("sat-catalogs")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faTable} className="navigationButtonIcon" />
-                        Catalogs
-                      </div>
-                      <FontAwesomeIcon
-                        icon={openSubDropdown === "sat-catalogs" ? faChevronUp : faChevronDown}
-                        className="navigationButtonIconTrailer"
-                      />
-                    </button>
-
-                    {openDropdown === "sat" && openSubDropdown === "sat-catalogs" && (
-                      <>
                         <button
                           className="navigationButtonWrapper"
-                          onClick={() => navigate("/asteroid-catalog")}
+                          onClick={() => navigate("/asteroid-tracker")}
                           style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                             <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
-                            Asteroid Catalog
+                            Asteroid Tracker
                           </div>
                         </button>
 
                         <button
                           className="navigationButtonWrapper"
-                          onClick={() => navigate("/comet-catalog")}
+                          onClick={() => navigate("/comet-tracker")}
                           style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                         >
                           <div className="navigationButton" style={{ color: "#f1f5f9" }}>
                             <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
-                            Comet Catalog
+                            Comet Tracker
                           </div>
                         </button>
                         
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/exoplanet-catalog")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
-                            Exoplanet Catalog
-                          </div>
-                        </button>
+                        
                       </>
                     )}
 

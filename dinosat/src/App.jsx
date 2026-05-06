@@ -11,9 +11,8 @@ import Reset from "./pages/Authnetication/AuthReset.jsx";
 import Verification from "./pages/Authnetication/AuthVerifyEmail.jsx";
 import CelestialReference from "./pages/DinoSat/CelestialReference.jsx";
 import SatelliteTracker from "./pages/DinoSat/DinoSatTrackers/SatelliteTracker.jsx";
-import CometCatalog from "./pages/DinoSat/DinoSatCatalogs/CometCatalog.jsx";
-import AsteroidCatalog from "./pages/DinoSat/DinoSatCatalogs/AsteroidCatalog.jsx";
-import ExoplanetCatalog from "./pages/DinoSat/DinoSatCatalogs/ExoplanetCatalog.jsx";
+import CometTracker from "./pages/DinoSat/DinoSatTrackers/CometTracker.jsx";
+import AsteroidTracker from "./pages/DinoSat/DinoSatTrackers/AsteroidTracker.jsx";
 import EarthConditions from "./pages/DinoSat/DinoSatMonitors/EarthConditions.jsx";
 import Simulator from "./pages/DinoSat/DinoSatSimulators/Simulator.jsx";
 import AddSpecimen from "./pages/DinoGeode/DinoGeodeAddSpecimen.jsx";
@@ -52,9 +51,8 @@ function App() {
 
             <Route path="/celestial-catalog" element={<ProtectedRoute><CelestialReference /></ProtectedRoute>} />
             <Route path="/satellite-tracker" element={<ProtectedRoute><SatelliteTracker /></ProtectedRoute>} />
-            <Route path="/comet-catalog" element={<ProtectedRoute><CometCatalog /></ProtectedRoute>} />
-            <Route path="/asteroid-catalog" element={<ProtectedRoute><AsteroidCatalog /></ProtectedRoute>} />
-            <Route path="/exoplanet-catalog" element={<ProtectedRoute><ExoplanetCatalog /></ProtectedRoute>} />
+            <Route path="/comet-tracker" element={<ProtectedRoute><CometTracker /></ProtectedRoute>} />
+            <Route path="/asteroid-tracker" element={<ProtectedRoute><AsteroidTracker /></ProtectedRoute>} />
             <Route path="/earth-conditions" element={<ProtectedRoute><EarthConditions /></ProtectedRoute>} />
             <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
 

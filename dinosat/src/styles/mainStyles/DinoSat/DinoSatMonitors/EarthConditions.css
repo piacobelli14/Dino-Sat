@@ -6,11 +6,12 @@
   --ec-bg-tertiary: #13151a;
   --ec-bg-elevated: #16181d;
   --ec-bg-surface: #12141a;
+  --ec-bg-panel: #0f1115;
 
   --ec-text-primary: rgba(235, 240, 248, 0.95);
---ec-text-secondary: rgba(205, 212, 228, 0.82);
---ec-text-tertiary: rgba(170, 180, 200, 0.72);
---ec-text-muted: rgba(145, 155, 175, 0.58);
+  --ec-text-secondary: rgba(205, 212, 228, 0.82);
+  --ec-text-tertiary: rgba(170, 180, 200, 0.72);
+  --ec-text-muted: rgba(145, 155, 175, 0.58);
 
   --ec-border-primary: rgba(50, 55, 70, 0.45);
   --ec-border-subtle: rgba(40, 45, 58, 0.35);
@@ -18,23 +19,19 @@
 
   --ec-accent-primary: #6a7a8a;
   --ec-accent-secondary: #5a6a7a;
-  --ec-accent-muted: rgba(106, 122, 138, 0.08);
-  --ec-accent-glow: rgba(106, 122, 138, 0.1);
+  --ec-accent-cyan: #4ECDC4;
+  --ec-accent-blue: #42a5f5;
+  --ec-accent-purple: #a78bfa;
 
-  --ec-status-nominal: #5a7068;
-  --ec-status-nominal-muted: rgba(90, 112, 104, 0.08);
-  --ec-status-alert: #6a6a78;
-  --ec-status-alert-muted: rgba(106, 106, 120, 0.08);
-  --ec-status-critical: #78686a;
-  --ec-status-critical-muted: rgba(120, 104, 106, 0.08);
-  --ec-status-warning: #706a5a;
-  --ec-status-warning-muted: rgba(112, 106, 90, 0.08);
-  --ec-status-info: #5a6a78;
-  --ec-status-info-muted: rgba(90, 106, 120, 0.08);
+  --ec-status-good: #4ade80;
+  --ec-status-info: #42a5f5;
+  --ec-status-advisory: #facc15;
+  --ec-status-warning: #fb923c;
+  --ec-status-critical: #ef4444;
 
   --ec-radius-sm: 4px;
   --ec-radius-md: 6px;
-  --ec-radius-lg: 6px;
+  --ec-radius-lg: 8px;
 
   --ec-spacing-xs: 4px;
   --ec-spacing-sm: 8px;
@@ -45,8 +42,6 @@
   --ec-transition-fast: 0.15s ease;
   --ec-transition-normal: 0.25s ease;
   --ec-transition-slow: 0.4s ease;
-
-  --ec-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
 }
 
 *,
@@ -77,6 +72,7 @@ body {
   background: var(--ec-bg-void);
   color: var(--ec-text-primary);
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -86,14 +82,12 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
-  width: 100%;
-  overflow: hidden;
-  display: flex;
   width: 100vw;
   min-height: calc(100vh - 60px);
   max-height: calc(100vh - 60px);
   height: calc(100vh - 60px);
-  background: var(--ec-bg-primary);
+  overflow: hidden;
+  background: var(--ec-bg-void);
   color: var(--ec-text-primary);
   box-sizing: border-box;
 }
@@ -101,17 +95,16 @@ body {
 .dinosatEarthCondHeader {
   flex-shrink: 0;
   width: 100%;
+  min-width: 100%;
+  max-width: 100%;
   padding: var(--ec-spacing-sm) var(--ec-spacing-lg);
   background: var(--ec-bg-secondary);
-  border-bottom: 1px solid var(--ec-border-primary);
+  border-bottom: 2px solid var(--ec-border-primary);
   min-height: 60px;
   max-height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
 }
 
 .dinosatEarthCondHeaderContent {
@@ -120,14 +113,7 @@ body {
   align-items: center;
   gap: var(--ec-spacing-lg);
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
   height: 100%;
-  min-height: 100%;
-  max-height: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .dinosatEarthCondTitleSection {
@@ -144,27 +130,25 @@ body {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondTitleSection h1 svg {
-  font-size: 12px;
+  font-size: 0.85rem;
   color: var(--ec-text-tertiary);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .dinosatEarthCondSubtitle {
-  margin-top: 2px;
-  font-size: 10px;
-  color: var(--ec-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ec-text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 0.8rem;
-  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -177,9 +161,7 @@ body {
   width: 40%;
   min-width: 40%;
   max-width: 40%;
-  display: flex;
   justify-content: flex-end;
-  align-items: center;
   padding: 0 1rem;
 }
 
@@ -187,38 +169,37 @@ body {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm) var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  padding: 8px 14px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-primary);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-secondary);
+  min-height: 36px;
 }
 
 .dinosatEarthCondHeaderDecision.dinosatEarthCondDecisionGO {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-primary);
+  border-left-color: var(--ec-status-good);
+  color: var(--ec-status-good);
 }
 
 .dinosatEarthCondHeaderDecision.dinosatEarthCondDecisionNOGO {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-primary);
+  border-left-color: var(--ec-status-critical);
+  color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondHeaderDecision.dinosatEarthCondDecisionCONDITIONALGO {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-primary);
+  border-left-color: var(--ec-status-warning);
+  color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondHeaderDecision.dinosatEarthCondDecisionUNKNOWN {
+  border-left-color: var(--ec-text-muted);
   color: var(--ec-text-tertiary);
-  border-color: var(--ec-border-primary);
 }
 
 .dinosatEarthCondAlertBtn {
@@ -226,50 +207,50 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  width: 36px;
+  height: 36px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-sm);
   color: var(--ec-text-tertiary);
-  font-size: 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all var(--ec-transition-fast);
 }
 
 .dinosatEarthCondAlertBtn:hover {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-text-primary);
+  background: var(--ec-bg-tertiary);
   border-color: var(--ec-border-glow);
 }
 
 .dinosatEarthCondAlertBtn.dinosatEarthCondAlertBtnCritical {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-primary);
+  border-color: var(--ec-status-critical);
+  color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondAlertBtn.dinosatEarthCondAlertBtnWarning {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-primary);
+  border-color: var(--ec-status-warning);
+  color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondAlertBadge {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -6px;
+  right: -6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  background: var(--ec-accent-primary);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--ec-status-critical);
+  border: 2px solid var(--ec-bg-secondary);
   border-radius: var(--ec-radius-sm);
   color: var(--ec-bg-void);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondMainContent {
@@ -282,11 +263,11 @@ body {
 
 .dinosatEarthCondSidebar {
   flex-shrink: 0;
-  width: 220px;
-  min-width: 220px;
+  width: 240px;
+  min-width: 240px;
   overflow-y: auto;
   background: var(--ec-bg-secondary);
-  border-right: 1px solid var(--ec-border-primary);
+  border-right: 2px solid var(--ec-border-primary);
 }
 
 .dinosatEarthCondSidebar::-webkit-scrollbar {
@@ -305,26 +286,22 @@ body {
 .dinosatEarthCondControlsPanel {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-md);
-  overflow: scroll;
+  width: 100%;
+  overflow-y: auto;
 }
 
 .dinosatEarthCondControlGroupStack {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
   width: 100%;
-  max-width: 100%;
-  min-width: 100%;
-  border-bottom: 1px solid var(--ec-border-subtle);
-  padding: 1rem 1rem 0.6rem 1rem;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  padding: 14px 14px 8px 14px;
   box-sizing: border-box;
 }
 
 .dinosatEarthCondControlGroupStack:last-child {
-  padding-bottom: 0 !important; 
-  margin-bottom: 0 !important; 
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 .dinosatEarthCondControlGroup,
@@ -333,48 +310,38 @@ body {
 .dinosatEarthCondControlGroupSlider {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 6px;
+  margin-bottom: 12px;
   width: 100%;
-  max-width: 100%;
-  min-width: 100%;
-  padding: 0 0.2rem;
 }
 
 .dinosatEarthCondControlGroupSlider {
-  gap: 1rem;
+  gap: 10px;
 }
 
 .dinosatEarthCondControlGroupMini {
-  margin-bottom: 0.8rem;
+  margin-bottom: 10px;
 }
 
 .dinosatEarthCondControlGroupCheckboxBig {
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--ec-border-subtle);
 }
 
 .dinosatEarthCondControlGroup label,
 .dinosatEarthCondControlGroupCheckboxBig label,
 .dinosatEarthCondControlGroupMini label,
 .dinosatEarthCondControlGroupSlider label {
-  font-size: 0.6rem;
-  font-weight: 900;
-  color: var(--ec-text-tertiary);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0 0.2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   white-space: nowrap;
-  overflow: scroll;
-  text-overflow: ellipsis;
-  max-width: 100%;
   width: 100%;
-  min-width: 100%;
 }
 
 .dinosatEarthCondControlGroupWide {
@@ -385,9 +352,9 @@ body {
 .dinosatEarthCondSelectLimited,
 .dinosatEarthCondInput {
   width: 100%;
-  padding: 0.6rem 0.8rem;
+  padding: 10px 12px;
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-sm);
   color: var(--ec-text-primary);
   font-size: 0.7rem;
@@ -395,7 +362,6 @@ body {
   font-family: inherit;
   outline: none;
   transition: border-color var(--ec-transition-fast);
-  margin: 0; 
 }
 
 .dinosatEarthCondSelect,
@@ -404,7 +370,7 @@ body {
   padding-right: 28px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236a7a8a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 10px center;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -426,22 +392,28 @@ body {
 .dinosatEarthCondSelect:focus,
 .dinosatEarthCondSelectLimited:focus,
 .dinosatEarthCondInput:focus {
-  border-color: var(--ec-accent-primary);
+  border-color: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondSelect:disabled,
 .dinosatEarthCondSelectLimited:disabled,
 .dinosatEarthCondInput:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
+.dinosatEarthCondSelect option {
+  background: var(--ec-bg-secondary);
+  color: var(--ec-text-primary);
+  font-weight: 700;
+}
+
 .dinosatEarthCondInputHint {
-  margin-top: 0;
-  font-size: 0.6rem;
-  font-weight: 600;
+  margin-top: 2px;
+  font-size: 0.55rem;
+  font-weight: 700;
   color: var(--ec-text-muted);
-  padding: 0 0.4rem;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondSliderGroup {
@@ -452,137 +424,152 @@ body {
 
 .dinosatEarthCondSlider {
   flex: 1;
-  height: 4px;
+  height: 6px;
   appearance: none;
   background: var(--ec-bg-elevated);
-  border-radius: 2px;
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: 3px;
   outline: none;
+  cursor: pointer;
 }
 
 .dinosatEarthCondSlider::-webkit-slider-thumb {
   appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--ec-accent-primary);
-  border-radius: var(--ec-radius-sm);
+  width: 14px;
+  height: 14px;
+  background: var(--ec-accent-cyan);
+  border: 2px solid var(--ec-bg-base);
+  border-radius: 3px;
   cursor: pointer;
   transition: transform 0.1s ease;
 }
 
 .dinosatEarthCondSlider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+  transform: scale(1.15);
+}
+
+.dinosatEarthCondSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--ec-accent-cyan);
+  border: 2px solid var(--ec-bg-base);
+  border-radius: 3px;
+  cursor: pointer;
 }
 
 .dinosatEarthCondSliderValue {
   min-width: 40px;
   font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--ec-text-secondary);
+  font-weight: 800;
+  color: var(--ec-accent-cyan);
   text-align: right;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondCheckboxLabel {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  font-size: 11px;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--ec-text-secondary);
   cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondCheckboxLabel input[type="checkbox"] {
   position: relative;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   appearance: none;
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: 3px;
   cursor: pointer;
   transition: all var(--ec-transition-fast);
 }
 
 .dinosatEarthCondCheckboxLabel input[type="checkbox"]:checked {
-  background: var(--ec-accent-primary);
-  border-color: var(--ec-accent-primary);
+  background: var(--ec-accent-cyan);
+  border-color: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondCheckboxLabel input[type="checkbox"]:checked::after {
   content: "";
   position: absolute;
-  top: 2px;
+  top: 1px;
   left: 4px;
   width: 4px;
-  height: 7px;
+  height: 8px;
   border: solid var(--ec-bg-void);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .dinosatEarthCondControlsDivider {
-  height: 1px;
-  margin: 1rem 0;
+  height: 2px;
+  margin: 14px 0;
   background: var(--ec-border-subtle);
 }
 
-.dinosatEarthCondControlActions, 
+.dinosatEarthCondControlActions,
 .dinosatEarthCondControlActionsLong {
   display: flex;
   flex-direction: column;
   gap: var(--ec-spacing-sm);
-  padding-top: var(--ec-spacing-md);
   position: sticky;
   bottom: 0;
-  padding: 1rem;
+  padding: 14px;
   background: var(--ec-bg-secondary);
-  border-top: 1px solid var(--ec-border-subtle);
-  width: 100%; 
-
+  border-top: 2px solid var(--ec-border-primary);
+  width: 100%;
 }
 
 .dinosatEarthCondControlActionsLong {
-  padding: 1rem 0; 
-  display: flex; 
+  padding: 14px 0;
+  display: flex;
   flex-wrap: wrap;
 }
 
-.dinosatEarthCondBtn, 
+.dinosatEarthCondBtn,
 .dinosatEarthCondBtnLong {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm) var(--ec-spacing-md);
-  border: none;
+  padding: 10px 14px;
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-sm);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 800;
   font-family: inherit;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition: all var(--ec-transition-fast);
-  color: var(--ec-text-primary);
+  background: var(--ec-bg-tertiary);
+  color: var(--ec-text-secondary);
+  min-height: 36px;
 }
 
-.dinosatEarthCondBtnLong { 
-  flex: 1; 
+.dinosatEarthCondBtnLong {
+  flex: 1;
 }
 
 .dinosatEarthCondBtnPrimary {
   background: var(--ec-bg-elevated);
-  border: 1px solid var(--ec-border-primary);
-  color: var(--ec-text-primary);
+  border-color: var(--ec-accent-cyan);
+  color: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondBtnPrimary:hover:not(:disabled) {
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-glow);
+  background: rgba(78, 205, 196, 0.1);
 }
 
 .dinosatEarthCondBtnSecondary {
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  border-color: var(--ec-border-primary);
   color: var(--ec-text-secondary);
 }
 
@@ -600,12 +587,10 @@ body {
 .dinosatEarthCondVehicleConfig {
   overflow: hidden;
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-primary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-md);
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
 }
 
 .dinosatEarthCondVehicleConfigToggle {
@@ -614,68 +599,64 @@ body {
   justify-content: center;
   gap: var(--ec-spacing-sm);
   width: 100%;
-  padding: var(--ec-spacing-md);
+  padding: 12px 14px;
   background: var(--ec-bg-tertiary);
   border: none;
-  border-radius: 2px;
   color: var(--ec-text-primary);
   font-size: 0.6rem;
   font-weight: 800;
   font-family: inherit;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   outline: none;
   transition: all var(--ec-transition-fast);
-  margin: 0;
-  padding: 1rem;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
 }
 
 .dinosatEarthCondVehicleConfigToggle:hover,
 .dinosatEarthCondVehicleConfigToggle:focus {
   background: var(--ec-bg-elevated);
+  color: var(--ec-accent-cyan);
   outline: none;
 }
 
 .dinosatEarthCondVehicleConfigArrow {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 0.55rem;
   opacity: 0.6;
 }
 
 .dinosatEarthCondVehicleConfigBody {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-md);
-  border-top: 1px solid var(--ec-border-subtle);
+  border-top: 2px solid var(--ec-border-subtle);
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
   overflow: hidden;
 }
 
 .dinosatEarthCondVehicleConfigNote {
-  padding: var(--ec-spacing-sm);
+  padding: 8px 12px;
   background: var(--ec-bg-elevated);
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.55rem;
+  font-weight: 700;
   color: var(--ec-text-muted);
   text-align: center;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--ec-border-subtle);
 }
 
 .dinosatEarthCondVehicleConfigSection {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--ec-border-subtle);
-  padding: 0.4rem 0.6rem;
+  gap: 8px;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  padding: 10px 12px;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  overflow: hidden;
+}
+
+.dinosatEarthCondVehicleConfigSection:last-child {
+  border-bottom: none;
 }
 
 .dinosatEarthCondVehicleConfigSectionHeader {
@@ -683,18 +664,18 @@ body {
   align-items: center;
   gap: var(--ec-spacing-sm);
   padding-bottom: var(--ec-spacing-xs);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondVehicleConfigSectionHeader svg {
-  font-size: 10px;
-  color: var(--ec-text-tertiary);
-  opacity: 0.5;
+  font-size: 0.65rem;
+  color: var(--ec-accent-cyan);
+  opacity: 0.7;
 }
 
 .dinosatEarthCondVehicleConfigGrid {
@@ -702,25 +683,28 @@ body {
   grid-template-columns: 1fr;
   gap: var(--ec-spacing-sm);
   width: 100%;
-  max-width: 100%;
 }
 
 .dinosatEarthCondPropellantInfo {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm);
+  padding: 6px 10px;
   background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
-  font-size: 9px;
+  font-size: 0.55rem;
 }
 
 .dinosatEarthCondPropellantLabel {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondPropellantValue {
-  font-weight: 500;
+  font-weight: 800;
   color: var(--ec-text-secondary);
 }
 
@@ -737,21 +721,19 @@ body {
   display: flex;
   flex-shrink: 0;
   gap: 0;
-  padding: 0 0;
-  overflow-x: auto;
   background: var(--ec-bg-secondary);
-  border-bottom: 1px solid var(--ec-border-primary);
-  min-height: 40px;
-  max-height: 40px;
-  height: 40px;
+  border-bottom: 2px solid var(--ec-border-primary);
+  min-height: 42px;
+  max-height: 42px;
+  height: 42px;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  overflow: scroll;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .dinosatEarthCondTabs::-webkit-scrollbar {
-  height: 0;
+  display: none;
 }
 
 .dinosatEarthCondTab {
@@ -760,7 +742,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-md) 3rem;
+  padding: 11px 28px;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -768,61 +750,56 @@ body {
   font-size: 0.6rem;
   font-weight: 800;
   font-family: inherit;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   outline: none;
-  transition: all var(--ec-transition-fast);
+  transition: color var(--ec-transition-fast), box-shadow var(--ec-transition-fast);
   flex-shrink: 0;
-  border-right: 1px solid var(--ec-border-subtle);
 }
 
 .dinosatEarthCondTab svg {
-  font-size: 11px;
-  opacity: 0.5;
+  font-size: 0.7rem;
+  opacity: 0.7;
 }
 
 .dinosatEarthCondTab:hover,
 .dinosatEarthCondTab:focus {
   color: var(--ec-text-secondary);
-  background: var(--ec-bg-tertiary);
-  border: none;
-  border-radius: 0;
   outline: none;
-  border-right: 1px solid var(--ec-border-subtle);
-}
-
-.dinosatEarthCondTab:focus {
-  border-bottom: 2px solid var(--ec-accent-primary);
 }
 
 .dinosatEarthCondTab.dinosatEarthCondTabActive {
-  color: var(--ec-text-primary);
-  background: var(--ec-bg-tertiary);
-  border-bottom: 2px solid var(--ec-accent-primary);
+  color: var(--ec-accent-cyan);
+  box-shadow: inset 0 -2px 0 0 var(--ec-accent-cyan);
+}
+
+.dinosatEarthCondTab.dinosatEarthCondTabActive svg {
+  opacity: 1;
 }
 
 .dinosatEarthCondTabBadge {
   position: absolute;
-  top: 6px;
-  right: 10px;
-  min-width: 14px;
-  padding: 4px 6px;
-  background: var(--ec-accent-primary);
-  border-radius: 2px;
+  top: 4px;
+  right: 8px;
+  min-width: 16px;
+  padding: 3px 5px;
+  background: var(--ec-status-critical);
+  border-radius: 3px;
   color: var(--ec-bg-void);
-  font-size: 8px;
-  font-weight: 700;
+  font-size: 0.5rem;
+  font-weight: 800;
   text-align: center;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondTabContent {
   flex: 1;
   min-height: 0;
-  padding: var(--ec-spacing-lg);
+  padding: 18px;
   overflow-y: auto;
-  background: var(--ec-bg-base);
+  background: var(--ec-bg-void);
 }
 
 .dinosatEarthCondTabContent::-webkit-scrollbar {
@@ -838,52 +815,52 @@ body {
   border-radius: 3px;
 }
 
+.dinosatEarthCondTabContent::-webkit-scrollbar-thumb:hover {
+  background: var(--ec-border-glow);
+}
+
 .dinosatEarthCondCommandTab,
 .dinosatEarthCondModuleTab,
 .dinosatEarthCondGlobalTab {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-lg);
+  gap: 14px;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  overflow-y: scroll;
-  padding: 0.4rem;
 }
 
 .dinosatEarthCondPanel,
 .dinosatEarthCondPanelTriple,
 .dinosatEarthCondPanelDouble,
 .dinosatEarthCondPanelSingle {
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  padding: 14px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid rgba(60, 70, 86, 0.4);
   border-radius: var(--ec-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .dinosatEarthCondPanelTriple {
-  flex: 1 1 calc(33.333% - var(--ec-spacing-md));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 60px;
+  flex: 1 1 calc(33.333% - 12px);
+  min-width: 0;
 }
 
 .dinosatEarthCondPanelDouble {
-  flex: 1 1 calc(50% - var(--ec-spacing-md));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 20px;
+  flex: 1 1 calc(50% - 12px);
+  min-width: 0;
 }
 
 .dinosatEarthCondPanelSingle {
   flex: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 20px;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .dinosatEarthCondPanelTriple,
+  .dinosatEarthCondPanelDouble {
+    flex: 1 1 100%;
+  }
 }
 
 @media (max-width: 700px) {
@@ -891,7 +868,7 @@ body {
   .dinosatEarthCondPanelTriple,
   .dinosatEarthCondPanelDouble,
   .dinosatEarthCondPanelSingle {
-    width: 100%; 
+    width: 100%;
   }
 }
 
@@ -900,17 +877,17 @@ body {
   align-items: center;
   gap: var(--ec-spacing-sm);
   margin: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--ec-text-secondary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondPanel h3 svg {
-  font-size: 11px;
-  color: var(--ec-text-tertiary);
-  opacity: 0.5;
+  font-size: 0.75rem;
+  color: var(--ec-accent-cyan);
+  opacity: 0.85;
 }
 
 .dinosatEarthCondPanelHeader,
@@ -921,7 +898,7 @@ body {
   gap: var(--ec-spacing-md);
   margin-bottom: var(--ec-spacing-md);
   padding-bottom: var(--ec-spacing-sm);
-  border-bottom: 1px solid var(--ec-border-subtle);
+  border-bottom: 2px solid rgba(60, 70, 86, 0.4);
 }
 
 .dinosatEarthCondPanelHeader h3,
@@ -933,8 +910,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondPanelHeader h3 svg,
@@ -942,27 +921,25 @@ body {
   margin-right: 0.4rem;
 }
 
-.dinosatEarthCondPanelHeaderWithBadge {
-  justify-content: space-between;
-}
-
 .dinosatEarthCondFilterSelect {
-  min-width: 80px;
-  padding: var(--ec-spacing-xs) var(--ec-spacing-sm);
-  padding-right: 24px;
-  font-size: 9px;
-  background-position: right 6px center;
+  min-width: 100px;
+  padding: 6px 26px 6px 10px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background-position: right 8px center;
 }
 
 .dinosatEarthCondMainDecision {
   position: relative;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: var(--ec-spacing-lg);
-  padding: var(--ec-spacing-lg);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  padding: 18px 20px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
+  border-left: 3px solid var(--ec-accent-cyan);
   border-radius: var(--ec-radius-md);
 }
 
@@ -970,24 +947,24 @@ body {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  margin-bottom: 0.4rem;
-  padding: 0.4rem 0;
-  gap: 0.4rem;
+  margin-bottom: 6px;
+  padding: 2px 0;
+  gap: var(--ec-spacing-sm);
 }
 
 .dinosatEarthCondDecisionIconStack h1 {
-  font-size: 2.2rem;
-  font-weight: 1000;
-  letter-spacing: 0.06em;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-primary);
+  line-height: 1.05;
 }
 
 .dinosatEarthCondDecisionIcon {
   flex-shrink: 0;
-  font-size: 2rem;
-  opacity: 0.6;
-  margin: 0;
+  font-size: 1.6rem;
+  opacity: 0.7;
   color: var(--ec-text-secondary);
 }
 
@@ -998,13 +975,13 @@ body {
 
 .dinosatEarthCondDecisionDataType {
   position: absolute;
-  top: var(--ec-spacing-md);
-  right: var(--ec-spacing-md);
+  top: 14px;
+  right: 14px;
 }
 
 .dinosatEarthCondDecisionReason {
-  margin-bottom: 0.6rem;
-  font-size: 0.8rem;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.5;
   color: var(--ec-text-secondary);
@@ -1015,63 +992,62 @@ body {
 
 .dinosatEarthCondDecisionMeta {
   display: flex;
-  gap: 0.6rem;
-  margin-bottom: 1.2rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondDecisionMeta strong {
-  font-weight: 600;
+  font-weight: 800;
   color: var(--ec-text-primary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
 }
 
 .dinosatEarthCondConfidenceBar {
   height: 6px;
-  margin-bottom: var(--ec-spacing-md);
+  margin-bottom: 0;
   overflow: hidden;
   background: var(--ec-bg-elevated);
-  border-radius: 2px;
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: 3px;
 }
 
 .dinosatEarthCondConfidenceFill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 0;
   transition: width var(--ec-transition-slow);
-  background: var(--ec-accent-primary);
+  background: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondAllReasons {
-  padding: var(--ec-spacing-md);
+  padding: 12px 14px;
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondAllReasons h4 {
   margin-bottom: var(--ec-spacing-sm);
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondAllReasons ul {
   margin: 0;
-  padding-left: var(--ec-spacing-lg);
+  padding-left: 18px;
 }
 
 .dinosatEarthCondAllReasons li {
-  margin-bottom: var(--ec-spacing-xs);
-  font-size: 11px;
+  margin-bottom: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
   line-height: 1.5;
   color: var(--ec-text-secondary);
 }
@@ -1081,95 +1057,109 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: var(--ec-spacing-md);
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  padding: 12px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-md);
 }
 
 .dinosatEarthCondSummaryCards {
   display: flex;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  overflow: scroll;
-  gap: var(--ec-spacing-md);
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 8px;
+}
+
+.dinosatEarthCondSummaryCards::-webkit-scrollbar {
+  height: 3px;
+}
+
+.dinosatEarthCondSummaryCards::-webkit-scrollbar-thumb {
+  background: var(--ec-border-primary);
 }
 
 .dinosatEarthCondSummaryCard {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm) var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  border-left: 3px solid var(--ec-border-glow);
+  padding: 10px 14px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
+  flex-shrink: 0;
+  min-height: 56px;
+  transition: border-color var(--ec-transition-fast);
+}
+
+.dinosatEarthCondSummaryCard:hover {
+  border-color: var(--ec-border-glow);
 }
 
 .dinosatEarthCondSummaryCard svg {
-  font-size: 14px;
+  font-size: 1rem;
   color: var(--ec-text-tertiary);
 }
 
 .dinosatEarthCondSummaryCardCritical {
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondSummaryCardCritical svg {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondSummaryCardWarning {
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondSummaryCardWarning svg {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondSummaryCardAdvisory {
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-advisory);
 }
 
 .dinosatEarthCondSummaryCardAdvisory svg {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-status-advisory);
 }
 
 .dinosatEarthCondSummaryCardAck {
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-good);
 }
 
 .dinosatEarthCondSummaryCardAck svg {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-status-good);
 }
 
 .dinosatEarthCondSummaryCardContent {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .dinosatEarthCondSummaryCount {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.05;
   color: var(--ec-text-primary);
 }
 
 .dinosatEarthCondSummaryLabel {
-  margin-top: 0.4rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.04em;
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondOverviewGrid {
   display: flex;
-  gap: var(--ec-spacing-md);
+  gap: 12px;
   align-items: stretch;
-  overflow: scroll;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 700px) {
@@ -1181,23 +1171,23 @@ body {
 .dinosatEarthCondSystemsGrid {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-sm);
+  gap: 6px;
 }
 
 .dinosatEarthCondSystemItem {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: 0.6rem 0.8rem;
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 8px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
-  transition: background var(--ec-transition-fast);
-  overflow: scroll;
+  transition: all var(--ec-transition-fast);
 }
 
 .dinosatEarthCondSystemItem:hover {
-  background: var(--ec-bg-elevated);
+  background: var(--ec-bg-surface);
+  border-color: var(--ec-border-glow);
 }
 
 .dinosatEarthCondSystemIndicator {
@@ -1205,13 +1195,13 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 28px;
+  height: 28px;
   border-radius: var(--ec-radius-sm);
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
-  border: 1px solid var(--ec-border-subtle);
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
 }
 
 .dinosatEarthCondSystemInfo {
@@ -1219,65 +1209,68 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  white-space: nowrap;
-  overflow: scroll;
-  text-overflow: ellipsis;
-  padding: 0 0.6rem;
+  padding: 0 8px;
+  gap: 2px;
 }
 
 .dinosatEarthCondSystemName {
-  overflow: hidden;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ec-text-primary);
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondSystemStatus {
-  overflow: hidden;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--ec-text-secondary);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-tertiary);
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondSystemCounts {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0 0.4rem;
+  gap: 4px;
 }
 
 .dinosatEarthCondCriticalCount {
-  padding: 0.4rem 0.6rem;
-  background: var(--ec-bg-elevated);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 2px solid rgba(239, 68, 68, 0.3);
   border-radius: 3px;
-  color: var(--ec-text-secondary);
-  font-size: 0.6rem;
-  font-weight: 700;
-}
-
-.dinosatEarthCondViolationCount,
-.dinosatEarthCondAlertCount {
-  padding: 0.4rem 0.6rem;
-  border-radius: 3px;
-  font-size: 0.6rem;
-  font-weight: 700;
+  color: var(--ec-status-critical);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondViolationCount {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 4px 8px;
+  background: rgba(251, 146, 60, 0.12);
+  border: 2px solid rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
+  color: var(--ec-status-warning);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondAlertCount {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 4px 8px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 2px solid rgba(250, 204, 21, 0.3);
+  border-radius: 3px;
+  color: var(--ec-status-advisory);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondConfidenceBreakdown {
@@ -1287,64 +1280,60 @@ body {
 }
 
 .dinosatEarthCondConfidenceSection {
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 10px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondConfidenceSection h4 {
-  margin-bottom: 0.6rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0 0.4rem;
 }
 
 .dinosatEarthCondConfidenceStats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--ec-spacing-xs);
-  overflow: scroll;
 }
 
 .dinosatEarthCondConfidenceStat {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 12px;
-  background: var(--ec-bg-elevated);
+  padding: 7px 10px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  gap: 1rem;
+  gap: 10px;
 }
 
 .dinosatEarthCondConfidenceLabel {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
-  overflow: scroll;
-  text-overflow: ellipsis;
 }
 
 .dinosatEarthCondConfidenceValue {
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
-  white-space: nowrap;
-  overflow: scroll;
   white-space: nowrap;
 }
 
 .dinosatEarthCondDataSourceGrid {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-xs);
+  gap: 5px;
   height: 100%;
-  min-height: 100%;
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -1359,10 +1348,10 @@ body {
 }
 
 .dinosatEarthCondDataSourceItem {
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  border-left: 3px solid var(--ec-border-glow);
+  padding: 8px 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
 }
 
@@ -1371,30 +1360,32 @@ body {
   align-items: center;
   gap: var(--ec-spacing-sm);
   margin-bottom: 4px;
-  overflow: scroll;
 }
 
 .dinosatEarthCondDataSourceIndicator {
   flex-shrink: 0;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--ec-accent-primary);
+  background: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondDataSourceName {
   flex: 1;
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: 0.65rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
   text-transform: capitalize;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDataSourceStatus {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--ec-text-secondary);
@@ -1404,39 +1395,39 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ec-spacing-sm);
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.55rem;
+  font-weight: 700;
   color: var(--ec-text-tertiary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDataSourceMeta span {
   white-space: nowrap;
-  overflow: scroll;
 }
 
 .dinosatEarthCondChartsRow {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--ec-spacing-lg);
+  gap: 12px;
 }
 
 .dinosatEarthCondChartsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--ec-spacing-lg);
+  gap: 12px;
 }
 
 .dinosatEarthCondAlertsViolationsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--ec-spacing-lg);
+  gap: 12px;
 }
 
 .dinosatEarthCondAlertsPanel,
 .dinosatEarthCondViolationsPanel {
   display: flex;
   flex-direction: column;
-  max-height: 400px;
+  max-height: 460px;
 }
 
 .dinosatEarthCondAlertsList,
@@ -1444,8 +1435,8 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: var(--ec-spacing-sm);
-  padding-right: var(--ec-spacing-xs);
+  gap: 5px;
+  padding-right: 4px;
   overflow-y: auto;
 }
 
@@ -1461,16 +1452,17 @@ body {
 }
 
 .dinosatEarthCondAlertItem {
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  border-left: 3px solid var(--ec-border-glow);
+  padding: 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
   transition: background var(--ec-transition-fast);
 }
 
 .dinosatEarthCondAlertItem:hover {
-  background: var(--ec-bg-elevated);
+  background: var(--ec-bg-surface);
+  border-color: var(--ec-border-glow);
 }
 
 .dinosatEarthCondAlertItem.dinosatEarthCondAlertAcknowledged {
@@ -1478,55 +1470,41 @@ body {
 }
 
 .dinosatEarthCondAlertItem.dinosatEarthCondAlertCRITICAL {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondAlertItem.dinosatEarthCondAlertWARNING {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondAlertItem.dinosatEarthCondAlertADVISORY {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-advisory);
 }
 
 .dinosatEarthCondAlertItem.dinosatEarthCondAlertINFO {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-info);
 }
 
 .dinosatEarthCondAlertHeader,
 .dinosatEarthCondAlertHeaderSplit {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--ec-spacing-sm);
-  margin-bottom: var(--ec-spacing-sm);
-  padding: 0 0.6rem;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  overflow: scroll;
-}
-
-.dinosatEarthCondAlertHeaderSplit {
-  display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--ec-spacing-sm);
+  margin-bottom: 6px;
+  padding: 0;
+  width: 100%;
 }
 
 .dinosatEarthCondAlertHeaderSplitStart {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: var(--ec-spacing-sm)
+  gap: var(--ec-spacing-sm);
 }
 
 .dinosatEarthCondAlertIcon {
   flex-shrink: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--ec-text-tertiary);
 }
 
@@ -1534,41 +1512,40 @@ body {
   display: flex;
   flex: 1;
   align-items: center;
-  overflow: scroll;
   gap: var(--ec-spacing-sm);
+  overflow: hidden;
 }
 
 .dinosatEarthCondAlertSeverity {
-  padding: 0.4rem 0.8rem;
-  background: var(--ec-bg-elevated);
+  padding: 3px 8px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-secondary);
 }
 
 .dinosatEarthCondAlertCategory {
   font-size: 0.6rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ec-text-tertiary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: scroll;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dinosatEarthCondAlertTime {
   margin-left: auto;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  color: var(--ec-text-tertiary);
-  margin-right: 0.6rem;
+  color: var(--ec-text-muted);
   white-space: nowrap;
-  overflow: scroll;
-  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondAlertAckBtn {
@@ -1576,75 +1553,74 @@ body {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 1rem;
-  background: transparent;
-  border: 1px solid var(--ec-border-primary);
+  padding: 5px 10px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: 3px;
   color: var(--ec-text-tertiary);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   cursor: pointer;
   transition: all var(--ec-transition-fast);
 }
 
 .dinosatEarthCondAlertAckBtn:hover {
-  color: var(--ec-text-secondary);
+  color: var(--ec-accent-cyan);
   background: var(--ec-bg-elevated);
-  border-color: var(--ec-border-glow);
+  border-color: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondAlertMessage,
 .dinosatEarthCondAlertMessagePadded {
-  margin-bottom: var(--ec-spacing-xs);
+  margin-bottom: 4px;
   font-size: 0.7rem;
   font-weight: 700;
   line-height: 1.5;
   color: var(--ec-text-primary);
-  padding: 0.6rem 0.6rem 0 0.6rem;
+  padding: 4px 0 0 0;
 }
 
 .dinosatEarthCondAlertMessagePadded {
-  padding: 0.6rem 0.6rem 0 0.6rem;
+  padding: 6px 0 0 0;
 }
 
 .dinosatEarthCondAlertSource {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  padding: 0 0.6rem 0.6rem 0.6rem;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  padding: 4px 0 0 0;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 6px;
   white-space: nowrap;
-  overflow: scroll;
+  overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondViolationItem {
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  border-left: 3px solid var(--ec-border-glow);
+  padding: 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
   transition: background var(--ec-transition-fast);
 }
 
 .dinosatEarthCondViolationItem:hover {
-  background: var(--ec-bg-elevated);
+  background: var(--ec-bg-surface);
+  border-color: var(--ec-border-glow);
 }
 
 .dinosatEarthCondViolationItem.dinosatEarthCondViolationCRITICAL {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondViolationItem.dinosatEarthCondViolationWARNING {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondViolationItem.dinosatEarthCondViolationADVISORY {
-  background: var(--ec-bg-tertiary);
-  border-left-color: var(--ec-border-glow);
+  border-left-color: var(--ec-status-advisory);
 }
 
 .dinosatEarthCondViolationHeader {
@@ -1656,24 +1632,26 @@ body {
 
 .dinosatEarthCondViolationHeader svg {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 0.7rem;
   color: var(--ec-text-tertiary);
 }
 
 .dinosatEarthCondViolationParam {
   flex: 1;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondViolationSeverity {
-  padding: 2px 6px;
-  background: var(--ec-bg-elevated);
+  padding: 3px 8px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-secondary);
 }
@@ -1681,9 +1659,9 @@ body {
 .dinosatEarthCondViolationDetails {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ec-spacing-md);
-  margin-bottom: var(--ec-spacing-sm);
-  padding: 0.6rem 0.6rem 0 0.6rem;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 4px 0 0 0;
 }
 
 .dinosatEarthCondViolationValue,
@@ -1691,26 +1669,35 @@ body {
   font-size: 0.6rem;
   font-weight: 700;
   color: var(--ec-text-secondary);
-  gap: 0.6rem;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .dinosatEarthCondViolationValue span,
 .dinosatEarthCondViolationLimit span {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-text-muted);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 800;
 }
 
 .dinosatEarthCondViolationValue strong,
 .dinosatEarthCondViolationLimit strong {
   color: var(--ec-text-primary);
+  font-weight: 800;
 }
 
 .dinosatEarthCondViolationMessage {
-  margin-bottom: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-elevated);
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.5;
   color: var(--ec-text-secondary);
 }
 
@@ -1718,14 +1705,16 @@ body {
   display: flex;
   align-items: flex-start;
   gap: var(--ec-spacing-sm);
-  font-size: 10px;
-  color: var(--ec-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--ec-text-tertiary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondViolationAction svg {
   flex-shrink: 0;
   margin-top: 2px;
-  font-size: 9px;
+  font-size: 0.55rem;
 }
 
 .dinosatEarthCondNoAlerts {
@@ -1733,20 +1722,26 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--ec-spacing-xl);
-  color: var(--ec-text-tertiary);
+  padding: 24px;
+  color: var(--ec-text-muted);
   text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondNoAlerts svg {
   margin-bottom: var(--ec-spacing-sm);
-  font-size: 24px;
+  font-size: 1.3rem;
   opacity: 0.4;
+  color: var(--ec-status-good);
 }
 
 .dinosatEarthCondNoAlerts p {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondHistoryPanel {
@@ -1756,8 +1751,8 @@ body {
 .dinosatEarthCondAlertHistoryList {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-xs);
-  max-height: 150px;
+  gap: 4px;
+  max-height: 180px;
   overflow-y: auto;
 }
 
@@ -1773,32 +1768,35 @@ body {
 .dinosatEarthCondAlertHistoryItem {
   display: flex;
   align-items: center;
-  gap: var(--ec-spacing-md);
-  padding: var(--ec-spacing-xs) var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 9px;
+  font-size: 0.55rem;
 }
 
 .dinosatEarthCondAlertHistoryTime {
-  min-width: 100px;
-  color: var(--ec-text-tertiary);
+  min-width: 110px;
+  color: var(--ec-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondAlertHistorySeverity {
-  min-width: 60px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  min-width: 70px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-secondary);
 }
 
 .dinosatEarthCondAlertHistorySeverity.dinosatEarthCondSeverityCRITICAL {
-  color: var(--ec-text-secondary);
+  color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondAlertHistorySeverity.dinosatEarthCondSeverityWARNING {
-  color: var(--ec-text-secondary);
+  color: var(--ec-status-warning);
 }
 
 .dinosatEarthCondAlertHistoryMessage {
@@ -1807,25 +1805,27 @@ body {
   color: var(--ec-text-secondary);
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-weight: 600;
 }
 
 .dinosatEarthCondChartContainer {
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  padding: 14px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid rgba(60, 70, 86, 0.4);
   border-radius: var(--ec-radius-md);
 }
 
 .dinosatEarthCondChartContainer.dinosatEarthCondFullWidth {
-  grid-column: 1 / -1;
+  flex: 1 1 100%;
+  width: 100%;
 }
 
 .dinosatEarthCondChartContainer h4 {
   margin: 0;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 800;
   color: var(--ec-text-secondary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -1836,33 +1836,29 @@ body {
   gap: var(--ec-spacing-md);
   margin-bottom: var(--ec-spacing-md);
   padding-bottom: var(--ec-spacing-sm);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 0.8rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: scroll;
-  text-overflow: ellipsis;
-  width: 100%; 
-  min-width: 100%; 
-  max-width: 100%; 
+  border-bottom: 2px solid var(--ec-border-subtle);
+  width: 100%;
 }
 
 .dinosatEarthCondChartHeaderWithBadge h4 {
-  padding: 0 0.6rem;
   flex: 1;
   white-space: nowrap;
-  overflow: hidden; 
+  overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondChartWrapper {
   position: relative;
-  padding: 0 1rem;
+  padding: 4px 0;
 }
 
 .dinosatEarthCondChart {
   width: 100%;
-  height: 180px;
+  height: 200px;
 }
 
 .dinosatEarthCondNoChartData {
@@ -1871,61 +1867,63 @@ body {
   justify-content: center;
   flex: 1;
   width: 100%;
-  min-width: 100%;
-  max-width: 100%;
   text-align: center;
-  padding: 0 1rem;
-  font-size: 0.8rem;
+  padding: 20px;
+  font-size: 0.7rem;
   font-weight: 700;
-  color: var(--ec-text-tertiary);
-  margin: 0;
-  padding: 0;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: var(--ec-radius-sm);
+  min-height: 80px;
 }
 
 .dinosatEarthCondStatsSummary {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--ec-spacing-md);
-  margin-top: var(--ec-spacing-sm);
-  padding-top: var(--ec-spacing-sm);
-  border-top: 1px solid var(--ec-border-subtle);
-  font-size: 0.6rem;
-  font-weight: 600;
+  justify-content: flex-start;
+  gap: var(--ec-spacing-sm);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid var(--ec-border-subtle);
+  font-size: 0.55rem;
+  font-weight: 700;
   color: var(--ec-text-tertiary);
-  padding: 1rem 0 0 0;
 }
 
 .dinosatEarthCondStatsSummary span {
-  padding: var(--ec-spacing-xs) var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
-  border-radius: 4px;
-  padding: 0.4rem 1rem;
-  font-weight: 700;
+  padding: 4px 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: 3px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .dinosatEarthCondChartContainerLive {
-  border-left: 3px solid var(--ec-border-glow);
+  border-left: 3px solid var(--ec-status-good);
 }
 
 .dinosatEarthCondChartContainerForecast {
-  background: var(--ec-bg-surface);
-  border-left: 3px solid var(--ec-border-glow);
+  background: var(--ec-bg-secondary);
+  border-left: 3px solid var(--ec-status-info);
 }
 
 .dinosatEarthCondChartContainerHistorical {
-  background: var(--ec-bg-surface);
-  border-left: 3px solid var(--ec-border-glow);
+  background: var(--ec-bg-secondary);
+  border-left: 3px solid var(--ec-text-muted);
 }
 
 .dinosatEarthCondChartContainerTrend {
-  background: var(--ec-bg-surface);
-  border-left: 3px solid var(--ec-border-glow);
+  background: var(--ec-bg-secondary);
+  border-left: 3px solid var(--ec-accent-purple);
 }
 
 .dinosatEarthCondChartContainerComputed {
-  background: var(--ec-bg-surface);
-  border-left: 3px solid var(--ec-border-glow);
+  background: var(--ec-bg-secondary);
+  border-left: 3px solid var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondRiskGauge,
@@ -1934,152 +1932,173 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--ec-spacing-md);
+  padding: 14px;
   text-align: center;
   flex: 1;
 }
 
 .dinosatEarthCondGaugeValue {
-  margin-bottom: var(--ec-spacing-xs);
-  font-size: 2.8rem;
-  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 2.2rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.05;
 }
 
 .dinosatEarthCondGaugeLabel {
-  margin-bottom: var(--ec-spacing-md);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondGaugeBar {
-  height: 6px;
-  margin-bottom: var(--ec-spacing-md);
-  overflow: hidden;
-  background: var(--ec-bg-elevated);
-  border-radius: 2px;
   width: 80%;
+  height: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: 3px;
 }
 
 .dinosatEarthCondGaugeFill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 0;
   transition: width var(--ec-transition-slow);
-  background: var(--ec-accent-primary);
+  background: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondDataTrust {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
   color: var(--ec-text-tertiary);
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 0 8px;
 }
 
 .dinosatEarthCondTableCard {
-  margin-top: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-md);
+  margin-top: 8px;
+  padding: 10px 12px;
   background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
   flex: 1;
-  width: 100%; 
-  max-width: 100%; 
-  min-width: 100%; 
+  width: 100%;
   overflow: hidden;
 }
 
 .dinosatEarthCondTableCard h3 {
-  margin-bottom: var(--ec-spacing-sm);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  padding: 0 0 6px 0;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding: 0.4rem;
 }
 
 .dinosatEarthCondTableHeader {
-  margin-bottom: var(--ec-spacing-sm);
-  width: 100%; 
-  min-width: 100%; 
-  max-width: 100%; 
+  margin-bottom: 8px;
+  width: 100%;
 }
 
 .dinosatEarthCondTableHeader h3 {
   margin: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.06em;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.dinosatEarthCondTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: 3px;
+}
+
+.dinosatEarthCondTableWrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.dinosatEarthCondTableWrapper::-webkit-scrollbar-thumb {
+  background: var(--ec-border-primary);
+  border-radius: 2px;
 }
 
 .dinosatEarthCondDataTable {
   width: 100%;
-  min-width: 100%; 
-  max-width: 100%; 
+  min-width: max-content;
   border-collapse: collapse;
-  overflow: scroll !important;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.dinosatEarthCondDataTable thead {
+  position: sticky;
+  top: 0;
+  background: var(--ec-bg-elevated);
+  z-index: 1;
 }
 
 .dinosatEarthCondDataTable th {
-  padding: var(--ec-spacing-sm);
+  padding: 9px 12px;
   background: var(--ec-bg-elevated);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--ec-border-primary);
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  
 }
 
 .dinosatEarthCondDataTable td {
-  padding: var(--ec-spacing-sm);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 0.65rem;
+  padding: 9px 12px;
+  background: var(--ec-bg-elevated);
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--ec-text-secondary);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.dinosatEarthCondDataTable tbody tr {
+  transition: background var(--ec-transition-fast);
+}
+
+.dinosatEarthCondDataTable tbody tr:hover td {
+  background: var(--ec-bg-surface);
 }
 
 .dinosatEarthCondDataTable tr:last-child td {
   border-bottom: none;
 }
 
-.dinosatEarthCondTableWrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.dinosatEarthCondDataTable {
-  min-width: max-content;
-  border-collapse: collapse;
-}
-
 .dinosatEarthCondTableNoData {
   font-style: italic;
-  color: var(--ec-text-tertiary);
+  color: var(--ec-text-muted);
   text-align: center;
 }
 
 .dinosatEarthCondTableCardForecast {
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  width: 100%; 
-  min-width: 100%; 
-  max-width: 100%; 
-  overflow: scroll;
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-status-info);
+  width: 100%;
+  overflow: auto;
 }
 
 .dinosatEarthCondDataTableForecast th {
@@ -2087,58 +2106,61 @@ body {
 }
 
 .dinosatEarthCondForecastRow {
-  background: var(--ec-bg-tertiary);
+  background: var(--ec-bg-elevated);
 }
 
-.dinosatEarthCondForecastRow:hover {
-  background: var(--ec-bg-elevated);
+.dinosatEarthCondForecastRow:hover td {
+  background: var(--ec-bg-surface);
 }
 
 .dinosatEarthCondHeartbeatGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--ec-spacing-xs);
+  gap: 4px;
 }
 
 .dinosatEarthCondHeartbeatItem {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm);
-  background: var(--ec-bg-tertiary);
+  padding: 8px 10px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
-  font-size: 9px;
+  font-size: 0.6rem;
+  font-weight: 700;
   color: var(--ec-text-secondary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondHeartbeatStatus {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 3px;
-  font-size: 9px;
+  font-size: 0.55rem;
+  font-weight: 800;
 }
 
 .dinosatEarthCondOperational {
-  background: var(--ec-bg-elevated);
-  color: var(--ec-text-secondary);
-  border: 1px solid var(--ec-border-subtle);
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--ec-status-good);
+  border: 2px solid rgba(74, 222, 128, 0.3);
 }
 
 .dinosatEarthCondDegraded {
-  background: var(--ec-bg-elevated);
-  color: var(--ec-text-secondary);
-  border: 1px solid var(--ec-border-subtle);
+  background: rgba(251, 146, 60, 0.12);
+  color: var(--ec-status-warning);
+  border: 2px solid rgba(251, 146, 60, 0.3);
 }
 
 .dinosatEarthCondSpectrumGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin: 0 1rem;
-  padding: 1rem 0;
+  gap: 8px;
+  padding: 10px 0;
 }
 
 .dinosatEarthCondSpectrumBand {
@@ -2146,9 +2168,10 @@ body {
   flex-direction: column;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-primary);
   border-radius: var(--ec-radius-sm);
   text-align: center;
   overflow: hidden;
@@ -2158,96 +2181,99 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--ec-accent-primary);
+  background: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondSpectrumLabel {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ec-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--ec-text-primary);
   white-space: nowrap;
   text-overflow: ellipsis;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondSpectrumStatus {
-  font-size: 0.7rem;
+  font-size: 0.55rem;
   font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--ec-text-tertiary);
+  color: var(--ec-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondRangeStatusGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  padding: 1rem 1rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 0;
+}
+
+@media (max-width: 900px) {
+  .dinosatEarthCondRangeStatusGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .dinosatEarthCondRangeStatus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-md);
-  background: rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--ec-border-subtle);
-  border-radius: 6px;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: var(--ec-radius-sm);
   text-align: center;
-  box-shadow: 0 0 10px black;
 }
 
 .dinosatEarthCondRangeStatus svg {
   font-size: 1rem;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .dinosatEarthCondRangeStatus span {
-  font-size: 0.8rem;
-  font-weight: 700; 
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondStatusGo {
-  color: var(--ec-status-nominal);
-  border-color: rgba(52, 211, 153, 0.3);
+  color: var(--ec-status-good);
+  border-color: rgba(74, 222, 128, 0.3);
 }
 
 .dinosatEarthCondStatusNoGo {
   color: var(--ec-status-critical);
-  border-color: rgba(167, 139, 250, 0.3);
-}
-
-.dinosatEarthCondStatusNoGo {
-  color: var(--ec-status-warning);
-  border-color: rgba(167, 139, 250, 0.3);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .dinosatEarthCondMapControls {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ec-spacing-lg);
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  gap: var(--ec-spacing-md);
+  padding: 12px 14px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-md);
-  padding: 1rem 1rem;
 }
 
 .dinosatEarthCondMapControlGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-xs);
-  min-width: 180px;
+  gap: 6px;
+  min-width: 200px;
 }
 
 .dinosatEarthCondMapControlLabel {
-  font-size: 0.7rem;
+  font-size: 0.55rem;
   font-weight: 800;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.08em;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0.2rem 0.4rem; 
 }
 
 .dinosatEarthCondSearchInputWrapper {
@@ -2257,20 +2283,21 @@ body {
 .dinosatEarthCondSearchIcon {
   position: absolute;
   top: 50%;
-  left: 10px;
-  font-size: 10px;
-  color: var(--ec-text-tertiary);
+  left: 12px;
+  font-size: 0.65rem;
+  color: var(--ec-text-muted);
   transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .dinosatEarthCondSearchInput {
-  padding-left: 28px !important;
+  padding-left: 32px !important;
 }
 
 .dinosatEarthCondMapsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: var(--ec-spacing-md);
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 12px;
 }
 
 .dinosatEarthCondMapCard {
@@ -2279,8 +2306,8 @@ body {
   flex-direction: column;
   height: 600px;
   overflow: hidden;
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-md);
 }
 
@@ -2292,22 +2319,22 @@ body {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-xs) var(--ec-spacing-sm);
+  padding: 6px 10px;
   background: rgba(10, 12, 15, 0.92);
-  border: 1px solid var(--ec-border-primary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-sm);
   backdrop-filter: blur(8px);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondMapTitleIcon {
-  font-size: 10px;
-  opacity: 0.4;
+  font-size: 0.7rem;
+  color: var(--ec-accent-cyan);
+  opacity: 0.85;
 }
 
 .dinosatEarthCondMapIframeContainer {
@@ -2323,7 +2350,7 @@ body {
   width: 100%;
   height: calc(100% + 100px);
   border: none;
-  filter: saturate(0.5) brightness(0.7) contrast(1.05);
+  filter: saturate(0.55) brightness(0.72) contrast(1.05);
   pointer-events: auto;
 }
 
@@ -2331,22 +2358,23 @@ body {
 .dinosatEarthCondDataTypeBadgeSmall {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid var(--ec-border-primary);
+  gap: 5px;
+  padding: 5px 9px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.5px;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
-  background: var(--ec-bg-tertiary);
   color: var(--ec-text-tertiary);
 }
 
-.dinosatEarthCondDataTypeBadge svg {
-  font-size: 0.7rem;
-  opacity: 0.5;
+.dinosatEarthCondDataTypeBadge svg,
+.dinosatEarthCondDataTypeBadgeSmall svg {
+  font-size: 0.6rem;
+  opacity: 0.7;
 }
 
 @media (max-width: 700px) {
@@ -2360,16 +2388,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.7rem;
 }
 
 .dinosatEarthCondDataTypeLegend {
   margin-bottom: var(--ec-spacing-lg);
-  padding: var(--ec-spacing-md) var(--ec-spacing-lg);
-  background: var(--ec-bg-surface);
-  border: 1px solid var(--ec-border-primary);
+  padding: 12px 16px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
   border-radius: var(--ec-radius-md);
 }
 
@@ -2379,32 +2407,32 @@ body {
   gap: var(--ec-spacing-sm);
   margin-bottom: var(--ec-spacing-md);
   padding-bottom: var(--ec-spacing-sm);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dinosatEarthCondDataTypeLegendTitle svg {
-  color: var(--ec-text-tertiary);
-  opacity: 0.4;
+  color: var(--ec-accent-cyan);
+  opacity: 0.7;
 }
 
 .dinosatEarthCondDataTypeLegendItems {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--ec-spacing-sm) var(--ec-spacing-lg);
+  gap: 8px 14px;
 }
 
 .dinosatEarthCondDataTypeLegendItem {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: var(--ec-spacing-sm) var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 8px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
   transition: border-color var(--ec-transition-fast);
 }
@@ -2415,36 +2443,38 @@ body {
 
 .dinosatEarthCondDataTypeLegendItem svg {
   flex-shrink: 0;
-  font-size: 14px;
-  color: var(--ec-text-tertiary);
-  opacity: 0.5;
+  font-size: 0.85rem;
+  color: var(--ec-accent-cyan);
+  opacity: 0.7;
 }
 
 .dinosatEarthCondDataTypeLegendLabel {
-  min-width: 70px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  min-width: 80px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ec-text-secondary);
 }
 
 .dinosatEarthCondDataTypeLegendDesc {
   flex: 1;
-  font-size: 10px;
+  font-size: 0.6rem;
+  font-weight: 600;
   color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondSectionDivider {
   display: flex;
   align-items: center;
-  gap: var(--ec-spacing-lg);
-  margin: var(--ec-spacing-xl) 0;
+  gap: var(--ec-spacing-md);
+  margin: 14px 0 6px 0;
 }
 
 .dinosatEarthCondSectionDividerLine {
   flex: 1;
-  height: 1px;
+  height: 2px;
   background: var(--ec-border-subtle);
 }
 
@@ -2452,315 +2482,360 @@ body {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-sm);
-  padding: 0.6rem 0.8rem;
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  padding: 8px 14px;
+  background: var(--ec-bg-secondary);
+  border: 2px solid var(--ec-border-primary);
+  border-left: 3px solid var(--ec-accent-cyan);
   border-radius: var(--ec-radius-sm);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 1px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--ec-text-secondary);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: scroll;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dinosatEarthCondSectionDividerLabel svg {
-  font-size: 1rem;
-  opacity: 0.5;
+  font-size: 0.85rem;
+  color: var(--ec-accent-cyan);
+  opacity: 0.85;
 }
 
 .dinosatEarthCondForecastNotice {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: var(--ec-spacing-md);
-  padding: 0.6rem 1rem;
-  background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
-  border-radius: var(--ec-radius-md);
-  font-size: 0.7rem;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-status-info);
+  border-radius: var(--ec-radius-sm);
+  font-size: 0.65rem;
   font-weight: 700;
   color: var(--ec-text-tertiary);
-  overflow: scroll;
-  white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondForecastNotice svg {
   flex-shrink: 0;
-  margin-top: 0;
-  font-size: 1rem;
-  color: var(--ec-text-tertiary);
-  opacity: 0.5;
+  font-size: 0.85rem;
+  color: var(--ec-status-info);
+  opacity: 0.85;
 }
 
 .dinosatEarthCondForecastNoticeProbabilistic {
-  background: var(--ec-bg-tertiary);
-  border-color: var(--ec-border-subtle);
+  border-left-color: var(--ec-accent-purple);
 }
 
 .dinosatEarthCondForecastNoticeProbabilistic svg {
-  color: var(--ec-text-tertiary);
-  opacity: 0.5;
+  color: var(--ec-accent-purple);
 }
 
 .dinosatEarthCondTimeOffset {
   display: flex;
   align-items: center;
-  font-size: 11px;
-  color: var(--ec-text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ec-text-secondary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondProjectedValue {
   font-style: italic;
-  color: var(--ec-text-secondary);
+  color: var(--ec-text-tertiary);
+  font-weight: 700;
 }
 
 .dinosatEarthCondRiskType {
-  padding: 2px 8px;
+  padding: 3px 8px;
+  border: 2px solid var(--ec-border-subtle);
   border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 0.55rem;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
   background: var(--ec-bg-elevated);
   color: var(--ec-text-secondary);
+  display: inline-block;
 }
 
 .dinosatEarthCondRiskTypeWIND_VIOLATION {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-status-warning);
+  background: rgba(251, 146, 60, 0.12);
+  border-color: rgba(251, 146, 60, 0.3);
 }
 
 .dinosatEarthCondRiskTypeKP_VIOLATION {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-status-critical);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .dinosatEarthCondRiskTypePRECIP_VIOLATION {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-status-info);
+  background: rgba(66, 165, 245, 0.12);
+  border-color: rgba(66, 165, 245, 0.3);
 }
 
 .dinosatEarthCondRiskTypeCOMBINED {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-accent-purple);
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.3);
 }
 
 .dinosatEarthCondRiskTypeNOMINAL,
 .dinosatEarthCondRiskTypeWIND_SPEED {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-status-good);
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.3);
 }
 
 .dinosatEarthCondRiskTypeGEOMAGNETIC {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-accent-cyan);
+  background: rgba(78, 205, 196, 0.12);
+  border-color: rgba(78, 205, 196, 0.3);
 }
 
 .dinosatEarthCondRiskTypePRECIPITATION {
-  color: var(--ec-text-secondary);
-  background: var(--ec-bg-elevated);
+  color: var(--ec-status-info);
+  background: rgba(66, 165, 245, 0.12);
+  border-color: rgba(66, 165, 245, 0.3);
 }
 
 .dinosatEarthCondShearSummary {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ec-spacing-lg);
-  margin-bottom: var(--ec-spacing-lg);
+  gap: var(--ec-spacing-sm);
+  padding: 10px;
   background: var(--ec-bg-tertiary);
-  border-radius: var(--ec-radius-lg);
-  margin: 0 1rem;
-  padding: 1rem 1rem;
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: var(--ec-radius-sm);
+  margin-bottom: 10px;
 }
 
 .dinosatEarthCondShearStat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.6rem;
-  padding: var(--ec-spacing-sm) var(--ec-spacing-lg);
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 12px;
   background: var(--ec-bg-elevated);
-  border-radius: var(--ec-radius-md);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: var(--ec-radius-sm);
   overflow: hidden;
+  gap: 4px;
 }
 
 .dinosatEarthCondShearLabel {
-  margin-bottom: var(--ec-spacing-xs);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
-  letter-spacing: 0.5px;
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .dinosatEarthCondShearValue {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ec-text-primary);
+  letter-spacing: 0.02em;
 }
 
 .dinosatEarthCondRadiationSummaryGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--ec-spacing-lg);
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .dinosatEarthCondRadiationSummaryGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dinosatEarthCondRadiationGroup {
-  padding: var(--ec-spacing-md);
+  padding: 12px;
   background: var(--ec-bg-tertiary);
-  border-radius: var(--ec-radius-md);
+  border: 2px solid var(--ec-border-subtle);
+  border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondRadiationGroupHeader {
-  margin-bottom: var(--ec-spacing-md);
-  padding-bottom: var(--ec-spacing-sm);
-  border-bottom: 1px solid var(--ec-border-subtle);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--ec-text-secondary);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ec-accent-cyan);
 }
 
 .dinosatEarthCondRadiationGroupStats {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-sm);
+  gap: 6px;
 }
 
 .dinosatEarthCondRadiationStat {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
+  gap: 4px;
+  padding: 8px 10px;
   background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondRadiationLabel {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.6rem;
+  font-weight: 800;
   color: var(--ec-text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondRadiationValue {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--ec-text-primary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondRadiationRange {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ec-text-tertiary);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDataQualityGrid {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-md);
+  gap: 8px;
 }
 
 .dinosatEarthCondDataQualityItem {
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border-left: 3px solid var(--ec-border-glow);
-  border-radius: 0 var(--ec-radius-md) var(--ec-radius-md) 0;
+  padding: 10px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-cyan);
+  border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondDataQualityHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--ec-spacing-sm);
+  margin-bottom: 6px;
 }
 
 .dinosatEarthCondDataQualitySensor {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDataQualityStatus {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 0.55rem;
+  font-weight: 800;
   text-transform: uppercase;
-  color: var(--ec-text-secondary);
+  letter-spacing: 0.08em;
+  color: var(--ec-text-tertiary);
 }
 
 .dinosatEarthCondDataQualityStats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ec-spacing-md);
-  font-size: 10px;
-  color: var(--ec-text-tertiary);
+  gap: 10px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDriftAlertsList {
   display: flex;
   flex-direction: column;
-  gap: var(--ec-spacing-md);
+  gap: 8px;
 }
 
 .dinosatEarthCondDriftAlert {
-  padding: var(--ec-spacing-md);
-  background: var(--ec-bg-tertiary);
-  border-left: 3px solid var(--ec-border-glow);
-  border-radius: 0 var(--ec-radius-md) var(--ec-radius-md) 0;
+  padding: 10px 12px;
+  background: var(--ec-bg-elevated);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-status-warning);
+  border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondDriftHeader {
   display: flex;
   align-items: center;
   gap: var(--ec-spacing-md);
-  margin-bottom: var(--ec-spacing-sm);
+  margin-bottom: 6px;
 }
 
 .dinosatEarthCondDriftSensor {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 800;
   color: var(--ec-text-primary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondDriftType {
-  padding: 2px 6px;
-  background: var(--ec-bg-elevated);
+  padding: 3px 7px;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
   border-radius: var(--ec-radius-sm);
-  font-size: 10px;
+  font-size: 0.55rem;
+  font-weight: 800;
   color: var(--ec-text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondDriftSeverity {
   margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 0.55rem;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--ec-text-secondary);
 }
 
 .dinosatEarthCondDriftDescription {
-  margin-bottom: var(--ec-spacing-sm);
-  font-size: 11px;
-  line-height: 1.4;
+  margin-bottom: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.5;
   color: var(--ec-text-secondary);
 }
 
 .dinosatEarthCondDriftStats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ec-spacing-md);
-  font-size: 10px;
-  color: var(--ec-text-tertiary);
+  gap: 10px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondIndicatorsList {
-  max-width: 200px;
-  font-size: 10px;
+  max-width: 220px;
+  font-size: 0.6rem;
+  font-weight: 700;
   color: var(--ec-text-secondary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondLoadingState,
@@ -2769,64 +2844,68 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--ec-spacing-md);
+  gap: 14px;
   height: 100%;
   min-height: 100%;
-  max-height: 100%;
   text-align: center;
+  padding: 20px;
 }
 
 .dinosatEarthCondLoadingSpinner {
-  color: var(--ec-text-tertiary);
-  opacity: 0.4;
+  color: var(--ec-accent-cyan);
+  opacity: 0.6;
   animation: ecPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes ecPulse {
   0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.8; }
 }
 
 .dinosatEarthCondLoadingState h2,
 .dinosatEarthCondErrorState h2 {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--st-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ec-text-secondary);
   text-align: center;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 0rem; 
+  margin-bottom: 0;
 }
 
 .dinosatEarthCondLoadingState p {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--st-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--ec-text-muted);
   text-align: center;
-  letter-spacing: 0.04em;
-  padding: 0; 
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0;
   margin: 0;
 }
 
 .dinosatEarthCondErrorState svg {
-  color: var(--ec-text-tertiary);
+  color: var(--ec-status-critical);
 }
 
 .dinosatEarthCondErrorMessage {
-  margin: var(--ec-spacing-xs) 0;
-  padding: var(--ec-spacing-sm) var(--ec-spacing-md);
+  margin: 4px 0;
+  padding: 8px 12px;
   background: var(--ec-bg-tertiary);
-  border: 1px solid var(--ec-border-subtle);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-status-critical);
   border-radius: var(--ec-radius-sm);
-  font-size: 11px;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--ec-text-secondary);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondFooter {
   flex-shrink: 0;
   padding: var(--ec-spacing-sm) var(--ec-spacing-lg);
   background: var(--ec-bg-secondary);
-  border-top: 1px solid var(--ec-border-primary);
+  border-top: 2px solid var(--ec-border-primary);
   min-height: 40px;
   max-height: 40px;
   height: 40px;
@@ -2834,8 +2913,6 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 100%;
-  min-width: 100%;
 }
 
 .dinosatEarthCondFooterContent {
@@ -2844,27 +2921,34 @@ body {
   align-items: center;
   gap: var(--ec-spacing-xl);
   width: 100%;
-  max-width: 100%;
-  min-width: 100%;
-  padding: 0 1rem;
-  overflow: scroll;
+  padding: 0 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dinosatEarthCondFooterContent::-webkit-scrollbar {
+  display: none;
 }
 
 .dinosatEarthCondFooterContent span {
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: var(--ec-text-tertiary);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--ec-text-muted);
   white-space: nowrap;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.dinosatEarthCondChartDescription, 
+.dinosatEarthCondChartDescription,
 .dinosatEarthCondChartDescriptionMaps {
   margin-top: 12px;
   padding: 12px 14px;
-  background: rgba(100, 116, 139, 0.08);
-  border-radius: 6px;
-  border-left: 3px solid rgba(100, 116, 139, 0.4);
-  margin: 1rem 1rem;
+  background: var(--ec-bg-tertiary);
+  border: 2px solid var(--ec-border-subtle);
+  border-left: 3px solid var(--ec-accent-cyan);
+  border-radius: var(--ec-radius-sm);
 }
 
 .dinosatEarthCondChartAxesInfo {
@@ -2872,9 +2956,12 @@ body {
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 8px;
-  font-size: 0.8rem;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ec-border-subtle);
+  font-size: 0.6rem;
   font-weight: 700;
-  color: rgba(148, 163, 184, 0.9);
+  color: var(--ec-text-muted);
+  letter-spacing: 0.04em;
 }
 
 .dinosatEarthCondChartAxesInfo span {
@@ -2884,15 +2971,75 @@ body {
 }
 
 .dinosatEarthCondChartAxesInfo strong {
-  color: rgba(203, 213, 225, 0.95);
-  font-weight: 600;
+  color: var(--ec-accent-cyan);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinosatEarthCondChartDescriptionText {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.55;
-  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ec-text-secondary);
   text-align: left;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 1400px) {
+  .dinosatEarthCondSidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+
+  .dinosatEarthCondTab {
+    padding: 11px 18px;
+    font-size: 0.55rem;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dinosatEarthCondSidebar {
+    width: 200px;
+    min-width: 200px;
+  }
+
+  .dinosatEarthCondDataTypeLegendItems {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dinosatEarthCondChartsRow,
+  .dinosatEarthCondChartsGrid,
+  .dinosatEarthCondAlertsViolationsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dinosatEarthCondSidebar {
+    width: 180px;
+    min-width: 180px;
+  }
+
+  .dinosatEarthCondTab {
+    padding: 11px 12px;
+    font-size: 0.5rem;
+  }
+
+  .dinosatEarthCondDecisionIconStack h1 {
+    font-size: 1.4rem;
+  }
+
+  .dinosatEarthCondGaugeValue {
+    font-size: 1.7rem;
+  }
+
+  .dinosatEarthCondDataTypeLegendItems {
+    grid-template-columns: 1fr;
+  }
+
+  .dinosatEarthCondMapsGrid {
+    grid-template-columns: 1fr;
+  }
 }

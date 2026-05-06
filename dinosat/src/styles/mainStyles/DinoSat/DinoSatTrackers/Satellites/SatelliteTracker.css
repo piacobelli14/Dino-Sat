@@ -6,6 +6,7 @@
   --st-bg-tertiary: #13151a;
   --st-bg-elevated: #16181d;
   --st-bg-surface: #12141a;
+  --st-bg-panel: #0f1115;
 
   --st-text-primary: rgba(235, 240, 248, 0.95);
   --st-text-secondary: rgba(205, 212, 228, 0.82);
@@ -19,13 +20,19 @@
   --st-accent-primary: #6a7a8a;
   --st-accent-secondary: #5a6a7a;
   --st-accent-muted: rgba(106, 122, 138, 0.08);
+  --st-accent-blue: #4a8aba;
+  --st-accent-cyan: #4ECDC4;
 
   --st-status-nominal: #5a7068;
   --st-status-critical: #78686a;
   --st-status-warning: #706a5a;
+  --st-status-good: #4ade80;
+  --st-status-degraded: #fb923c;
+  --st-status-down: #ef4444;
 
   --st-radius-sm: 4px;
   --st-radius-md: 6px;
+  --st-radius-lg: 10px;
 
   --st-spacing-xs: 4px;
   --st-spacing-sm: 8px;
@@ -36,7 +43,10 @@
   --st-transition-fast: 0.15s ease;
   --st-transition-normal: 0.25s ease;
 
-  --st-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --st-strip-height: 50px;
+  --st-toolbar-height: 56px;
+  --st-right-rail-width: 320px;
+  --st-canvas-area-top: calc(var(--st-strip-height) + var(--st-toolbar-height));
 }
 
 .satellite-theme-dark {
@@ -106,24 +116,43 @@
   border-left-color: #00ff88;
 }
 
-.satellite-theme-neon .dinoSatSatelliteLegendPanel,
-.satellite-theme-neon .dinoSatSatelliteControlsPanel,
-.satellite-theme-neon .dinoSatSatelliteStatsPanel {
-  background: rgba(0, 10, 18, 0.95);
-  border-color: rgba(0, 255, 136, 0.2);
-}
-
 .satellite-theme-neon .dinoSatSatelliteHUDPanel,
 .satellite-theme-neon .dinoSatSatelliteDetailedPanel {
-  background: rgba(0, 8, 16, 0.98);
+  background: #000005;
   border-color: rgba(0, 255, 136, 0.25);
 }
 
 .satellite-theme-neon .dinoSatSatelliteHUDPanelHeader {
-  background: rgba(0, 255, 136, 0.08);
+  background: #000a12;
+  color: #00ffaa;
+  border-color: rgba(0, 255, 136, 0.2);
+}
+
+.satellite-theme-neon .dinoSatDossierCell {
+  background: rgba(0, 20, 30, 0.6);
+  border-color: rgba(0, 255, 136, 0.15);
+}
+
+.satellite-theme-neon .dinoSatDossierCellLabel {
+  color: rgba(0, 255, 170, 0.5);
+}
+
+.satellite-theme-neon .dinoSatDossierCellValue {
   color: #00ffaa;
 }
 
+.satellite-theme-neon .dinoSatStatTile {
+  background: rgba(0, 20, 30, 0.6);
+  border-color: rgba(0, 255, 136, 0.15);
+}
+
+.satellite-theme-neon .dinoSatStatTileLabel {
+  color: rgba(0, 255, 170, 0.5);
+}
+
+.satellite-theme-neon .dinoSatStatTileValue {
+  color: #00ffaa;
+}
 
 *,
 *::before,
@@ -142,6 +171,7 @@
   background: var(--st-bg-void);
   color: var(--st-text-primary);
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -202,10 +232,10 @@
 }
 
 .dinoSatSatelliteSideBar {
-  min-width: 260px;
-  max-width: 260px;
+  min-width: 280px;
+  max-width: 280px;
   background: var(--st-bg-secondary);
-  border-right: 1px solid var(--st-border-primary);
+  border-right: 2px solid var(--st-border-primary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -226,7 +256,7 @@
   gap: var(--st-spacing-sm);
   padding: var(--st-spacing-md);
   background: var(--st-bg-tertiary);
-  border-bottom: 1px solid var(--st-border-primary);
+  border-bottom: 2px solid var(--st-border-primary);
   flex-shrink: 0;
 }
 
@@ -251,18 +281,6 @@
   text-overflow: ellipsis;
 }
 
-.dinoSatSatelliteSideBarHeaderIcon {
-  font-size: 0.9rem;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity var(--st-transition-fast);
-  color: var(--st-text-tertiary);
-}
-
-.dinoSatSatelliteSideBarHeaderIcon:hover {
-  opacity: 1;
-}
-
 .dinoSatSatelliteSideBarThemeSelector {
   display: flex;
   justify-content: flex-start;
@@ -274,7 +292,7 @@
 .dinoSatSatelliteSideBarThemeSelectorStatusIndicator {
   padding: var(--st-spacing-sm) var(--st-spacing-sm);
   background: var(--st-bg-elevated);
-  border: 1px solid var(--st-border-subtle);
+  border: 2px solid var(--st-border-subtle);
   border-left: 3px solid var(--st-status-nominal);
   border-radius: var(--st-radius-sm);
   font-size: 0.6rem;
@@ -282,13 +300,13 @@
   color: var(--st-text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  width: 100%; 
+  width: 100%;
 }
 
 .dinoSatSatelliteSideBarThemeSelectorErrorIndicator {
   padding: var(--st-spacing-sm);
   background: var(--st-bg-elevated);
-  border: 1px solid var(--st-border-subtle);
+  border: 2px solid var(--st-border-subtle);
   border-left: 3px solid var(--st-status-critical);
   border-radius: var(--st-radius-sm);
   font-size: 0.6rem;
@@ -315,6 +333,7 @@
   border: none;
   color: var(--st-text-tertiary);
   font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
   outline: none;
   padding: var(--st-spacing-xs);
@@ -333,6 +352,7 @@
   max-height: 120px;
   overflow-y: auto;
   font-size: 0.55rem;
+  font-weight: 600;
   color: var(--st-text-muted);
 }
 
@@ -346,7 +366,7 @@
 }
 
 .dinoSatSatelliteSearchControls {
-  border-bottom: 1px solid var(--st-border-subtle);
+  border-bottom: 2px solid var(--st-border-subtle);
   padding: var(--st-spacing-md);
   gap: var(--st-spacing-sm);
   display: flex;
@@ -355,20 +375,20 @@
 
 .dinoSatSatelliteSearchInput {
   width: 100%;
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
+  padding: 10px 14px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-primary);
   font-size: 0.7rem;
   font-weight: 600;
-  font-family: inherit;
   outline: none;
   transition: border-color var(--st-transition-fast);
 }
 
 .dinoSatSatelliteSearchInput::placeholder {
   color: var(--st-text-muted);
+  font-weight: 600;
 }
 
 .dinoSatSatelliteSearchInput:hover {
@@ -387,14 +407,13 @@
 
 .dinoSatSatelliteSelectButton {
   flex: 1;
-  padding: var(--st-spacing-sm) 1rem;
+  padding: 10px 16px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-secondary);
   font-size: 0.55rem;
   font-weight: 700;
-  font-family: inherit;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -416,13 +435,47 @@
   border-color: var(--st-accent-primary);
 }
 
+.dinoSatSatelliteTLEQualityBar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: var(--st-spacing-xs) var(--st-spacing-md);
+  background: var(--st-bg-tertiary);
+  border-bottom: 2px solid var(--st-border-subtle);
+  flex-shrink: 0;
+}
+
+.dinoSatTLEQualityCount {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--st-spacing-xs);
+  background: var(--st-bg-elevated);
+  border-radius: var(--st-radius-sm);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatTLEQualityCount b {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.dinoSatTLEQualityCount span {
+  opacity: 0.6;
+  font-size: 0.5rem;
+  font-weight: 700;
+}
+
 .dinoSatSatelliteObjectsHeader {
   display: flex;
   align-items: center;
   gap: var(--st-spacing-sm);
   padding: var(--st-spacing-sm) var(--st-spacing-md);
   background: var(--st-bg-surface);
-  border-bottom: 1px solid var(--st-border-subtle);
+  border-bottom: 2px solid var(--st-border-subtle);
   font-size: 0.6rem;
   font-weight: 800;
   color: var(--st-text-tertiary);
@@ -462,10 +515,10 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--st-spacing-sm);
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
+  padding: 10px 14px;
   margin-bottom: var(--st-spacing-sm);
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-subtle);
+  border: 2px solid var(--st-border-subtle);
   border-radius: var(--st-radius-sm);
   cursor: pointer;
   transition: all var(--st-transition-fast);
@@ -491,6 +544,14 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.dinoSatSatelliteTleBadge {
+  width: 6px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .dinoSatSatelliteListItem.dinoSatSatelliteButtonActive .dinoSatSatelliteIndicator {
@@ -523,13 +584,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   background: var(--st-bg-surface);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-tertiary);
   font-size: 0.65rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all var(--st-transition-fast);
   flex-shrink: 0;
@@ -544,31 +606,795 @@
 .dinoSatSatelliteMainView {
   flex: 1;
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr) var(--st-right-rail-width);
+  grid-template-areas:
+    "strip strip"
+    "toolbar toolbar"
+    "canvas rail";
   background: var(--st-bg-void);
   min-width: 0;
   overflow: hidden;
-  pointer-events: none;
 }
 
-.dinoSatSatelliteMainView > * {
-  pointer-events: auto;
+.dinoSatSatelliteMainView.dinoSatPanelOpen {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "strip"
+    "toolbar"
+    "canvas";
+}
+
+.dinoSatSatelliteMainView.dinoSatPanelOpen .dinoSatRightRail {
+  display: none;
+}
+
+.dinoSatSpaceWeatherStrip {
+  grid-area: strip;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--st-bg-secondary);
+  border-bottom: 2px solid var(--st-border-primary);
+  min-height: 54px;
+  min-width: 0;
+}
+
+.dinoSatSpaceWeatherStripCells {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.dinoSatSpaceWeatherStripCells::-webkit-scrollbar {
+  height: 3px;
+}
+
+.dinoSatSpaceWeatherStripCells::-webkit-scrollbar-thumb {
+  background: var(--st-border-primary);
+}
+
+.dinoSatSpaceWeatherLoading,
+.dinoSatSpaceWeatherUnavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  padding: 8px;
+  width: 100%;
+}
+
+.dinoSatSpaceWeatherCell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-primary);
+  border-radius: 3px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.dinoSatSpaceWeatherCellLabel {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  white-space: nowrap;
+}
+
+.dinoSatSpaceWeatherCellValue {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  white-space: nowrap;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.dinoSatSpaceWeatherCellValue span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.dinoSatSpaceWeatherToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 3px;
+  color: var(--st-text-secondary);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatSpaceWeatherToggle:hover {
+  color: var(--st-text-primary);
+  background: var(--st-bg-tertiary);
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatSpaceWeatherToggle svg {
+  font-size: 0.55rem;
+  opacity: 0.7;
+}
+
+.dinoSatSpaceWeatherDetail {
+  grid-area: canvas;
+  position: relative;
+  z-index: 5;
+  background: var(--st-bg-void);
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.dinoSatSpaceWeatherDetail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dinoSatSpaceWeatherDetail::-webkit-scrollbar-thumb {
+  background: rgba(90, 105, 125, 0.4);
+  border-radius: 3px;
+}
+
+.dinoSatSpaceWeatherDetail::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 125, 145, 0.6);
+}
+
+.dinoSatSpaceWeatherDetailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 18px;
+  background: var(--st-bg-secondary);
+  border-bottom: 2px solid var(--st-border-primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--st-text-primary);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.dinoSatSpaceWeatherDetailBody {
+  padding: 14px;
+  columns: 480px;
+  column-gap: 14px;
+}
+
+.dinoSatSpaceWeatherDetailCard {
+  display: block;
+  background: var(--st-bg-secondary);
+  border: 2px solid rgba(60, 70, 86, 0.4);
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin: 0 0 12px 0;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  width: 100%;
+  transition: border-color var(--st-transition-fast);
+}
+
+.dinoSatSpaceWeatherDetailCard:hover {
+  border-color: rgba(95, 110, 130, 0.5);
+}
+
+.dinoSatSpaceWeatherDetailCard h4 {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  color: var(--st-text-primary);
+  word-wrap: break-word;
+}
+
+.dinoSatSpaceWeatherDetailCard p {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+  margin-bottom: 4px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.dinoSatSpaceWeatherDetailCard small {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--st-text-muted);
+  display: block;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.dinoSatChartContainer {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--st-bg-tertiary);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.dinoSatChartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dinoSatChartLabel {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  white-space: nowrap;
+}
+
+.dinoSatChartStats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dinoSatChartStat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--st-bg-elevated);
+  border: 1px solid var(--st-border-subtle);
+  border-radius: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+  white-space: nowrap;
+}
+
+.dinoSatChartStat b {
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+}
+
+.dinoSatChartCanvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  border-radius: 3px;
+}
+
+.dinoSatChartTooltip {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  background: rgba(13, 15, 19, 0.96);
+  border: 2px solid var(--st-border-primary);
+  border-radius: 4px;
+  pointer-events: none;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+  z-index: 10;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.dinoSatChartTooltipTime {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--st-text-muted);
+}
+
+.dinoSatChartTooltipValue {
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.dinoSatChartTooltipValue span {
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.dinoSatChartEmpty {
+  width: 100%;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--st-bg-tertiary);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 4px;
+  color: var(--st-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.satellite-theme-neon .dinoSatChartContainer {
+  background: rgba(0, 10, 18, 0.85);
+  border-color: rgba(0, 255, 136, 0.18);
+}
+
+.satellite-theme-neon .dinoSatChartStat {
+  background: rgba(0, 20, 30, 0.6);
+  border-color: rgba(0, 255, 136, 0.18);
+}
+
+.satellite-theme-neon .dinoSatChartTooltip {
+  background: rgba(0, 10, 18, 0.96);
+  border-color: rgba(0, 255, 136, 0.4);
+  color: rgba(0, 255, 170, 0.85);
+}
+
+.dinoSatStatTileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.dinoSatStatTile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-primary);
+  border-radius: 4px;
+  min-width: 0;
+  min-height: 76px;
+  transition: border-color var(--st-transition-fast), transform var(--st-transition-fast);
+}
+
+.dinoSatStatTile:hover {
+  border-color: var(--st-border-glow);
+  transform: translateY(-1px);
+}
+
+.dinoSatStatTileLarge {
+  grid-column: span 2;
+  min-height: 86px;
+}
+
+.dinoSatStatTileLabel {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dinoSatStatTileValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.1;
+  word-break: break-word;
+}
+
+.dinoSatStatTileLarge .dinoSatStatTileValue {
+  font-size: 1.3rem;
+}
+
+.dinoSatStatTileUnit {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.dinoSatStatTileSub {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dinoSatBriefingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.dinoSatBriefingItem {
+  padding: 12px 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 4px;
+}
+
+.dinoSatBriefingItem b {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-accent-cyan);
+  margin-bottom: 6px;
+}
+
+.dinoSatBriefingItem p {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.dinoSatBriefingItem small {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatRiskMatrix {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.dinoSatRiskMatrixRow {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 2px;
+  align-items: stretch;
+}
+
+.dinoSatRiskMatrixRow > div {
+  padding: 10px 12px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--st-bg-elevated);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dinoSatRiskMatrixRow > div:first-child {
+  text-align: left;
+  justify-content: flex-start;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatRiskMatrixHeader > div {
+  background: var(--st-bg-tertiary);
+  font-weight: 800;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+}
+
+.dinoSatRiskCell {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.dinoSatRiskHigh {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444;
+}
+
+.dinoSatRiskMod {
+  background: rgba(251, 146, 60, 0.15) !important;
+  color: #fb923c;
+}
+
+.dinoSatRiskLow {
+  background: rgba(74, 222, 128, 0.1) !important;
+  color: #4ade80;
+}
+
+.dinoSatTableScroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 480px;
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 4px;
+}
+
+.dinoSatTableScroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dinoSatTableScroll::-webkit-scrollbar-thumb {
+  background: var(--st-border-primary);
+  border-radius: 3px;
+}
+
+.dinoSatDataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.dinoSatDataTable thead {
+  position: sticky;
+  top: 0;
+  background: var(--st-bg-tertiary);
+  z-index: 1;
+}
+
+.dinoSatDataTable thead th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  border-bottom: 2px solid var(--st-border-primary);
+  white-space: nowrap;
+}
+
+.dinoSatDataTable tbody tr {
+  background: var(--st-bg-elevated);
+  border-bottom: 2px solid var(--st-border-subtle);
+  transition: background var(--st-transition-fast);
+}
+
+.dinoSatDataTable tbody tr:hover {
+  background: var(--st-bg-surface);
+}
+
+.dinoSatDataTable tbody td {
+  padding: 10px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.dinoSatDataTable tbody td b {
+  color: var(--st-text-primary);
+  font-weight: 800;
+}
+
+.dinoSatTableButton {
+  background: none;
+  border: none;
+  color: var(--st-accent-cyan);
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dinoSatTableButton:hover {
+  color: var(--st-text-primary);
+  text-decoration: underline;
+}
+
+.dinoSatTableButton small {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--st-text-muted);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.dinoSatConjunctionTableRow.dinoSatConjunctionSev-critical {
+  border-left: 3px solid #ef4444;
+}
+
+.dinoSatConjunctionTableRow.dinoSatConjunctionSev-high {
+  border-left: 3px solid #fb923c;
+}
+
+.dinoSatConjunctionTableRow.dinoSatConjunctionSev-moderate {
+  border-left: 3px solid #facc15;
+}
+
+.dinoSatConjunctionTableRow.dinoSatConjunctionSev-low {
+  border-left: 3px solid #84cc16;
+}
+
+.dinoSatNumberedList {
+  list-style: decimal;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dinoSatNumberedList li {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.6;
+  padding-left: 4px;
+}
+
+.dinoSatNumberedList li::marker {
+  color: var(--st-accent-cyan);
+  font-weight: 800;
+}
+
+.dinoSatFilterRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.dinoSatFilterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dinoSatFilterField label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  white-space: nowrap;
+}
+
+.dinoSatFilterField input,
+.dinoSatFilterField select {
+  width: 100%;
+}
+
+.dinoSatSpaceWeatherRegionGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.dinoSatSpaceWeatherRegion {
+  padding: 6px 10px;
+  background: var(--st-bg-tertiary);
+  border-radius: 3px;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.dinoSatSpaceWeatherCMEEntry {
+  padding: 6px 10px;
+  background: var(--st-bg-tertiary);
+  border-radius: 3px;
+  margin-bottom: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.dinoSatSpaceWeatherAlerts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dinoSatSpaceWeatherAlert {
+  padding: 10px;
+  background: var(--st-bg-tertiary);
+  border-radius: 3px;
+  border-left: 3px solid var(--st-status-warning);
+}
+
+.dinoSatSpaceWeatherAlertId {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+}
+
+.dinoSatSpaceWeatherAlertTime {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  margin-bottom: 4px;
+}
+
+.dinoSatSpaceWeatherAlertMsg {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--st-text-tertiary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
 }
 
 .dinonSatSatelliteViewHeader {
+  grid-area: toolbar;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
   padding: var(--st-spacing-sm) var(--st-spacing-md);
   background: var(--st-bg-secondary);
-  border-bottom: 1px solid var(--st-border-primary);
+  border-bottom: 2px solid var(--st-border-primary);
   overflow-x: auto;
   overflow-y: hidden;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  width: 100%;
+  min-width: 0;
 }
 
 .dinonSatSatelliteViewHeader::-webkit-scrollbar {
@@ -589,15 +1415,14 @@
   align-items: center;
   justify-content: center;
   gap: var(--st-spacing-xs);
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
-  min-height: 32px;
+  padding: 10px 14px;
+  min-height: 36px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-secondary);
   font-size: 0.6rem;
   font-weight: 700;
-  font-family: inherit;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -611,16 +1436,26 @@
   border-color: var(--st-border-glow);
 }
 
+.dinoSatSatellitePlaybackControlsButton.dinoSatSatelliteButtonActive {
+  color: var(--st-text-primary);
+  background: var(--st-bg-elevated);
+  border-color: var(--st-accent-primary);
+}
+
+.dinoSatSatellitePlaybackControlsButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .dinoSatSatellitePlaybackControlsSpeedButton {
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
-  min-height: 32px;
+  padding: 10px 14px;
+  min-height: 36px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-tertiary);
   font-size: 0.55rem;
   font-weight: 700;
-  font-family: inherit;
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: all var(--st-transition-fast);
@@ -640,22 +1475,20 @@
 }
 
 .dinoSatSatelliteFPSSelect {
-  min-height: 32px;
-  min-width: 80px;
-  max-width: 80px;
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
-  padding-right: 24px;
+  min-height: 36px;
+  min-width: 84px;
+  padding: 10px 14px;
+  padding-right: 26px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-primary);
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  font-family: inherit;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236a7a8a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 10px center;
   cursor: pointer;
   transition: border-color var(--st-transition-fast);
 }
@@ -672,6 +1505,7 @@
 .dinoSatSatelliteFPSSelect option {
   background: var(--st-bg-secondary);
   color: var(--st-text-primary);
+  font-weight: 700;
 }
 
 .dinoSatSatelliteCanvasContainer {
@@ -699,105 +1533,261 @@
   cursor: grabbing;
 }
 
-.dinoSatSatelliteLegendPanel {
-  position: absolute;
-  top: 80px;
-  left: 16px;
-  background: var(--st-bg-surface);
-  border: 1px solid var(--st-border-primary);
-  border-radius: var(--st-radius-md);
-  min-width: 140px;
-  z-index: 15;
-  transition: all var(--st-transition-normal);
-  pointer-events: auto;
-  user-select: none;
+.dinoSatMainContent {
+  display: contents;
 }
 
-.dinoSatSatelliteLegendPanel.satellite-collapsed {
+.dinoSatCanvasArea {
+  grid-area: canvas;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.dinoSatSatelliteControlsPanel {
-  position: absolute;
-  top: 80px;
-  right: 16px;
-  background: var(--st-bg-surface);
-  border: 1px solid var(--st-border-primary);
-  border-radius: var(--st-radius-md);
-  z-index: 15;
-  transition: all var(--st-transition-normal);
-  pointer-events: auto;
-  user-select: none;
-  max-height: 90%; 
-  overflow: scroll;
+.dinoSatRightRail {
+  grid-area: rail;
+  background: var(--st-bg-secondary);
+  border-left: 2px solid var(--st-border-primary);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.dinoSatSatelliteControlsPanel.satellite-collapsed {
-  overflow: hidden;
+.dinoSatRightRail::-webkit-scrollbar {
+  width: 4px;
 }
 
-.dinoSatSatellitePanelHeader {
+.dinoSatRightRail::-webkit-scrollbar-thumb {
+  background: var(--st-border-primary);
+  border-radius: 2px;
+}
+
+.dinoSatRightRailSection {
+  border-bottom: 2px solid var(--st-border-subtle);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dinoSatRightRailSectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--st-spacing-md);
-  cursor: grab;
-  font-size: 0.6rem;
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 16px;
+  background: var(--st-bg-tertiary);
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid var(--st-border-subtle);
+  color: var(--st-text-secondary);
+  font-size: 0.65rem;
   font-weight: 800;
-  color: var(--st-text-tertiary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--st-border-subtle);
-  user-select: none;
-  gap: var(--st-spacing-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.dinoSatSatellitePanelHeader:active {
-  cursor: grabbing;
+.dinoSatRightRailSectionHeader:hover {
+  background: var(--st-bg-elevated);
+  color: var(--st-text-primary);
 }
 
-.dinoSatSatellitePanelHeader small {
+.dinoSatRightRailSectionHeader:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.dinoSatRightRailSectionHeader:focus-visible {
+  outline: 2px solid var(--st-accent-cyan);
+  outline-offset: -2px;
+}
+
+.dinoSatRightRailSectionHeader svg {
   font-size: 0.6rem;
-  font-weight: 800;
-  color: var(--st-text-secondary);
-}
-
-.dinoSatSatellitePanelContent {
-  padding: var(--st-spacing-md);
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--st-spacing-sm);
-}
-
-.dinoSatSatellitePanelContent small {
-  font-size: 0.6rem; 
-  font-weight: 700;
-  padding: 0.6rem 0; 
-  color: #c1c1c1;
-  opacity: 0.8;
-}
-
-.dinosatSatelliteHeaderIcon {
-  font-size: 0.6rem;
-  color: var(--st-text-muted);
   opacity: 0.6;
 }
 
-.dinoSatSatelliteLegendItem {
+.dinoSatRightRailSectionBody {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--st-bg-primary);
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.dinoSatRightRailSectionBody::-webkit-scrollbar {
+  width: 3px;
+}
+
+.dinoSatRightRailSectionBody::-webkit-scrollbar-thumb {
+  background: var(--st-border-primary);
+  border-radius: 2px;
+}
+
+.dinoSatRailControlGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.dinoSatRailControlGrid .dinoSatSatelliteControlButton {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.6rem;
+  min-height: 38px;
+}
+
+.dinoSatRailLegendList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.dinoSatGroundTrackContainer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #060912;
+  display: block;
+  overflow: hidden;
+}
+
+.dinoSatGroundTrackCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.dinoSatGroundTrackSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dinoSatGroundTrackTabBody {
+  padding: 12px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.dinoSatGroundTrackTabBody .dinoSatGroundTrackContainer {
+  aspect-ratio: 2 / 1;
+  width: 100%;
+  max-width: calc((100vh - 360px) * 2);
+  max-height: calc(100vh - 360px);
+  height: auto;
+  flex: none;
+}
+
+.dinoSatGroundTrackOverlay {
+  position: absolute;
+  top: var(--st-spacing-md);
+  left: var(--st-spacing-md);
+  right: var(--st-spacing-md);
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.dinoSatGroundTrackLegend {
+  display: inline-flex;
+  align-items: center;
   gap: var(--st-spacing-sm);
-  font-size: 0.6rem;
+  padding: 10px 14px;
+  background: rgba(15,17,21,0.85);
+  border: 2px solid var(--st-border-primary);
+  border-radius: var(--st-radius-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+  pointer-events: auto;
+}
+
+.dinoSatGroundTrackLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dinoSatGroundTrackLegend small {
+  color: var(--st-text-tertiary);
   font-weight: 600;
+}
+
+.dinoSatGroundTrackLegendSep,
+.dinoSatGroundTrackLegendDivider {
+  width: 1px;
+  height: 14px;
+  background: var(--st-border-primary);
+  margin: 0 4px;
+}
+
+.dinoSatGroundTrackLegendLine {
+  display: inline-block;
+  width: 20px;
+  height: 0;
+  vertical-align: middle;
+}
+
+.dinoSatGroundTrackLegendSolid {
+  height: 3px;
+  border-radius: 1px;
+}
+
+.dinoSatGroundTrackLegendDashed {
+  height: 0;
+  border-top: 2px dashed;
+}
+
+.dinoSatGroundTrackToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(30,35,45,0.7);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-text-muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+  pointer-events: auto;
+}
+
+.dinoSatGroundTrackToggle:hover {
+  background: rgba(40,48,60,0.8);
+  border-color: var(--st-border-glow);
   color: var(--st-text-secondary);
 }
 
-.dinoSatSatelliteLegendColor {
+.dinoSatGroundTrackToggle.dinoSatGroundTrackToggleActive {
+  background: rgba(40,48,60,0.9);
+  border-color: var(--st-accent-primary);
+  color: var(--st-text-primary);
+}
+
+.dinoSatGroundTrackToggle .dinoSatGroundTrackLegendDot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .dinoSatSatelliteControlButton {
@@ -805,15 +1795,14 @@
   align-items: center;
   justify-content: center;
   gap: var(--st-spacing-xs);
-  padding: var(--st-spacing-sm) var(--st-spacing-md);
+  padding: 10px 14px;
   width: 100%;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   color: var(--st-text-secondary);
   font-size: 0.6rem;
   font-weight: 700;
-  font-family: inherit;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -826,91 +1815,635 @@
   border-color: var(--st-border-glow);
 }
 
-.dinoSatSatelliiteControlHint {
-  margin-top: var(--st-spacing-sm);
-  padding-top: var(--st-spacing-sm);
-  border-top: 1px solid var(--st-border-subtle);
-  font-size: 0.55rem;
-  font-weight: 600;
-  color: var(--st-text-muted);
+.dinoSatPanelCard {
+  background: var(--st-bg-secondary);
+  border: 2px solid rgba(60, 70, 86, 0.4);
+  border-radius: var(--st-radius-md);
+  margin-bottom: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.dinoSatPanelCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--st-bg-tertiary);
+  border-bottom: 2px solid rgba(60, 70, 86, 0.4);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--st-text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dinoSatPanelCardBody {
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+}
+
+.dinoSatPanelEmpty {
+  padding: var(--st-spacing-xl);
   text-align: center;
+  color: var(--st-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--st-spacing-md);
+  min-height: 120px;
+}
+
+.dinoSatPanelEmpty .dinoSatSatelliteSelectButton {
+  flex: none;
+  width: auto;
+  padding: 12px 24px;
+}
+
+.dinoSatStatusDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--st-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-height: 120px;
+}
+
+.dinoSatStatusDisplay p {
+  max-width: 460px;
+  line-height: 1.6;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dinoSatStatusDisplay > svg {
+  font-size: 1.4rem;
+  opacity: 0.4;
+}
+
+.dinoSatStatusError p {
+  color: #ef4444;
+}
+
+.dinoSatStatusDisplay .dinoSatSatelliteSelectButton {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 12px 24px;
+}
+
+.dinoSatConjunctionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.dinoSatConjunctionItem {
+  display: grid;
+  grid-template-columns: 80px 1fr 80px;
+  align-items: center;
+  gap: var(--st-spacing-sm);
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.dinoSatConjunctionItem.dinoSatConjunctionSev-critical { border-left: 3px solid #ef4444; }
+.dinoSatConjunctionItem.dinoSatConjunctionSev-high { border-left: 3px solid #fb923c; }
+.dinoSatConjunctionItem.dinoSatConjunctionSev-moderate { border-left: 3px solid #facc15; }
+.dinoSatConjunctionItem.dinoSatConjunctionSev-low { border-left: 3px solid #84cc16; }
+
+.dinoSatConjunctionDist {
+  font-weight: 800;
+  color: var(--st-text-primary);
+}
+
+.dinoSatConjunctionPair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.dinoSatConjunctionPair button {
+  background: none;
+  border: none;
+  color: var(--st-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dinoSatConjunctionPair button:hover {
+  color: var(--st-accent-cyan);
+}
+
+.dinoSatConjunctionPair span {
+  color: var(--st-text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+}
+
+.dinoSatConjunctionSeverity {
+  text-align: center;
+  padding: 4px 10px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--st-radius-sm);
+  display: inline-block;
+}
+
+.dinoSatConjunctionSeverity.dinoSatConjunctionSev-critical { background: rgba(239,68,68,0.15); color: #ef4444; }
+.dinoSatConjunctionSeverity.dinoSatConjunctionSev-high { background: rgba(251,146,60,0.15); color: #fb923c; }
+.dinoSatConjunctionSeverity.dinoSatConjunctionSev-moderate { background: rgba(250,204,21,0.15); color: #facc15; }
+.dinoSatConjunctionSeverity.dinoSatConjunctionSev-low { background: rgba(132,204,22,0.15); color: #84cc16; }
+
+.dinoSatConstellationGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.dinoSatConstellationGridDense {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.dinoSatConstellationCard {
+  padding: 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-md);
+  border-left-width: 3px;
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatConstellationCard:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-border-glow);
+  transform: translateY(-1px);
+}
+
+.dinoSatConstellationCard.dinoSatConstellationStatus-nominal { border-left-color: #4ade80; }
+.dinoSatConstellationCard.dinoSatConstellationStatus-degraded { border-left-color: #fb923c; }
+.dinoSatConstellationCard.dinoSatConstellationStatus-partial { border-left-color: #facc15; }
+.dinoSatConstellationCard.dinoSatConstellationStatus-unavailable { border-left-color: #ef4444; }
+
+.dinoSatConstellationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--st-spacing-xs);
+}
+
+.dinoSatConstellationHeader h5 {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatConstellationStatusBadge {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--st-radius-sm);
+}
+
+.dinoSatConstellationStatusBadge.dinoSatConstellationStatus-nominal { background: rgba(74,222,128,0.15); color: #4ade80; }
+.dinoSatConstellationStatusBadge.dinoSatConstellationStatus-degraded { background: rgba(251,146,60,0.15); color: #fb923c; }
+.dinoSatConstellationStatusBadge.dinoSatConstellationStatus-partial { background: rgba(250,204,21,0.15); color: #facc15; }
+.dinoSatConstellationStatusBadge.dinoSatConstellationStatus-unavailable { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+.dinoSatConstellationCard small {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  margin-bottom: var(--st-spacing-sm);
+}
+
+.dinoSatConstellationStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--st-spacing-xs);
+  margin: var(--st-spacing-sm) 0;
+}
+
+.dinoSatConstellationStats > div {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--st-bg-tertiary);
+  border-radius: var(--st-radius-sm);
+  text-align: center;
+}
+
+.dinoSatConstellationStats span {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dinoSatConstellationStats b {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+}
+
+.dinoSatConstellationBar {
+  width: 100%;
+  height: 4px;
+  background: var(--st-bg-void);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dinoSatConstellationBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--st-accent-cyan), var(--st-accent-blue));
+  transition: width 0.3s ease;
+}
+
+.dinoSatDecayList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.dinoSatDecayItem {
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatDecayItem:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-border-glow);
+}
+
+.dinoSatDecayItem.dinoSatDecayRisk-imminent { border-left: 3px solid #ef4444; }
+.dinoSatDecayItem.dinoSatDecayRisk-high { border-left: 3px solid #fb923c; }
+.dinoSatDecayItem.dinoSatDecayRisk-moderate { border-left: 3px solid #facc15; }
+.dinoSatDecayItem.dinoSatDecayRisk-low { border-left: 3px solid #84cc16; }
+
+.dinoSatDecayName {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--st-text-primary);
+  margin-bottom: var(--st-spacing-xs);
+}
+
+.dinoSatDecayMeta {
+  display: flex;
+  gap: var(--st-spacing-sm);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  align-items: center;
+}
+
+.dinoSatDecayRiskBadge {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dinoSatDecayRiskBadge.dinoSatDecayRisk-imminent { background: rgba(239,68,68,0.15); color: #ef4444; }
+.dinoSatDecayRiskBadge.dinoSatDecayRisk-high { background: rgba(251,146,60,0.15); color: #fb923c; }
+.dinoSatDecayRiskBadge.dinoSatDecayRisk-moderate { background: rgba(250,204,21,0.15); color: #facc15; }
+.dinoSatDecayRiskBadge.dinoSatDecayRisk-low { background: rgba(132,204,22,0.15); color: #84cc16; }
+
+.dinoSatDecayTierBadge {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dinoSatDecayTierBadge.dinoSatDecayTier-highConfidence {
+  background: rgba(239,68,68,0.18);
+  color: #ef4444;
+}
+
+.dinoSatDecayTierBadge.dinoSatDecayTier-heuristic {
+  background: rgba(251,146,60,0.15);
+  color: #fb923c;
+}
+
+.dinoSatSatelliteLegendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--st-spacing-sm);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--st-text-secondary);
+}
+
+.dinoSatSatelliteLegendColor {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .dinoSatSatelliteDetailedPanel,
 .dinoSatSatelliteHUDPanel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  min-width: 70%;
-  max-width: 70%;
-  min-height: 70%;
-  max-height: 70%;
-  height: 70%;
-  background: var(--st-bg-surface);
-  border: 4px solid var(--st-border-primary);
-  border-radius: 16px;
-  z-index: 30;
+  grid-area: canvas;
+  position: relative;
+  z-index: 5;
+  background: var(--st-bg-void);
+  border: none;
+  border-radius: 0;
   overflow: hidden;
-  user-select: none;
-  box-shadow: 0 0 10px rgba(255,255,255,0.4);
+  user-select: text;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .dinoSatSatelliteHUDPanel:focus,
 .dinoSatSatelliteDetailedPanel:focus {
   outline: none;
-  border-color: var(--st-border-glow);
 }
 
 .dinoSatSatelliteHUDPanelHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--st-spacing-md) var(--st-spacing-lg);
-  min-height: 56px;
-  max-height: 56px;
-  background: var(--st-bg-tertiary);
-  border-bottom: 1px solid var(--st-border-primary);
-  font-size: 0.8rem;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 18px;
+  background: var(--st-bg-secondary);
+  border-bottom: 2px solid var(--st-border-primary);
+  font-size: 0.7rem;
   font-weight: 800;
   color: var(--st-text-primary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: grab;
+  line-height: 1;
+  cursor: default;
+  flex-shrink: 0;
 }
 
-.dinoSatSatelliteHUDPanelHeader:active {
-  cursor: grabbing;
+.dinoSatSatelliteHUDPanelHeader small {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .dinoSatSatelliteCloseButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  color: var(--st-text-tertiary);
-  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  color: var(--st-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.6;
   cursor: pointer;
-  transition: color var(--st-transition-fast);
-  padding: var(--st-spacing-xs);
+  transition: all var(--st-transition-fast);
+  padding: 0;
+  margin: 0;
+  outline: none;
+  box-shadow: none;
+  line-height: 1;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .dinoSatSatelliteCloseButton:hover {
+  opacity: 1;
   color: var(--st-text-primary);
+  background: var(--st-bg-elevated);
+  border-color: var(--st-border-subtle);
 }
 
 .dinoSatSatelliteCloseButton:focus {
   outline: none;
+  box-shadow: none;
+}
+
+.dinoSatDossierTabs {
+  flex-shrink: 0;
+  background: var(--st-bg-primary);
+  border-bottom: 2px solid var(--st-border-primary);
+  overflow: hidden;
+}
+
+.dinoSatDossierTabsScroll {
+  display: flex;
+  gap: 0;
+  padding: 0 14px;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dinoSatDossierTabsScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.dinoSatDossierTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--st-text-tertiary);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--st-transition-fast), box-shadow var(--st-transition-fast);
+  white-space: nowrap;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.dinoSatDossierTab:hover {
+  color: var(--st-text-secondary);
+}
+
+.dinoSatDossierTab.dinoSatDossierTabActive {
+  color: var(--st-accent-cyan);
+  box-shadow: inset 0 -2px 0 0 var(--st-accent-cyan);
+}
+
+.dinoSatDossierTab svg {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.dinoSatDossierTab.dinoSatDossierTabActive svg {
+  opacity: 1;
+}
+
+.dinoSatDossierBody {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--st-bg-void);
+}
+
+.dinoSatDossierBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dinoSatDossierBody::-webkit-scrollbar-thumb {
+  background: rgba(90, 105, 125, 0.4);
+  border-radius: 3px;
+}
+
+.dinoSatDossierBody::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 125, 145, 0.6);
+}
+
+.dinoSatDossierTabContent {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dinoSatDossierStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  width: 100%;
+}
+
+.dinoSatDossierCell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 11px 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-primary);
+  border-radius: 3px;
+  min-width: 0;
+  min-height: 56px;
+}
+
+.dinoSatDossierCellLabel {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dinoSatDossierCellValue {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.dinoSatDossierCellValue span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.dinoSatDossierGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.dinoSatDossierGrid .dinoSatPanelCard {
+  margin-bottom: 0;
 }
 
 .dinoSatSatelliteHUDContent {
-  padding: var(--st-spacing-lg);
-  height: calc(100% - 56px);
+  padding: 18px;
+  flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .dinoSatSatelliteHUDContent::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 .dinoSatSatelliteHUDContent::-webkit-scrollbar-track {
@@ -918,16 +2451,20 @@
 }
 
 .dinoSatSatelliteHUDContent::-webkit-scrollbar-thumb {
-  background: var(--st-border-primary);
-  border-radius: 2px;
+  background: rgba(90, 105, 125, 0.4);
+  border-radius: 3px;
+}
+
+.dinoSatSatelliteHUDContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 125, 145, 0.6);
 }
 
 .dinosatSatelliteHUDSection {
   margin-bottom: var(--st-spacing-lg);
-  padding: var(--st-spacing-md);
-  background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-subtle);
-  border-radius: var(--st-radius-sm);
+  padding: 14px;
+  background: var(--st-bg-secondary);
+  border: 2px solid rgba(60, 70, 86, 0.4);
+  border-radius: var(--st-radius-md);
 }
 
 .dinosatSatelliteHUDSection h4 {
@@ -935,7 +2472,7 @@
   font-weight: 800;
   margin: 0 0 var(--st-spacing-md) 0;
   padding-bottom: var(--st-spacing-sm);
-  border-bottom: 1px solid var(--st-border-subtle);
+  border-bottom: 2px solid rgba(60, 70, 86, 0.4);
   color: var(--st-text-tertiary);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -943,155 +2480,640 @@
 
 .dinosatSatelliteHUDSectionGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--st-spacing-sm);
+  grid-template-columns: 1fr;
+  gap: 4px;
 }
 
 .dinosatSatelliteHUDSectionItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background: var(--st-bg-elevated);
-  border-radius: var(--st-radius-sm);
+  padding: 9px 12px;
+  background: var(--st-bg-tertiary);
+  border: 2px solid rgba(50, 58, 72, 0.35);
+  border-radius: 3px;
   font-size: 0.7rem;
   font-weight: 700;
   gap: var(--st-spacing-md);
-    overflow: scroll; 
+  overflow: hidden;
 }
 
 .dinosatSatelliteHUDSectionItem span:first-child {
   color: var(--st-text-muted);
   white-space: nowrap;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .dinosatSatelliteHUDSectionItem span:last-child {
   color: var(--st-text-primary);
-  font-weight: 700;
+  font-weight: 800;
   text-align: right;
-}
-
-.dinoSatSatelliteModelViewer {
-  width: 100%;
-  height: 180px;
-  background: var(--st-bg-void);
-  border: 1px solid var(--st-border-primary);
-  border-radius: var(--st-radius-sm);
-  position: relative;
+  font-size: 0.72rem;
+  white-space: nowrap;
   overflow: hidden;
-  margin-bottom: var(--st-spacing-md);
+  text-overflow: ellipsis;
 }
 
-.dinoSatSatelliteModelViewer canvas {
-  border-radius: var(--st-radius-sm);
-}
-
-.dinoSatSatelliteStatsPanel {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+.dinoSatMissionIntelHeader {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--st-spacing-lg);
-  background: var(--st-bg-surface);
-  border: 1px solid var(--st-border-primary);
+  gap: var(--st-spacing-md);
+  padding: 14px 18px;
+  background: var(--st-bg-tertiary);
+  border: 2px solid var(--st-border-subtle);
   border-radius: var(--st-radius-md);
-  padding: var(--st-spacing-sm) var(--st-spacing-lg);
-  z-index: 15;
-  pointer-events: auto;
 }
 
-.dinoSatSatelliteStatsPanelItem {
-  display: flex;
+.dinoSatMissionIntelHeader small {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  flex: 1;
+  min-width: 0;
+  letter-spacing: 0.04em;
+}
+
+.dinoSatMissionIntelHeader .dinoSatSatelliteSelectButton {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 12px 24px;
+  display: inline-flex;
   align-items: center;
-  gap: var(--st-spacing-sm);
+  gap: 8px;
+  white-space: nowrap;
   font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.dinoSatTokenUsageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.dinoSatTokenUsageItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-cyan);
+  border-radius: 3px;
+}
+
+.dinoSatTokenUsageLabel {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+}
+
+.dinoSatTokenUsageValue {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dinoSatTokenUsageValue span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.dinoSatTokenUsageItem small {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatMissionBriefText {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--st-text-primary);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.dinoSatInstrumentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-spacing-xs);
+}
+
+.dinoSatInstrumentChip {
+  padding: 6px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 14px;
+  font-size: 0.65rem;
   font-weight: 700;
   color: var(--st-text-secondary);
+}
+
+.dinoSatTimelineList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+}
+
+.dinoSatTimelineItem {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: var(--st-spacing-md);
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-cyan);
+  border-radius: var(--st-radius-sm);
+}
+
+.dinoSatTimelineDate {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--st-accent-cyan);
+}
+
+.dinoSatTimelineEvent {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.5;
+}
+
+.dinoSatRiskGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--st-spacing-sm);
+}
+
+.dinoSatRiskItem {
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+}
+
+.dinoSatRiskItem b {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--st-text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: var(--st-spacing-xs);
+}
+
+.dinoSatRiskItem p {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.5;
+}
+
+.dinoSatSourceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+}
+
+.dinoSatSourceLink {
+  padding: 8px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-accent-cyan);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-decoration: none;
+  word-break: break-all;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatSourceLink:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatWikiThumb {
+  max-width: 200px;
+  max-height: 150px;
+  float: right;
+  margin: 0 0 var(--st-spacing-sm) var(--st-spacing-md);
+  border-radius: var(--st-radius-sm);
+  border: 2px solid var(--st-border-subtle);
+}
+
+.dinoSatPanelCardBody p {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.6;
+}
+
+.dinoSatPanelCardBody h5 {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: var(--st-spacing-sm);
+}
+
+.dinoSatImageryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--st-spacing-md);
+}
+
+.dinoSatImageryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+}
+
+.dinoSatImageryLabel {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--st-text-primary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatImageryThumb {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  background: var(--st-bg-void);
+  border-radius: var(--st-radius-sm);
+}
+
+.dinoSatImageryLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-spacing-xs);
+  padding: 8px 12px;
+  background: var(--st-bg-tertiary);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-accent-cyan);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  justify-content: center;
+}
+
+.dinoSatImageryLink:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatImageryCard small {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--st-text-muted);
+}
+
+.dinoSatEONETList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.dinoSatEONETItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-xs);
+  padding: 10px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatEONETItem:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatEONETTitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--st-text-primary);
+}
+
+.dinoSatEONETMeta {
+  display: flex;
+  gap: var(--st-spacing-xs);
+  flex-wrap: wrap;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  align-items: center;
+}
+
+.dinoSatEONETCategory {
+  padding: 2px 8px;
+  background: rgba(78, 205, 196, 0.12);
+  color: var(--st-accent-cyan);
+  border-radius: 8px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dinoSatReferenceList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-spacing-xs);
+}
+
+.dinoSatReferenceLink {
+  padding: 8px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-accent-cyan);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatReferenceLink:hover {
+  background: var(--st-bg-surface);
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatExternalRefGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.dinoSatExternalRefCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--st-transition-fast);
+}
+
+.dinoSatExternalRefCard:hover {
+  border-color: var(--st-accent-cyan);
+  background: rgba(78, 205, 196, 0.05);
+  transform: translateY(-1px);
+}
+
+.dinoSatExternalRefName {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--st-accent-cyan);
+}
+
+.dinoSatExternalRefDesc {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  line-height: 1.55;
+}
+
+.dinoSatExternalRefUrl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--st-text-muted);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.satellite-theme-neon .dinoSatExternalRefName {
+  color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatExternalRefCard:hover {
+  border-color: #00ff88;
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.dinoSatPassControlsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.dinoSatPassField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dinoSatPassField label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
   white-space: nowrap;
 }
 
-.satellite-stat-icon {
+.dinoSatPassField input {
+  padding: 10px 12px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-radius: 3px;
+  color: var(--st-text-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  outline: none;
+  width: 100%;
+  min-height: 38px;
+  transition: border-color var(--st-transition-fast);
+}
+
+.dinoSatPassField input:focus {
+  border-color: var(--st-accent-cyan);
+}
+
+.dinoSatPassField input::placeholder {
+  color: var(--st-text-muted);
+  font-weight: 600;
+}
+
+.dinoSatPassLocationButton {
+  padding: 0 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-primary);
+  border-radius: 3px;
+  color: var(--st-text-secondary);
   font-size: 0.6rem;
-  opacity: 0.6;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 38px;
+  width: 100%;
+}
+
+.dinoSatPassLocationButton:hover {
+  color: var(--st-accent-cyan);
+  border-color: var(--st-accent-cyan);
+  background: rgba(78, 205, 196, 0.06);
+}
+
+.dinoSatPassComputeButton {
+  padding: 10px 18px;
+  background: rgba(78, 205, 196, 0.1);
+  border: 2px solid var(--st-accent-cyan);
+  border-radius: 3px;
+  color: var(--st-accent-cyan);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--st-transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-height: 34px;
+}
+
+.dinoSatPassComputeButton:hover:not(:disabled) {
+  background: rgba(78, 205, 196, 0.18);
+}
+
+.dinoSatPassComputeButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dinoSatPassList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-spacing-sm);
+}
+
+.dinoSatPassItem {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: var(--st-spacing-md);
+  padding: 14px;
+  background: var(--st-bg-elevated);
+  border: 2px solid var(--st-border-subtle);
+  border-left: 3px solid var(--st-accent-cyan);
+  border-radius: var(--st-radius-md);
+}
+
+.dinoSatPassNumber {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--st-accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dinoSatPassRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 90px;
+  gap: var(--st-spacing-lg);
+  align-items: center;
+  padding: 4px 0;
+}
+
+.dinoSatPassEventCol {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 10px;
+}
+
+.dinoSatPassEventColPeak {
+  background: rgba(78, 205, 196, 0.05);
+  padding: 8px 12px;
+  border-radius: var(--st-radius-sm);
+  border-left: 2px solid var(--st-accent-cyan);
+}
+
+.dinoSatPassEventLabel {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-text-muted);
+}
+
+.dinoSatPassEventTime {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--st-text-primary);
+}
+
+.dinoSatPassEventDetail {
+  font-size: 0.6rem;
+  font-weight: 700;
   color: var(--st-text-tertiary);
 }
 
-
-.satellite-trail-slider {
-  width: 100%;
-  height: 4px;
-  background: var(--st-bg-elevated);
-  border-radius: 2px;
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.satellite-trail-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--st-accent-primary);
+.dinoSatPassDuration {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--st-accent-cyan);
+  text-align: center;
+  padding: var(--st-spacing-xs);
+  background: rgba(78, 205, 196, 0.08);
   border-radius: var(--st-radius-sm);
-  cursor: pointer;
-  transition: transform 0.1s ease;
 }
 
-.satellite-trail-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-}
-
-.satellite-trail-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--st-accent-primary);
+.dinoSatTLEBlock {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--st-text-secondary);
+  background: var(--st-bg-void);
+  padding: 14px;
   border-radius: var(--st-radius-sm);
-  cursor: pointer;
-  border: none;
-}
-
-@media (max-width: 1200px) {
-  .dinoSatSatelliteSideBar {
-    min-width: 220px;
-    max-width: 220px;
-  }
-  
-  .dinoSatSatelliteDetailedPanel,
-  .dinoSatSatelliteHUDPanel {
-    min-width: 85%;
-    max-width: 85%;
-    min-height: 80%;
-    max-height: 80%;
-  }
-}
-
-@media (max-width: 768px) {
-  .dinoSatSatelliteSideBar {
-    min-width: 180px;
-    max-width: 180px;
-  }
-  
-  .dinoSatSatelliteDetailedPanel,
-  .dinoSatSatelliteHUDPanel {
-    min-width: 95%;
-    max-width: 95%;
-    min-height: 90%;
-    max-height: 90%;
-  }
-  
-  .dinosatSatelliteHUDSectionGrid {
-    grid-template-columns: 1fr;
-  }
-  
-  .dinoSatSatellitePlaybackControlsSpeedButton {
-    padding: var(--st-spacing-xs) var(--st-spacing-sm);
-    font-size: 0.5rem;
-  }
+  border: 2px solid var(--st-border-subtle);
+  white-space: pre;
+  overflow-x: auto;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
 }
 
 .dinoSatSatelliteBloomControls {
@@ -1099,37 +3121,44 @@
   flex-direction: column;
   gap: var(--st-spacing-sm);
   margin-top: var(--st-spacing-sm);
-  padding: var(--st-spacing-md);
+  padding: 12px 14px;
   background: var(--st-bg-elevated);
-  border: 1px solid var(--st-border-primary);
+  border: 2px solid var(--st-border-primary);
   border-radius: var(--st-radius-sm);
   pointer-events: auto;
+  overflow: hidden;
 }
 
 .dinoSatSatelliteBloomSlider {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--st-spacing-md);
+  gap: 8px;
   font-size: 0.6rem;
   font-weight: 700;
   color: var(--st-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: var(--st-spacing-xs) 0;
+  padding: 4px 0;
+  min-width: 0;
 }
 
 .dinoSatSatelliteBloomSlider span:first-child {
-  min-width: 70px;
+  flex: 0 0 auto;
+  min-width: 0;
   color: var(--st-text-muted);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .dinoSatSatelliteBloomSlider span:last-child {
-  min-width: 40px;
+  flex: 0 0 auto;
+  min-width: 32px;
   text-align: right;
   color: var(--st-accent-primary);
-  font-family: var(--st-font-mono);
   font-size: 0.65rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .dinoSatSatelliteBloomSlider input[type="range"] {
@@ -1139,7 +3168,7 @@
   flex: 1;
   height: 6px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-subtle);
+  border: 2px solid var(--st-border-subtle);
   border-radius: 3px;
   cursor: pointer;
   outline: none;
@@ -1179,7 +3208,7 @@
 .dinoSatSatelliteBloomSlider input[type="range"]::-moz-range-track {
   height: 6px;
   background: var(--st-bg-tertiary);
-  border: 1px solid var(--st-border-subtle);
+  border: 2px solid var(--st-border-subtle);
   border-radius: 3px;
 }
 
@@ -1240,4 +3269,175 @@
 .satellite-theme-neon .dinoSatSatelliteBloomSlider input[type="range"]::-moz-range-track {
   background: rgba(0, 255, 136, 0.08);
   border-color: rgba(0, 255, 136, 0.2);
+}
+
+.satellite-theme-neon .dinoSatSpaceWeatherStrip {
+  background: linear-gradient(180deg, rgba(0,15,25,0.95) 0%, rgba(0,8,16,0.95) 100%);
+  border-color: rgba(0, 255, 136, 0.15);
+}
+
+.satellite-theme-neon .dinoSatSpaceWeatherCell {
+  background: rgba(0, 20, 30, 0.6);
+  border-color: rgba(0, 255, 136, 0.15);
+}
+
+.satellite-theme-neon .dinoSatSpaceWeatherToggle {
+  background: rgba(0, 20, 30, 0.6);
+  border-color: rgba(0, 255, 136, 0.2);
+  color: rgba(0, 255, 170, 0.7);
+}
+
+.satellite-theme-neon .dinoSatSpaceWeatherToggle:hover {
+  border-color: #00ff88;
+  color: #00ffaa;
+}
+
+.satellite-theme-neon .dinoSatPanelCard {
+  background: rgba(0, 10, 18, 0.95);
+  border-color: rgba(0, 255, 136, 0.18);
+}
+
+.satellite-theme-neon .dinoSatPanelCardHeader {
+  background: rgba(0, 15, 25, 0.8);
+  color: #00ffaa;
+  border-color: rgba(0, 255, 136, 0.18);
+}
+
+.satellite-theme-neon .dinoSatDossierTab.dinoSatDossierTabActive {
+  color: #00ffaa;
+  box-shadow: inset 0 -2px 0 0 #00ff88;
+}
+
+.satellite-theme-neon .dinoSatTimelineItem {
+  border-left-color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatTimelineDate,
+.satellite-theme-neon .dinoSatPassNumber,
+.satellite-theme-neon .dinoSatPassDuration {
+  color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatSourceLink,
+.satellite-theme-neon .dinoSatReferenceLink,
+.satellite-theme-neon .dinoSatImageryLink {
+  color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatSourceLink:hover,
+.satellite-theme-neon .dinoSatReferenceLink:hover,
+.satellite-theme-neon .dinoSatImageryLink:hover {
+  border-color: #00ff88;
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.satellite-theme-neon .dinoSatPassEventColPeak {
+  background: rgba(0, 255, 136, 0.05);
+  border-left-color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatBriefingItem b {
+  color: #00ff88;
+}
+
+.satellite-theme-neon .dinoSatStatTile:hover {
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+@media (max-width: 1400px) {
+  .dinoSatSatelliteSideBar {
+    min-width: 240px;
+    max-width: 240px;
+  }
+
+  .dinoSatDossierStrip {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .dinoSatDossierGrid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+
+  .dinoSatStatTileGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .dinoSatDossierTab {
+    padding: 11px 12px;
+    font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dinoSatSatelliteSideBar {
+    min-width: 220px;
+    max-width: 220px;
+  }
+
+  .dinoSatPassControlsRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dinoSatPassRow {
+    grid-template-columns: 1fr;
+    gap: var(--st-spacing-sm);
+  }
+
+  .dinoSatRiskGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dinoSatDossierStrip {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .dinoSatDossierGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dinoSatRiskMatrixRow {
+    grid-template-columns: 1.2fr repeat(5, 1fr);
+    font-size: 0.5rem;
+  }
+
+  .dinoSatStatTileLarge {
+    grid-column: span 1;
+  }
+
+  .dinoSatDossierTab {
+    padding: 11px 10px;
+    font-size: 0.56rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dinoSatSatelliteSideBar {
+    min-width: 180px;
+    max-width: 180px;
+  }
+
+  .dinoSatSpaceWeatherDetailBody {
+    columns: 1;
+  }
+
+  .dinoSatSatellitePlaybackControlsSpeedButton {
+    padding: 8px 10px;
+    font-size: 0.5rem;
+  }
+
+  .dinoSatDossierStrip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dinoSatStatTileGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dinoSatRiskMatrix {
+    overflow-x: auto;
+  }
+
+  .dinoSatRiskMatrixRow {
+    min-width: 600px;
+  }
 }
