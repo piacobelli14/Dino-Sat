@@ -4,9 +4,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlay, faPause, faRedo, faPlus, faTrash, faChartLine,
-  faChevronDown, faChevronUp, faXmarkSquare, faCog, faGlobe,
-  faRocket, faCrosshairs, faExpand, faMinus, faEdit, faEye,
-  faEyeSlash, faFlask
+  faXmarkSquare, faCog, faGlobe,
+  faRocket, faCrosshairs, faEdit, faEye,
+  faEyeSlash, faFlask, faSquareCheck, faExclamationTriangle,
+  faInfoCircle, faClock, faMagnet, faBolt, faNetworkWired,
+  faShield, faSatellite, faDatabase, faBroadcastTower,
+  faAtom, faGlobeAmericas, faSliders, faRotate, faSignal
 } from "@fortawesome/free-solid-svg-icons";
 import DinoLabsNav from "../../../helpers/Nav.jsx";
 import DinoLabsColorPicker from "../../../helpers/ColorPicker.jsx";
@@ -59,11 +62,9 @@ export default function NBodySimulator() {
   const [gridWarpSpread, setGridWarpSpread] = useState(90);
   const [selectedBody, setSelectedBody] = useState(null);
   const [focusedBody, setFocusedBody] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hudVisible, setHudVisible] = useState(false);
   const [addBodyModal, setAddBodyModal] = useState(false);
   const [editBodyModal, setEditBodyModal] = useState(null);
-  const [theme, setTheme] = useState("dark");
   const [scaleMode, setScaleMode] = useState("log");
   const [actualFps, setActualFps] = useState(60);
   const [addBodyColorPickerOpen, setAddBodyColorPickerOpen] = useState(false);
@@ -84,6 +85,7 @@ export default function NBodySimulator() {
     j2BackReaction: true,
     timestepMethod: 'fixed',
     timestepEta: 0.02,
+    embeddedTolerance: 1e-9,
     doublePrecisionWarning: true,
     softeningWarningShown: false,
     collisionMode: 'none',
@@ -94,6 +96,7 @@ export default function NBodySimulator() {
     enableRocheLimit: true,
     rocheDisruptionMode: 'warning',
     retardedGravity: true,
+    retardedIterations: 3,
     positionHistoryLength: 100,
     historyBufferSize: 128
   });
@@ -180,6 +183,52 @@ export default function NBodySimulator() {
 
   const ringBufferGetIndex = useCallback((buffer, index) => {
     return (buffer.head - buffer.count + index + buffer.size) % buffer.size;
+  }, []);
+
+  const createTrailBuffer = useCallback((size) => {
+    return {
+      x: new Float64Array(size),
+      y: new Float64Array(size),
+      z: new Float64Array(size),
+      head: 0,
+      count: 0,
+      size: size
+    };
+  }, []);
+
+  const trailBufferPush = useCallback((buffer, x, y, z) => {
+    buffer.x[buffer.head] = x;
+    buffer.y[buffer.head] = y;
+    buffer.z[buffer.head] = z;
+    buffer.head = (buffer.head + 1) % buffer.size;
+    if (buffer.count < buffer.size) buffer.count++;
+  }, []);
+
+  const trailBufferReindex = useCallback((buffer, i) => {
+    return (buffer.head - buffer.count + i + buffer.size) % buffer.size;
+  }, []);
+
+  const trailBufferResize = useCallback((oldBuf, newSize) => {
+    const newBuf = {
+      x: new Float64Array(newSize),
+      y: new Float64Array(newSize),
+      z: new Float64Array(newSize),
+      head: 0,
+      count: 0,
+      size: newSize
+    };
+    if (!oldBuf) return newBuf;
+    const copyCount = Math.min(oldBuf.count, newSize);
+    const startIndex = oldBuf.count - copyCount;
+    for (let k = 0; k < copyCount; k++) {
+      const oldIdx = (oldBuf.head - oldBuf.count + (startIndex + k) + oldBuf.size) % oldBuf.size;
+      newBuf.x[newBuf.head] = oldBuf.x[oldIdx];
+      newBuf.y[newBuf.head] = oldBuf.y[oldIdx];
+      newBuf.z[newBuf.head] = oldBuf.z[oldIdx];
+      newBuf.head = (newBuf.head + 1) % newBuf.size;
+      if (newBuf.count < newBuf.size) newBuf.count++;
+    }
+    return newBuf;
   }, []);
 
   const solveKeplerEquation = useCallback((M, e, tolerance = 1e-12, maxIter = 50) => {
@@ -439,6 +488,8 @@ export default function NBodySimulator() {
     if (bodyStates.length === 0) return { bodies: [], scale: { mass: 1, length: 1, time: 1, vel: 1, G: G_CODATA } };
 
     let totalMass = 0;
+    let sumDistSq = 0;
+    let pairCount = 0;
     let maxDist = 0;
 
     for (let i = 0; i < bodyStates.length; i++) {
@@ -448,15 +499,22 @@ export default function NBodySimulator() {
         const dy = bodyStates[j].y - bodyStates[i].y;
         const dz = bodyStates[j].z - bodyStates[i].z;
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        sumDistSq += d * d;
+        pairCount++;
         if (d > maxDist) maxDist = d;
       }
     }
 
-    if (maxDist < 1e6) maxDist = AU;
+    let lengthScale;
+    if (pairCount > 0) {
+      const rms = Math.sqrt(sumDistSq / pairCount);
+      lengthScale = rms > 1e6 ? rms : (maxDist > 1e6 ? maxDist : AU);
+    } else {
+      lengthScale = AU;
+    }
     if (totalMass < 1) totalMass = GM_SUN / G_CODATA;
 
     const massScale = totalMass;
-    const lengthScale = maxDist;
     const timeScale = Math.sqrt(lengthScale * lengthScale * lengthScale / (G_CODATA * massScale));
     const velScale = lengthScale / timeScale;
     const effectiveC = getEffectiveSpeedOfLight();
@@ -522,7 +580,7 @@ export default function NBodySimulator() {
         orientation: nb.orientation,
         omegaBody_x: nb.omegaBody_x,
         omegaBody_y: nb.omegaBody_y,
-        trail: orig ? orig.trail : []
+        trail: orig ? orig.trail : null
       };
     });
   }, [G_CODATA]);
@@ -573,33 +631,33 @@ export default function NBodySimulator() {
 
   const checkRocheLimitViolations = useCallback((bodyStates, config) => {
     if (!config.enableRocheLimit) return { violations: [], debrisConversions: [] };
-    
+
     const violations = [];
     const debrisConversions = [];
     const n = bodyStates.length;
 
     for (let i = 0; i < n; i++) {
       if (bodyStates[i].isDebris) continue;
-      
+
       for (let j = 0; j < n; j++) {
         if (i === j || bodyStates[j].isDebris) continue;
-        
+
         const massI = bodyStates[i].gm / G_CODATA;
         const massJ = bodyStates[j].gm / G_CODATA;
-        
+
         if (massJ > massI * 0.1) continue;
-        
+
         const dx = bodyStates[j].x - bodyStates[i].x;
         const dy = bodyStates[j].y - bodyStates[i].y;
         const dz = bodyStates[j].z - bodyStates[i].z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        
+
         const radiusI = bodyStates[i].radius;
         const radiusJ = bodyStates[j].radius;
         const densityJ = massJ / ((4/3) * Math.PI * Math.pow(radiusJ, 3));
-        
+
         const rocheLimit = calculateRocheLimit(massI, radiusI, densityJ);
-        
+
         if (dist < rocheLimit && dist > radiusI + radiusJ) {
           violations.push({
             primaryId: bodyStates[i].id,
@@ -610,20 +668,20 @@ export default function NBodySimulator() {
             rocheLimit: rocheLimit,
             ratio: dist / rocheLimit
           });
-          
+
           if (config.rocheDisruptionMode === 'disrupt') {
             debrisConversions.push(bodyStates[j].id);
           }
         }
       }
     }
-    
+
     return { violations, debrisConversions };
   }, [G_CODATA, calculateRocheLimit]);
 
   const convertToDebris = useCallback((bodyStates, debrisIds) => {
     if (debrisIds.length === 0) return bodyStates;
-    
+
     return bodyStates.map(b => {
       if (debrisIds.includes(b.id)) {
         return {
@@ -776,7 +834,8 @@ export default function NBodySimulator() {
     bodyCount: 0,
     initialEnergy: null,
     energyDrift: 0,
-    rocheViolations: []
+    rocheViolations: [],
+    lastErrorNorm: 0
   });
 
   const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
@@ -804,6 +863,8 @@ export default function NBodySimulator() {
   const simulationTimeRef = useRef(0);
   const mergedBodyIdsRef = useRef(new Set());
   const initialBodiesRef = useRef([]);
+  const adaptiveDtRef = useRef(null);
+  const lastErrorNormRef = useRef(0);
 
   bodiesRef.current = bodies;
   simulationTimeRef.current = simulationTime;
@@ -910,7 +971,7 @@ export default function NBodySimulator() {
     const nuRad = (config.trueAnomaly * Math.PI) / 180;
     const dist = p / (1 + e * Math.cos(nuRad));
     const speed = Math.sqrt(mu * (2 / dist - (Math.abs(1 / a) * (e >= 1 ? -1 : 1))));
-    let period = "∞";
+    let period = "INF";
     if (config.orbitType === "circular" || config.orbitType === "elliptical") {
       const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / mu);
       period = formatTime(T);
@@ -1010,8 +1071,8 @@ export default function NBodySimulator() {
   }, [scaleMode, AU]);
 
   const scaleRadius = useCallback((radius, gm) => {
-    const minSize = 0.5;
-    const maxSize = 5;
+    const minSize = 1.5;
+    const maxSize = 10;
     const logRadius = Math.log10(radius + 1);
     const logSolarRadius = Math.log10(SOLAR_RADIUS);
     const logEarthRadius = Math.log10(EARTH_RADIUS_MEAN);
@@ -1026,70 +1087,83 @@ export default function NBodySimulator() {
       return { x: targetBody.x, y: targetBody.y, z: targetBody.z };
     }
 
-    const dx = targetBody.x - observerBody.x;
-    const dy = targetBody.y - observerBody.y;
-    const dz = targetBody.z - observerBody.z;
-    const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const lightTravelTime = currentDist / c;
-    const retardedTime = currentTime - lightTravelTime;
+    const interpolateAt = (retardedTime) => {
+      const firstIdx = ringBufferGetIndex(history, 0);
+      const lastIdx = ringBufferGetIndex(history, history.count - 1);
+      const firstT = history.t[firstIdx];
+      const lastT = history.t[lastIdx];
 
-    const firstIdx = ringBufferGetIndex(history, 0);
-    const lastIdx = ringBufferGetIndex(history, history.count - 1);
-    
-    const firstT = history.t[firstIdx];
-    const lastT = history.t[lastIdx];
-    
-    if (retardedTime <= firstT) {
-      return { x: history.x[firstIdx], y: history.y[firstIdx], z: history.z[firstIdx] };
-    }
-    if (retardedTime >= lastT) {
-      return { x: targetBody.x, y: targetBody.y, z: targetBody.z };
-    }
-
-    let lo = 0, hi = history.count - 1;
-    while (hi - lo > 1) {
-      const mid = Math.floor((lo + hi) / 2);
-      const midIdx = ringBufferGetIndex(history, mid);
-      if (history.t[midIdx] < retardedTime) {
-        lo = mid;
-      } else {
-        hi = mid;
+      if (retardedTime <= firstT) {
+        return { x: history.x[firstIdx], y: history.y[firstIdx], z: history.z[firstIdx] };
       }
-    }
+      if (retardedTime >= lastT) {
+        return { x: targetBody.x, y: targetBody.y, z: targetBody.z };
+      }
 
-    const loIdx = ringBufferGetIndex(history, lo);
-    const hiIdx = ringBufferGetIndex(history, hi);
-    
-    const t0 = history.t[loIdx];
-    const t1 = history.t[hiIdx];
-    const dt = t1 - t0;
-    
-    if (dt < 1e-20) {
-      return { x: history.x[loIdx], y: history.y[loIdx], z: history.z[loIdx] };
-    }
-    
-    const t = (retardedTime - t0) / dt;
-    const t2 = t * t;
-    const t3 = t2 * t;
-    
-    const h00 = 2*t3 - 3*t2 + 1;
-    const h10 = t3 - 2*t2 + t;
-    const h01 = -2*t3 + 3*t2;
-    const h11 = t3 - t2;
-    
-    const v0x = history.vx[loIdx] * dt;
-    const v0y = history.vy[loIdx] * dt;
-    const v0z = history.vz[loIdx] * dt;
-    const v1x = history.vx[hiIdx] * dt;
-    const v1y = history.vy[hiIdx] * dt;
-    const v1z = history.vz[hiIdx] * dt;
+      let lo = 0, hi = history.count - 1;
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midIdx = ringBufferGetIndex(history, mid);
+        if (history.t[midIdx] < retardedTime) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
 
-    return {
-      x: h00 * history.x[loIdx] + h10 * v0x + h01 * history.x[hiIdx] + h11 * v1x,
-      y: h00 * history.y[loIdx] + h10 * v0y + h01 * history.y[hiIdx] + h11 * v1y,
-      z: h00 * history.z[loIdx] + h10 * v0z + h01 * history.z[hiIdx] + h11 * v1z
+      const loIdx = ringBufferGetIndex(history, lo);
+      const hiIdx = ringBufferGetIndex(history, hi);
+
+      const t0 = history.t[loIdx];
+      const t1 = history.t[hiIdx];
+      const dt = t1 - t0;
+
+      if (dt < 1e-20) {
+        return { x: history.x[loIdx], y: history.y[loIdx], z: history.z[loIdx] };
+      }
+
+      const t = (retardedTime - t0) / dt;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const h00 = 2*t3 - 3*t2 + 1;
+      const h10 = t3 - 2*t2 + t;
+      const h01 = -2*t3 + 3*t2;
+      const h11 = t3 - t2;
+
+      const v0x = history.vx[loIdx] * dt;
+      const v0y = history.vy[loIdx] * dt;
+      const v0z = history.vz[loIdx] * dt;
+      const v1x = history.vx[hiIdx] * dt;
+      const v1y = history.vy[hiIdx] * dt;
+      const v1z = history.vz[hiIdx] * dt;
+
+      return {
+        x: h00 * history.x[loIdx] + h10 * v0x + h01 * history.x[hiIdx] + h11 * v1x,
+        y: h00 * history.y[loIdx] + h10 * v0y + h01 * history.y[hiIdx] + h11 * v1y,
+        z: h00 * history.z[loIdx] + h10 * v0z + h01 * history.z[hiIdx] + h11 * v1z
+      };
     };
-  }, [physicsConfig.retardedGravity, ringBufferGetIndex]);
+
+    let pos = { x: targetBody.x, y: targetBody.y, z: targetBody.z };
+    const maxIter = Math.max(1, physicsConfig.retardedIterations || 1);
+    for (let iter = 0; iter < maxIter; iter++) {
+      const dx = pos.x - observerBody.x;
+      const dy = pos.y - observerBody.y;
+      const dz = pos.z - observerBody.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const lightTravelTime = dist / c;
+      const retardedTime = currentTime - lightTravelTime;
+      const newPos = interpolateAt(retardedTime);
+      const ddx = newPos.x - pos.x;
+      const ddy = newPos.y - pos.y;
+      const ddz = newPos.z - pos.z;
+      const change = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+      pos = newPos;
+      if (change < 1e-6 * dist) break;
+    }
+    return pos;
+  }, [physicsConfig.retardedGravity, physicsConfig.retardedIterations, ringBufferGetIndex]);
 
   const computeGravitationalPotentials = useCallback((bodyStates) => {
     const n = bodyStates.length;
@@ -1154,19 +1228,19 @@ export default function NBodySimulator() {
     const warnings = [];
     const n = bodyStates.length;
     const effectiveC = scale ? scale.c : getEffectiveSpeedOfLight();
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const dx = bodyStates[j].x - bodyStates[i].x;
         const dy = bodyStates[j].y - bodyStates[i].y;
         const dz = bodyStates[j].z - bodyStates[i].z;
         const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        
+
         const dvx = bodyStates[j].vx - bodyStates[i].vx;
         const dvy = bodyStates[j].vy - bodyStates[i].vy;
         const dvz = bodyStates[j].vz - bodyStates[i].vz;
         const vRel = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
-        
+
         const vOverC = vRel / effectiveC;
         if (vOverC > 0.1) {
           warnings.push({
@@ -1176,11 +1250,11 @@ export default function NBodySimulator() {
             message: `v/c = ${(vOverC * 100).toFixed(1)}% - PN expansion inaccurate`
           });
         }
-        
+
         const totalGM = bodyStates[i].gm + bodyStates[j].gm;
         const schwarzschildRadius = 2 * totalGM / (effectiveC * effectiveC);
         const rOverRs = r / schwarzschildRadius;
-        
+
         if (rOverRs < 10) {
           warnings.push({
             type: 'separation',
@@ -1191,7 +1265,7 @@ export default function NBodySimulator() {
         }
       }
     }
-    
+
     return warnings;
   }, [getEffectiveSpeedOfLight]);
 
@@ -1203,7 +1277,8 @@ export default function NBodySimulator() {
       j2BackReaction = true,
       softeningConfig: sConf = { enabled: false },
       scale = null,
-      currentTime = 0
+      currentTime = 0,
+      pairCacheOut = null
     } = options;
     const n = bodyStates.length;
     const accelerations = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
@@ -1250,6 +1325,7 @@ export default function NBodySimulator() {
     }
 
     let potentials = null;
+    let newtonianAccel = null;
     if (includeGR) {
       potentials = new Array(n).fill(0);
       for (let i = 0; i < n; i++) {
@@ -1259,15 +1335,33 @@ export default function NBodySimulator() {
           }
         }
       }
+      newtonianAccel = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+      for (let i = 0; i < n; i++) {
+        if (bodyStates[i].isDebris) continue;
+        for (let j = 0; j < n; j++) {
+          if (i === j || bodyStates[j].isDebris) continue;
+          const r = rMags[i][j];
+          if (r > 0) {
+            const invR3 = invRMags[i][j] * invRMags[i][j] * invRMags[i][j];
+            const dx = rVecs[i][j].x;
+            const dy = rVecs[i][j].y;
+            const dz = rVecs[i][j].z;
+            const fac = bodyStates[j].gm * invR3;
+            newtonianAccel[i].x += fac * dx;
+            newtonianAccel[i].y += fac * dy;
+            newtonianAccel[i].z += fac * dz;
+          }
+        }
+      }
     }
 
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const iIsDebris = bodyStates[i].isDebris;
         const jIsDebris = bodyStates[j].isDebris;
-        
+
         if (iIsDebris && jIsDebris) continue;
-        
+
         const dx = rVecs[i][j].x;
         const dy = rVecs[i][j].y;
         const dz = rVecs[i][j].z;
@@ -1298,7 +1392,7 @@ export default function NBodySimulator() {
 
         let aij_x = 0, aij_y = 0, aij_z = 0;
         let aji_x = 0, aji_y = 0, aji_z = 0;
-        
+
         if (!jIsDebris) {
           aij_x = GMj * effectiveInvR3 * dx;
           aij_y = GMj * effectiveInvR3 * dy;
@@ -1315,7 +1409,7 @@ export default function NBodySimulator() {
           const totalGM = GMi + GMj;
           const schwarzschildRadius = 2 * totalGM / c2;
           const pnValid = r > 10 * schwarzschildRadius;
-          
+
           if (pnValid) {
             const nhat = { x: dx * invR, y: dy * invR, z: dz * invR };
             const vA = { x: bodyStates[i].vx, y: bodyStates[i].vy, z: bodyStates[i].vz };
@@ -1329,12 +1423,22 @@ export default function NBodySimulator() {
             const sumPhi_A_others = potentials[i];
             const sumPhi_B_others = potentials[j];
 
-            const potentialTermA = -5.0 * sumPhi_A_others - 4.0 * sumPhi_B_others;
-            const potentialTermB = -5.0 * sumPhi_B_others - 4.0 * sumPhi_A_others;
+            const aBx = newtonianAccel[j].x;
+            const aBy = newtonianAccel[j].y;
+            const aBz = newtonianAccel[j].z;
+            const aAx = newtonianAccel[i].x;
+            const aAy = newtonianAccel[i].y;
+            const aAz = newtonianAccel[i].z;
+            const rDotaB = dx * aBx + dy * aBy + dz * aBz;
+            const negRDotaA = -dx * aAx - dy * aAy - dz * aAz;
+
+            const potentialTermA = -4.0 * sumPhi_A_others - 1.0 * sumPhi_B_others;
+            const potentialTermB = -4.0 * sumPhi_B_others - 1.0 * sumPhi_A_others;
 
             const eihScalarA = (1.0 / c2) * (
               vA2 + 2.0 * vB2 - 4.0 * vAdotvB
               - 1.5 * nDotvB * nDotvB
+              + 0.5 * rDotaB
               + potentialTermA
             );
 
@@ -1355,6 +1459,7 @@ export default function NBodySimulator() {
             const eihScalarB = (1.0 / c2) * (
               vB2 + 2.0 * vA2 - 4.0 * vAdotvB
               - 1.5 * nDotvA * nDotvA
+              + 0.5 * negRDotaA
               + potentialTermB
             );
 
@@ -1380,7 +1485,8 @@ export default function NBodySimulator() {
               const vRelSq = vRel_x * vRel_x + vRel_y * vRel_y + vRel_z * vRel_z;
               const rdot = nhat.x * vRel_x + nhat.y * vRel_y + nhat.z * vRel_z;
               const GTotal = scale ? 1 : G_CODATA;
-              const prefactor = (8.0 / 5.0) * eta * GTotal * totalMass / (r * c5);
+              const r3 = r * r * r;
+              const prefactor = (8.0 / 5.0) * eta * GTotal * GTotal * totalMass * totalMass / (r3 * c5);
               const radialCoeff = prefactor * rdot * (
                 (17.0 / 3.0) * GTotal * totalMass / r + 3.0 * vRelSq
               );
@@ -1395,9 +1501,9 @@ export default function NBodySimulator() {
               aij_x += rr_x * massRatioI;
               aij_y += rr_y * massRatioI;
               aij_z += rr_z * massRatioI;
-              aji_x -= rr_x * massRatioJ;
-              aji_y -= rr_y * massRatioJ;
-              aji_z -= rr_z * massRatioJ;
+              aji_x += rr_x * massRatioJ;
+              aji_y += rr_y * massRatioJ;
+              aji_z += rr_z * massRatioJ;
             }
           }
         }
@@ -1450,7 +1556,7 @@ export default function NBodySimulator() {
         }
 
         const alpha = 3 * rDotv / rSq;
-        
+
         if (!jIsDebris) {
           const termJ = GMj * jerkInvR3;
           jerks[i].x += termJ * (dvx - alpha * dx);
@@ -1466,6 +1572,35 @@ export default function NBodySimulator() {
         }
       }
     }
+
+    if (includeGR && newtonianAccel) {
+      const sevenOver2c2 = 3.5 / c2;
+      for (let i = 0; i < n; i++) {
+        if (bodyStates[i].isDebris) continue;
+        let extraX = 0, extraY = 0, extraZ = 0;
+        for (let j = 0; j < n; j++) {
+          if (i === j || bodyStates[j].isDebris) continue;
+          const r = rMags[i][j];
+          if (r > 0) {
+            const fac = sevenOver2c2 * bodyStates[j].gm / r;
+            extraX += fac * newtonianAccel[j].x;
+            extraY += fac * newtonianAccel[j].y;
+            extraZ += fac * newtonianAccel[j].z;
+          }
+        }
+        accelerations[i].x += extraX;
+        accelerations[i].y += extraY;
+        accelerations[i].z += extraZ;
+      }
+    }
+
+    if (pairCacheOut) {
+      pairCacheOut.rVecs = rVecs;
+      pairCacheOut.rMags = rMags;
+      pairCacheOut.invRMags = invRMags;
+      pairCacheOut.softenings = softenings;
+    }
+
     return { accelerations, jerks, spinTorques };
   }, [calculateSoftening, symmetricSoftening, softeningKernels, getEffectiveSpeedOfLight, computeJ2Acceleration, G_CODATA, physicsConfig.relativisticMode, physicsConfig.retardedGravity, getRetardedPosition]);
 
@@ -1477,9 +1612,9 @@ export default function NBodySimulator() {
       for (let j = i + 1; j < n; j++) {
         const iIsDebris = bodyStates[i].isDebris;
         const jIsDebris = bodyStates[j].isDebris;
-        
+
         if (iIsDebris && jIsDebris) continue;
-        
+
         const dx = bodyStates[j].x - bodyStates[i].x;
         const dy = bodyStates[j].y - bodyStates[i].y;
         const dz = bodyStates[j].z - bodyStates[i].z;
@@ -1529,7 +1664,7 @@ export default function NBodySimulator() {
   }, []);
 
   const computeAdaptiveTimestep = useCallback((bodyStates, baseTimestep, options = {}) => {
-    const { eta = 0.02, method = 'aarseth', maxTimestep = baseTimestep * 10, scale = null } = options;
+    const { eta = 0.02, method = 'aarseth', maxTimestep = baseTimestep * 10, scale = null, lastErrorNorm = 0, tolerance = 1e-9 } = options;
     if (bodyStates.length < 2) return baseTimestep;
     let dt = maxTimestep;
 
@@ -1606,7 +1741,33 @@ export default function NBodySimulator() {
           }
         }
       }
+    } else if (method === 'embedded') {
+      let prior = baseTimestep;
+      if (adaptiveDtRef.current && adaptiveDtRef.current > 0) {
+        prior = adaptiveDtRef.current;
+      }
+      if (lastErrorNorm > 0 && tolerance > 0) {
+        const safety = 0.9;
+        const ratio = tolerance / lastErrorNorm;
+        const factor = Math.max(0.2, Math.min(5.0, safety * Math.pow(ratio, 0.2)));
+        dt = Math.min(maxTimestep, Math.max(baseTimestep * 1e-4, prior * factor));
+      } else {
+        dt = Math.min(maxTimestep, prior);
+      }
     }
+
+    if (physicsConfig.includeJ2) {
+      for (let i = 0; i < bodyStates.length; i++) {
+        const ox = bodyStates[i].omegaBody_x || 0;
+        const oy = bodyStates[i].omegaBody_y || 0;
+        const oz = bodyStates[i].spinRate || 0;
+        const omegaMag = Math.sqrt(ox * ox + oy * oy + oz * oz);
+        if (omegaMag > 1e-30) {
+          dt = Math.min(dt, eta / omegaMag);
+        }
+      }
+    }
+
     return Math.min(maxTimestep, dt);
   }, [computeForces, computeSnap, softeningConfig, physicsConfig]);
 
@@ -1704,7 +1865,6 @@ export default function NBodySimulator() {
       const { accelerations, spinTorques } = computeForces(states, opts);
       return states.map((s, i) => {
         let dqw = 0, dqx = 0, dqy = 0, dqz = 0;
-        let dOmega = 0;
         if (physicsConfig.includeJ2 && physicsConfig.j2BackReaction && s.j2 && s.spinRate) {
           const torqueInertial = { x: spinTorques[i].x, y: spinTorques[i].y, z: spinTorques[i].z };
           const { I_xx, I_yy, I_zz } = computeInertiaTensor(s, scale);
@@ -1726,7 +1886,6 @@ export default function NBodySimulator() {
           dqx = qDot.x;
           dqy = qDot.y;
           dqz = qDot.z;
-          dOmega = omegaDot_z;
           return {
             dx: s.vx, dy: s.vy, dz: s.vz,
             dvx: accelerations[i].x, dvy: accelerations[i].y, dvz: accelerations[i].z,
@@ -1749,6 +1908,7 @@ export default function NBodySimulator() {
     const b5 = 439 / 216, c5 = -8, d5 = 3680 / 513, e5 = -845 / 4104;
     const b6 = -8 / 27, c6 = 2, d6 = -3544 / 2565, e6 = 1859 / 4104, f6 = -11 / 40;
     const n1 = 16 / 135, n3 = 6656 / 12825, n4 = 28561 / 56430, n5 = -9 / 50, n6 = 2 / 55;
+    const e1 = 1 / 360, e3 = -128 / 4275, e4 = -2197 / 75240, eOrd5 = 1 / 50, e6Err = 2 / 55;
 
     const prepState = bodyStates.map(b => {
       if (!b.orientation && physicsConfig.includeJ2 && b.j2) {
@@ -1849,7 +2009,18 @@ export default function NBodySimulator() {
     });
     const k6 = getDerivatives(s6, currentTime + 0.5 * dt);
 
-    return prepState.map((b, i) => {
+    let errorAccum = 0;
+    let errorCount = 0;
+    let posScale = 1;
+    let velScale = 1;
+    for (let i = 0; i < prepState.length; i++) {
+      posScale = Math.max(posScale, Math.abs(prepState[i].x), Math.abs(prepState[i].y), Math.abs(prepState[i].z));
+      velScale = Math.max(velScale, Math.abs(prepState[i].vx), Math.abs(prepState[i].vy), Math.abs(prepState[i].vz));
+    }
+    if (posScale < 1e-30) posScale = 1;
+    if (velScale < 1e-30) velScale = 1;
+
+    const result = prepState.map((b, i) => {
       const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
       const newQ = quaternionNormalize({
         w: q.w + (n1 * k1[i].dqw + n3 * k3[i].dqw + n4 * k4[i].dqw + n5 * k5[i].dqw + n6 * k6[i].dqw) * dt,
@@ -1858,6 +2029,18 @@ export default function NBodySimulator() {
         z: q.z + (n1 * k1[i].dqz + n3 * k3[i].dqz + n4 * k4[i].dqz + n5 * k5[i].dqz + n6 * k6[i].dqz) * dt
       });
       const newSpinAxis = quaternionToSpinAxis(newQ);
+
+      const errPosX = dt * (e1 * k1[i].dx + e3 * k3[i].dx + e4 * k4[i].dx + eOrd5 * k5[i].dx + e6Err * k6[i].dx);
+      const errPosY = dt * (e1 * k1[i].dy + e3 * k3[i].dy + e4 * k4[i].dy + eOrd5 * k5[i].dy + e6Err * k6[i].dy);
+      const errPosZ = dt * (e1 * k1[i].dz + e3 * k3[i].dz + e4 * k4[i].dz + eOrd5 * k5[i].dz + e6Err * k6[i].dz);
+      const errVelX = dt * (e1 * k1[i].dvx + e3 * k3[i].dvx + e4 * k4[i].dvx + eOrd5 * k5[i].dvx + e6Err * k6[i].dvx);
+      const errVelY = dt * (e1 * k1[i].dvy + e3 * k3[i].dvy + e4 * k4[i].dvy + eOrd5 * k5[i].dvy + e6Err * k6[i].dvy);
+      const errVelZ = dt * (e1 * k1[i].dvz + e3 * k3[i].dvz + e4 * k4[i].dvz + eOrd5 * k5[i].dvz + e6Err * k6[i].dvz);
+
+      errorAccum += (errPosX / posScale) ** 2 + (errPosY / posScale) ** 2 + (errPosZ / posScale) ** 2;
+      errorAccum += (errVelX / velScale) ** 2 + (errVelY / velScale) ** 2 + (errVelZ / velScale) ** 2;
+      errorCount += 6;
+
       return {
         ...b,
         x: b.x + (n1 * k1[i].dx + n3 * k3[i].dx + n4 * k4[i].dx + n5 * k5[i].dx + n6 * k6[i].dx) * dt,
@@ -1875,6 +2058,10 @@ export default function NBodySimulator() {
         spinRate: (b.spinRate || 0) + (n1 * k1[i].dOmegaZ + n3 * k3[i].dOmegaZ + n4 * k4[i].dOmegaZ + n5 * k5[i].dOmegaZ + n6 * k6[i].dOmegaZ) * dt
       };
     });
+
+    const errorNorm = errorCount > 0 ? Math.sqrt(errorAccum / errorCount) : 0;
+    result.__errorNorm = errorNorm;
+    return result;
   }, [computeForces, softeningConfig, physicsConfig, computeInertiaTensor, spinAxisToQuaternion, quaternionConjugate, rotateVectorByQuaternion, quaternionMultiply, quaternionNormalize, quaternionToSpinAxis]);
 
   const integrateVerlet = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
@@ -1895,12 +2082,14 @@ export default function NBodySimulator() {
       z: body.z + body.vz * dt + 0.5 * a1[i].z * dt * dt
     }));
     const { accelerations: a2 } = computeForces(nextPosStates, { ...forceOptions, currentTime: currentTime + dt });
-    return nextPosStates.map((body, i) => ({
+    const result = nextPosStates.map((body, i) => ({
       ...body,
       vx: body.vx + 0.5 * (a1[i].x + a2[i].x) * dt,
       vy: body.vy + 0.5 * (a1[i].y + a2[i].y) * dt,
       vz: body.vz + 0.5 * (a1[i].z + a2[i].z) * dt
     }));
+    result.__errorNorm = 0;
+    return result;
   }, [computeForces, softeningConfig, physicsConfig]);
 
   const integrateRK4 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
@@ -1950,7 +2139,7 @@ export default function NBodySimulator() {
       vz: b.vz + k3[i].dvz * dt
     }));
     const k4 = getDerivatives(s4, currentTime + dt);
-    return bodyStates.map((b, i) => ({
+    const result = bodyStates.map((b, i) => ({
       ...b,
       x: b.x + (k1[i].dx + 2 * k2[i].dx + 2 * k3[i].dx + k4[i].dx) * dt / 6,
       y: b.y + (k1[i].dy + 2 * k2[i].dy + 2 * k3[i].dy + k4[i].dy) * dt / 6,
@@ -1959,6 +2148,8 @@ export default function NBodySimulator() {
       vy: b.vy + (k1[i].dvy + 2 * k2[i].dvy + 2 * k3[i].dvy + k4[i].dvy) * dt / 6,
       vz: b.vz + (k1[i].dvz + 2 * k2[i].dvz + 2 * k3[i].dvz + k4[i].dvz) * dt / 6
     }));
+    result.__errorNorm = 0;
+    return result;
   }, [computeForces, softeningConfig, physicsConfig]);
 
   const integrateYoshida4 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
@@ -2029,6 +2220,7 @@ export default function NBodySimulator() {
     state = kick(state, d3, t);
     state = drift(state, c4);
 
+    state.__errorNorm = 0;
     return state;
   }, [computeForces, softeningConfig, physicsConfig]);
 
@@ -2171,12 +2363,7 @@ export default function NBodySimulator() {
           const phi_j = grPotentials[j];
           const crossPotentialTerm = -(Uij / c2) * (phi_i / mi + phi_j / mj) * 0.5 * (mi + mj);
 
-          const pairMomentumTerm = (Uij / c2) * (
-            (mi * vi2 + mj * vj2) / (2.0 * (mi + mj)) -
-            (mi * mj * vidotvj) / ((mi + mj) * (mi + mj))
-          );
-
-          relativisticEnergy += velDepTerm + potSqTerm + crossPotentialTerm + pairMomentumTerm;
+          relativisticEnergy += velDepTerm + potSqTerm + crossPotentialTerm;
         }
       }
     }
@@ -2202,7 +2389,8 @@ export default function NBodySimulator() {
       debrisCount: debrisCount,
       initialEnergy: initialEnergyRef.current,
       energyDrift,
-      rocheViolations: rocheResult.violations
+      rocheViolations: rocheResult.violations,
+      lastErrorNorm: lastErrorNormRef.current
     };
   }, [softeningConfig, softeningKernels, calculateSoftening, symmetricSoftening, G_CODATA, physicsConfig, getEffectiveSpeedOfLight, checkRocheLimitViolations]);
 
@@ -2351,7 +2539,7 @@ export default function NBodySimulator() {
       vy: finalVy,
       vz: finalVz,
       color: newBody.color || "#4ECDC4",
-      trail: [],
+      trail: createTrailBuffer(trailLength),
       visible: true,
       j2: newBody.j2,
       j2Radius: newBody.j2Radius || null,
@@ -2397,7 +2585,7 @@ export default function NBodySimulator() {
     setAddBodyModal(false);
     setAddBodyColorPickerOpen(false);
   }, [newBody, bodies, trajectoryMode, orbitConfig, flybyConfig, interstellarConfig,
-    calculateOrbitalState, calculateFlybyState, calculateInterstellarState, EARTH_RADIUS_MEAN, G_CODATA]);
+    calculateOrbitalState, calculateFlybyState, calculateInterstellarState, EARTH_RADIUS_MEAN, G_CODATA, createTrailBuffer, trailLength]);
 
   const updateBody = useCallback((id, updates) => {
     setBodies(prev => {
@@ -2472,6 +2660,8 @@ export default function NBodySimulator() {
     initialBodiesRef.current = [];
     mergedBodyIdsRef.current.clear();
     setPnWarnings([]);
+    adaptiveDtRef.current = null;
+    lastErrorNormRef.current = 0;
   };
 
   const resetSimulation = useCallback(() => {
@@ -2480,11 +2670,13 @@ export default function NBodySimulator() {
     initialEnergyRef.current = null;
     setPnWarnings([]);
     mergedBodyIdsRef.current.clear();
-    
+    adaptiveDtRef.current = null;
+    lastErrorNormRef.current = 0;
+
     if (initialBodiesRef.current.length > 0) {
       setBodies(initialBodiesRef.current.map(ib => ({
         ...ib,
-        trail: [],
+        trail: createTrailBuffer(trailLength),
         visible: true,
         positionHistory: null,
         isDebris: false,
@@ -2501,7 +2693,7 @@ export default function NBodySimulator() {
     } else {
       setBodies(prev => prev.map(b => ({
         ...b,
-        trail: [],
+        trail: createTrailBuffer(trailLength),
         positionHistory: null,
         isDebris: false,
         orientation: null,
@@ -2509,11 +2701,11 @@ export default function NBodySimulator() {
         omegaBody_y: 0
       })));
     }
-  }, []);
+  }, [createTrailBuffer, trailLength]);
 
   const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined || isNaN(num)) return "N/A";
-    if (!isFinite(num)) return num > 0 ? "∞" : "-∞";
+    if (!isFinite(num)) return num > 0 ? "INF" : "-INF";
     if (Math.abs(num) < 1e-10) return "0";
     if (Math.abs(num) >= 1e9 || Math.abs(num) < 1e-3) {
       return num.toExponential(decimals);
@@ -2522,7 +2714,7 @@ export default function NBodySimulator() {
   };
 
   const formatTime = (seconds) => {
-    if (!isFinite(seconds)) return "∞";
+    if (!isFinite(seconds)) return "INF";
     const days = Math.floor(seconds / DAY_SECONDS);
     const years = Math.floor(days / 365.25);
     const remainingDays = Math.floor(days % 365.25);
@@ -2570,18 +2762,13 @@ export default function NBodySimulator() {
   }, [isDraggingHud, handleHudMouseMove, handleHudMouseUp]);
 
   useEffect(() => {
-    document.body.className = `nbody-theme-${theme}`;
-    return () => { document.body.className = ""; };
-  }, [theme]);
-
-  useEffect(() => {
     if (!mountRef.current) return;
 
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000008);
+    scene.background = new THREE.Color(0x08090c);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100000);
@@ -2616,7 +2803,7 @@ export default function NBodySimulator() {
 
     const gridMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        uGridColor: { value: new THREE.Color(0xc1c1c1) },
+        uGridColor: { value: new THREE.Color(0x6a7a8a) },
         uTime: { value: 0.0 },
         uScale: { value: 1.0 }
       },
@@ -2652,9 +2839,9 @@ export default function NBodySimulator() {
           float depthNorm = clamp(vDepth / (200.0 * uScale), 0.0, 1.0);
           float depthSq = depthNorm * depthNorm;
           vec3 shallowColor = uGridColor * 0.9;
-          vec3 midColor = vec3(0.6, 0.5, 0.7);
-          vec3 deepColor = vec3(0.9, 0.4, 0.3);
-          vec3 coreColor = vec3(1.0, 0.7, 0.2);
+          vec3 midColor = vec3(0.42, 0.5, 0.6);
+          vec3 deepColor = vec3(0.31, 0.81, 0.77);
+          vec3 coreColor = vec3(0.31, 0.81, 0.77);
           vec3 wellColor;
           if (depthNorm < 0.25) {
             wellColor = mix(shallowColor, midColor, depthNorm * 4.0);
@@ -2831,6 +3018,15 @@ export default function NBodySimulator() {
         trailsRef.current[body.id] = trail;
       } else {
         trailsRef.current[body.id].material.color.set(body.color);
+        const currentBufferSize = trailsRef.current[body.id].geometry.attributes.position.array.length / 3;
+        if (currentBufferSize !== trailLength) {
+          trailsRef.current[body.id].geometry.dispose();
+          const newGeom = new THREE.BufferGeometry();
+          const newPositions = new Float32Array(trailLength * 3);
+          newGeom.setAttribute("position", new THREE.BufferAttribute(newPositions, 3));
+          newGeom.setDrawRange(0, 0);
+          trailsRef.current[body.id].geometry = newGeom;
+        }
       }
 
       if (!labelsRef.current[body.id] && labelContainerRef.current) {
@@ -2891,13 +3087,13 @@ export default function NBodySimulator() {
           positionHistory: b.positionHistory || null
         }));
 
+        if (physicsConfig.barycentricCorrection && physicsState.length >= 2) {
+          physicsState = applyBarycentricCorrection(physicsState);
+        }
+
         if (initialEnergyRef.current === null && physicsState.length >= 2) {
           const stats = computeSystemStats(physicsState);
           initialEnergyRef.current = stats.totalEnergy;
-        }
-
-        if (physicsConfig.barycentricCorrection && physicsState.length >= 2) {
-          physicsState = applyBarycentricCorrection(physicsState);
         }
 
         let scale = null;
@@ -2922,8 +3118,11 @@ export default function NBodySimulator() {
           const adaptiveDt = computeAdaptiveTimestep(normalizedState, effectiveDt, {
             method: physicsConfig.timestepMethod,
             eta: physicsConfig.timestepEta,
-            scale: scale
+            scale: scale,
+            lastErrorNorm: lastErrorNormRef.current,
+            tolerance: physicsConfig.embeddedTolerance
           });
+          adaptiveDtRef.current = adaptiveDt;
           const totalSimTime = scale ? (timeStep * speedMultiplier) / scale.time : (timeStep * speedMultiplier);
           subSteps = Math.ceil(totalSimTime / adaptiveDt);
           subSteps = Math.max(1, Math.min(subSteps, 10000));
@@ -2934,6 +3133,8 @@ export default function NBodySimulator() {
         }
 
         let normalizedTime = scale ? currentSimTime / scale.time : currentSimTime;
+        let cumulativeErr = 0;
+        let stepCount = 0;
 
         for (let i = 0; i < subSteps; i++) {
           if (physicsConfig.relativisticMode && physicsConfig.retardedGravity) {
@@ -2947,6 +3148,10 @@ export default function NBodySimulator() {
           }
 
           normalizedState = integrate(normalizedState, effectiveDt, scale, normalizedTime);
+          if (typeof normalizedState.__errorNorm === 'number') {
+            cumulativeErr += normalizedState.__errorNorm;
+            stepCount++;
+          }
           normalizedTime += effectiveDt;
 
           if (physicsConfig.collisionMode !== 'none') {
@@ -2965,6 +3170,10 @@ export default function NBodySimulator() {
               normalizedState = convertToDebris(normalizedState, rocheResult.debrisConversions);
             }
           }
+        }
+
+        if (stepCount > 0) {
+          lastErrorNormRef.current = cumulativeErr / stepCount;
         }
 
         if (physicsConfig.includeGR) {
@@ -2990,20 +3199,20 @@ export default function NBodySimulator() {
         for (let i = 0; i < finalState.length; i++) {
           const ps = finalState[i];
           const origBody = currentBodies.find(b => b.id === ps.id);
-          
+
           if (!origBody) continue;
 
           const scaledPos = scaleVector(ps.x, ps.y, ps.z);
-          const newTrail = [...(origBody.trail || [])];
-          if (newTrail.length >= trailLength) {
-            newTrail.shift();
+          let tb = origBody.trail;
+          if (!tb || !tb.size || tb.size !== trailLength) {
+            tb = trailBufferResize(tb, trailLength);
           }
-          newTrail.push({ ...scaledPos });
+          trailBufferPush(tb, scaledPos.x, scaledPos.y, scaledPos.z);
 
           updatedBodies.push({
             ...origBody,
             ...ps,
-            trail: newTrail
+            trail: tb
           });
         }
 
@@ -3029,13 +3238,15 @@ export default function NBodySimulator() {
         }
 
         const trail = trailsRef.current[body.id];
-        if (trail && showTrails && body.trail && body.trail.length > 1) {
+        if (trail && showTrails && body.trail && body.trail.count > 1) {
           const positions = trail.geometry.attributes.position.array;
-          const len = Math.min(body.trail.length, trailLength);
+          const tb = body.trail;
+          const len = Math.min(tb.count, trailLength, positions.length / 3);
           for (let i = 0; i < len; i++) {
-            positions[i * 3] = body.trail[i].x;
-            positions[i * 3 + 1] = body.trail[i].y;
-            positions[i * 3 + 2] = body.trail[i].z;
+            const idx = (tb.head - tb.count + i + tb.size) % tb.size;
+            positions[i * 3] = tb.x[idx];
+            positions[i * 3 + 1] = tb.y[idx];
+            positions[i * 3 + 2] = tb.z[idx];
           }
           trail.geometry.attributes.position.needsUpdate = true;
           trail.geometry.setDrawRange(0, len);
@@ -3160,7 +3371,7 @@ export default function NBodySimulator() {
     focusedBody, trailLength, computeAdaptiveTimestep, physicsConfig, G_CODATA, integrator, INTEGRATORS,
     applyBarycentricCorrection, toNormalizedUnits, fromNormalizedUnits, detectAndHandleCollisions,
     checkRocheLimitViolations, checkPNValidity, initializeHistoryBuffer, ringBufferPush, convertToDebris,
-    getEffectiveSpeedOfLight]);
+    getEffectiveSpeedOfLight, trailBufferPush, trailBufferResize]);
 
   const selectedBodyData = useMemo(() => {
     if (!selectedBody) return null;
@@ -3189,342 +3400,423 @@ export default function NBodySimulator() {
     return "nbody-status-critical";
   };
 
-  const getStatusOnClass = () => "nbody-status-on";
-  const getStatusOffClass = () => "nbody-status-off";
-
   const isSymplecticDisabled = physicsConfig.includeGR || physicsConfig.includeJ2 || (physicsConfig.relativisticMode && physicsConfig.retardedGravity);
-
   const isRK4DisabledFor25PN = physicsConfig.includeGR && physicsConfig.grMode === '2.5pn';
+  const isEmbeddedDisabled = integrator !== INTEGRATORS.RK5;
+
+  const statusColor = isRunning ? "#4ade80" : "#64748b";
 
   return (
-    <div className="dinoSatPageWrapper">
+    <div className="nbody-page">
       <DinoLabsNav activePage={"sat"} />
 
-      <div className={`nbody-container nbody-theme-${theme}`}>
-        <div className={`nbody-sidebar ${sidebarCollapsed ? "nbody-sidebar-collapsed" : ""}`}>
-          {!sidebarCollapsed && (
-            <>
-              <div className="dinosatNBBodySimControlsPanel">
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Time Step (s)</label>
-                    <input type="number" value={timeStep} onChange={(e) => setTimeStep(parseFloat(e.target.value) || 1)} className="dinosatNBBodySimInput" />
-                  </div>
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Integrator</label>
-                    <select value={integrator} onChange={(e) => { const newIntegrator = e.target.value; setIntegrator(newIntegrator); if (newIntegrator === INTEGRATORS.YOSHIDA4 || newIntegrator === INTEGRATORS.VELOCITY_VERLET) { setPhysicsConfig(prev => ({ ...prev, timestepMethod: 'fixed' })); } }} className="dinosatNBBodySimSelect">
-                      <option value={INTEGRATORS.RK5}>RK5 Dormand-Prince</option>
-                      <option value={INTEGRATORS.RK4} disabled={isRK4DisabledFor25PN}>RK4 (4th Order){isRK4DisabledFor25PN ? ' - N/A for 2.5PN' : ''}</option>
-                      <option value={INTEGRATORS.YOSHIDA4} disabled={isSymplecticDisabled}>Yoshida4 (Symplectic){isSymplecticDisabled ? ' - N/A' : ''}</option>
-                      <option value={INTEGRATORS.VELOCITY_VERLET} disabled={isSymplecticDisabled}>Verlet (Symplectic){isSymplecticDisabled ? ' - N/A' : ''}</option>
-                    </select>
-                  </div>
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Timestep Mode</label>
-                    <select value={physicsConfig.timestepMethod} onChange={(e) => setPhysicsConfig({ ...physicsConfig, timestepMethod: e.target.value })} className="dinosatNBBodySimSelect" disabled={integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET}>
-                      <option value="fixed">Fixed Δt</option>
-                      <option value="aarseth">Aarseth (a/ȧ)</option>
-                      <option value="higherorder">Higher-Order</option>
-                    </select>
-                  </div>
+      <div className="nbody-container">
+        <header className="nbody-header">
+          <div className="nbody-header-content">
+            <div className="nbody-title-section">
+              <div className="nbody-subtitle">
+                {bodies.length} Bodies | {integrator === INTEGRATORS.RK5 ? "RKF45" : integrator.toUpperCase()} | T+ {formatTime(simulationTime)}
+              </div>
+            </div>
+            <div className="nbody-header-status">
+              <div className={`nbody-header-decision ${isRunning ? "nbody-decision-running" : "nbody-decision-paused"}`}>
+                <FontAwesomeIcon icon={isRunning ? faBroadcastTower : faPause} />
+                <span>{isRunning ? "RUNNING" : "PAUSED"}</span>
+              </div>
+              <div className={`nbody-header-decision ${systemStats.energyDrift < 1 ? "nbody-decision-nominal" : systemStats.energyDrift < 5 ? "nbody-decision-warning" : "nbody-decision-critical"}`}>
+                <FontAwesomeIcon icon={faSignal} />
+                <span>DRIFT {formatNumber(systemStats.energyDrift, 3)}%</span>
+              </div>
+              <button className={`nbody-alert-btn ${hudVisible ? "nbody-alert-btn-active" : ""}`} onClick={() => setHudVisible(!hudVisible)}>
+                <FontAwesomeIcon icon={faChartLine} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="nbody-main-content">
+          <aside className="nbody-sidebar">
+            <div className="nbody-controls-panel">
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label>Time Step (s)</label>
+                  <input type="number" value={timeStep} onChange={(e) => setTimeStep(parseFloat(e.target.value) || 1)} className="nbody-input" />
                 </div>
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.useNormalizedUnits} onChange={(e) => setPhysicsConfig({ ...physicsConfig, useNormalizedUnits: e.target.checked })} /><span>Normalized Units</span></label>
-                  </div>
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.barycentricCorrection} onChange={(e) => setPhysicsConfig({ ...physicsConfig, barycentricCorrection: e.target.checked })} /><span>Barycentric Frame</span></label>
-                  </div>
+                <div className="nbody-control-group">
+                  <label>Integrator</label>
+                  <select value={integrator} onChange={(e) => { const newIntegrator = e.target.value; setIntegrator(newIntegrator); if (newIntegrator === INTEGRATORS.YOSHIDA4 || newIntegrator === INTEGRATORS.VELOCITY_VERLET) { setPhysicsConfig(prev => ({ ...prev, timestepMethod: 'fixed' })); } if (newIntegrator !== INTEGRATORS.RK5 && physicsConfig.timestepMethod === 'embedded') { setPhysicsConfig(prev => ({ ...prev, timestepMethod: 'aarseth' })); } }} className="nbody-select">
+                    <option value={INTEGRATORS.RK5}>RKF45 Fehlberg</option>
+                    <option value={INTEGRATORS.RK4} disabled={isRK4DisabledFor25PN}>RK4 (4th Order){isRK4DisabledFor25PN ? ' - N/A' : ''}</option>
+                    <option value={INTEGRATORS.YOSHIDA4} disabled={isSymplecticDisabled}>Yoshida4 (Symplectic){isSymplecticDisabled ? ' - N/A' : ''}</option>
+                    <option value={INTEGRATORS.VELOCITY_VERLET} disabled={isSymplecticDisabled}>Verlet (Symplectic){isSymplecticDisabled ? ' - N/A' : ''}</option>
+                  </select>
                 </div>
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Collision Mode</label>
-                    <select value={physicsConfig.collisionMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, collisionMode: e.target.value })} className="dinosatNBBodySimSelect">
-                      <option value="none">None</option>
-                      <option value="merge">Merge (Inelastic)</option>
-                    </select>
-                  </div>
-                  {physicsConfig.collisionMode === 'merge' && (
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label>Ejecta Mass Loss (%)</label>
-                      <input type="number" value={(physicsConfig.collisionMassLoss || 0) * 100} onChange={(e) => setPhysicsConfig({ ...physicsConfig, collisionMassLoss: Math.max(0, Math.min(20, parseFloat(e.target.value) || 0)) / 100 })} className="dinosatNBBodySimInput" min="0" max="20" step="0.5" />
-                    </div>
-                  )}
+                <div className="nbody-control-group">
+                  <label>Timestep Mode</label>
+                  <select value={physicsConfig.timestepMethod} onChange={(e) => setPhysicsConfig({ ...physicsConfig, timestepMethod: e.target.value })} className="nbody-select" disabled={integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET}>
+                    <option value="fixed">Fixed</option>
+                    <option value="aarseth">Aarseth</option>
+                    <option value="higherorder">Higher-Order</option>
+                    <option value="embedded" disabled={isEmbeddedDisabled}>Embedded RKF45{isEmbeddedDisabled ? ' - N/A' : ''}</option>
+                  </select>
                 </div>
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.enableRocheLimit} onChange={(e) => setPhysicsConfig({ ...physicsConfig, enableRocheLimit: e.target.checked })} /><span>Roche Limit Detection</span></label>
-                  </div>
-                </div>
-                {physicsConfig.enableRocheLimit && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label>Roche Mode</label>
-                      <select value={physicsConfig.rocheDisruptionMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, rocheDisruptionMode: e.target.value })} className="dinosatNBBodySimSelect">
-                        <option value="warning">Warning Only</option>
-                        <option value="disrupt">Convert to Debris</option>
-                      </select>
-                    </div>
-                    {physicsConfig.rocheDisruptionMode === 'disrupt' && (
-                      <div className="nbody-physics-info">Debris: passive mass (no gravity on others).</div>
-                    )}
+                {physicsConfig.timestepMethod === 'embedded' && (
+                  <div className="nbody-control-group">
+                    <label>Tolerance</label>
+                    <input type="number" value={physicsConfig.embeddedTolerance} onChange={(e) => setPhysicsConfig({ ...physicsConfig, embeddedTolerance: parseFloat(e.target.value) || 1e-9 })} className="nbody-input" step="1e-10" />
                   </div>
                 )}
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.includeGR} onChange={(e) => { const newGR = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeGR: newGR }); if (newGR && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } if (newGR && physicsConfig.grMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }} /><span>GR Corrections</span></label>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.useNormalizedUnits} onChange={(e) => setPhysicsConfig({ ...physicsConfig, useNormalizedUnits: e.target.checked })} /><span>Normalized Units</span></label>
+                </div>
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.barycentricCorrection} onChange={(e) => setPhysicsConfig({ ...physicsConfig, barycentricCorrection: e.target.checked })} /><span>Barycentric Frame</span></label>
+                </div>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label>Collision Mode</label>
+                  <select value={physicsConfig.collisionMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, collisionMode: e.target.value })} className="nbody-select">
+                    <option value="none">None</option>
+                    <option value="merge">Merge (Inelastic)</option>
+                  </select>
+                </div>
+                {physicsConfig.collisionMode === 'merge' && (
+                  <div className="nbody-control-group">
+                    <label>Ejecta Mass Loss (%)</label>
+                    <input type="number" value={(physicsConfig.collisionMassLoss || 0) * 100} onChange={(e) => setPhysicsConfig({ ...physicsConfig, collisionMassLoss: Math.max(0, Math.min(20, parseFloat(e.target.value) || 0)) / 100 })} className="nbody-input" min="0" max="20" step="0.5" />
                   </div>
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.includeJ2} onChange={(e) => { const newJ2 = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeJ2: newJ2 }); if (newJ2 && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>J2 Oblateness</span></label>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.enableRocheLimit} onChange={(e) => setPhysicsConfig({ ...physicsConfig, enableRocheLimit: e.target.checked })} /><span>Roche Limit Detection</span></label>
+                </div>
+                {physicsConfig.enableRocheLimit && (
+                  <div className="nbody-control-group">
+                    <label>Roche Mode</label>
+                    <select value={physicsConfig.rocheDisruptionMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, rocheDisruptionMode: e.target.value })} className="nbody-select">
+                      <option value="warning">Warning Only</option>
+                      <option value="disrupt">Convert to Debris</option>
+                    </select>
                   </div>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.includeGR} onChange={(e) => { const newGR = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeGR: newGR }); if (newGR && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } if (newGR && physicsConfig.grMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }} /><span>GR Corrections</span></label>
+                </div>
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.includeJ2} onChange={(e) => { const newJ2 = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeJ2: newJ2 }); if (newJ2 && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>J2 Oblateness</span></label>
                 </div>
                 {physicsConfig.includeGR && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label>GR Order</label>
-                      <select value={physicsConfig.grMode} onChange={(e) => { const newMode = e.target.value; setPhysicsConfig({ ...physicsConfig, grMode: newMode }); if (newMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }} className="dinosatNBBodySimSelect">
-                        <option value="1pn">1PN (Conservative)</option>
-                        <option value="2.5pn">2.5PN (GW Radiation)</option>
-                      </select>
-                    </div>
+                  <div className="nbody-control-group">
+                    <label>GR Order</label>
+                    <select value={physicsConfig.grMode} onChange={(e) => { const newMode = e.target.value; setPhysicsConfig({ ...physicsConfig, grMode: newMode }); if (newMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }} className="nbody-select">
+                      <option value="1pn">1PN (Conservative)</option>
+                      <option value="2.5pn">2.5PN (GW Radiation)</option>
+                    </select>
                   </div>
                 )}
                 {physicsConfig.includeGR && physicsConfig.grMode === '2.5pn' && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.relativisticMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, relativisticMode: e.target.checked })} /><span>Relativistic Mode (Visible GW)</span></label>
+                  <>
+                    <div className="nbody-control-group">
+                      <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.relativisticMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, relativisticMode: e.target.checked })} /><span>Relativistic Mode</span></label>
                     </div>
                     {physicsConfig.relativisticMode && (
-                      <div className="dinosatNBBodySimControlGroup">
-                        <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.retardedGravity} onChange={(e) => { const newRetarded = e.target.checked; setPhysicsConfig({ ...physicsConfig, retardedGravity: newRetarded }); if (newRetarded && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>Retarded Gravity (Finite c)</span></label>
-                      </div>
+                      <>
+                        <div className="nbody-control-group">
+                          <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.retardedGravity} onChange={(e) => { const newRetarded = e.target.checked; setPhysicsConfig({ ...physicsConfig, retardedGravity: newRetarded }); if (newRetarded && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>Retarded Gravity</span></label>
+                        </div>
+                        {physicsConfig.retardedGravity && (
+                          <div className="nbody-control-group">
+                            <label>Retarded Iterations</label>
+                            <input type="number" value={physicsConfig.retardedIterations} onChange={(e) => setPhysicsConfig({ ...physicsConfig, retardedIterations: Math.max(1, parseInt(e.target.value) || 1) })} className="nbody-input" min="1" max="10" step="1" />
+                          </div>
+                        )}
+                        <div className="nbody-control-group">
+                          <label>c Reduction Factor</label>
+                          <select value={physicsConfig.cReductionFactor} onChange={(e) => setPhysicsConfig({ ...physicsConfig, cReductionFactor: parseInt(e.target.value) })} className="nbody-select">
+                            <option value={100}>100x</option>
+                            <option value={1000}>1000x</option>
+                            <option value={10000}>10000x</option>
+                          </select>
+                        </div>
+                        <div className="nbody-physics-notice">
+                          <FontAwesomeIcon icon={faExclamationTriangle} />
+                          <span>Non-physical c. For visualization only.</span>
+                        </div>
+                      </>
                     )}
-                    {physicsConfig.relativisticMode && physicsConfig.retardedGravity && (
-                      <div className="nbody-physics-warning">⚠️ 2.5PN radiation disabled - retardation provides energy drain.</div>
-                    )}
-                    {physicsConfig.relativisticMode && (
-                      <div className="nbody-physics-warning">⚠️ Non-physical c! For visualization only. GW decay now visible.</div>
-                    )}
-                  </div>
-                )}
-                {physicsConfig.includeGR && physicsConfig.grMode === '2.5pn' && physicsConfig.relativisticMode && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label>c Reduction Factor</label>
-                      <select value={physicsConfig.cReductionFactor} onChange={(e) => setPhysicsConfig({ ...physicsConfig, cReductionFactor: parseInt(e.target.value) })} className="dinosatNBBodySimSelect">
-                        <option value={100}>100× (c ≈ 3×10⁶ m/s)</option>
-                        <option value={1000}>1000× (c ≈ 3×10⁵ m/s)</option>
-                        <option value={10000}>10000× (c ≈ 3×10⁴ m/s)</option>
-                      </select>
-                    </div>
-                  </div>
+                  </>
                 )}
                 {physicsConfig.includeJ2 && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={physicsConfig.j2BackReaction} onChange={(e) => setPhysicsConfig({ ...physicsConfig, j2BackReaction: e.target.checked })} /><span>Spin Axis Precession</span></label>
-                    </div>
+                  <div className="nbody-control-group">
+                    <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.j2BackReaction} onChange={(e) => setPhysicsConfig({ ...physicsConfig, j2BackReaction: e.target.checked })} /><span>Spin Axis Precession</span></label>
                   </div>
                 )}
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label className="dinosatNBBodySimCheckboxLabel"><input type="checkbox" checked={softeningConfig.enabled} onChange={(e) => setSofteningConfig({ ...softeningConfig, enabled: e.target.checked })} /><span>Softening (Collisionless)</span></label>
-                  </div>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={softeningConfig.enabled} onChange={(e) => setSofteningConfig({ ...softeningConfig, enabled: e.target.checked })} /><span>Softening</span></label>
                 </div>
                 {softeningConfig.enabled && (
-                  <div className="dinosatNBBodySimControlGroupStack">
-                    <div className="nbody-physics-warning" style={{padding: 0, textAlign: "center"}}>Softening alters 1/r² gravity. Not suitable for planetary dynamics.</div>
-                    <div className="dinosatNBBodySimControlGroup">
+                  <>
+                    <div className="nbody-physics-notice">
+                      <FontAwesomeIcon icon={faInfoCircle} />
+                      <span>Alters 1/r gravity. Not for planetary dynamics.</span>
+                    </div>
+                    <div className="nbody-control-group">
                       <label>Kernel</label>
-                      <select value={softeningConfig.mode} onChange={(e) => setSofteningConfig({ ...softeningConfig, mode: e.target.value })} className="dinosatNBBodySimSelect">
+                      <select value={softeningConfig.mode} onChange={(e) => setSofteningConfig({ ...softeningConfig, mode: e.target.value })} className="nbody-select">
                         <option value="plummer">Plummer</option>
                         <option value="spline">Cubic Spline</option>
                         <option value="wendlandC2">Wendland C2</option>
                       </select>
                     </div>
-                    <div className="dinosatNBBodySimControlGroup">
-                      <label>ε Length (m)</label>
-                      <input type="number" value={softeningConfig.fixedLength} onChange={(e) => setSofteningConfig({ ...softeningConfig, fixedLength: parseFloat(e.target.value) || 1e9 })} className="dinosatNBBodySimInput" />
+                    <div className="nbody-control-group">
+                      <label>Length (m)</label>
+                      <input type="number" value={softeningConfig.fixedLength} onChange={(e) => setSofteningConfig({ ...softeningConfig, fixedLength: parseFloat(e.target.value) || 1e9 })} className="nbody-input" />
                     </div>
-                  </div>
+                  </>
                 )}
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Scale Mode</label>
-                    <select value={scaleMode} onChange={(e) => setScaleMode(e.target.value)} className="dinosatNBBodySimSelect">
-                      <option value="log">Logarithmic</option>
-                      <option value="linear">Linear</option>
-                    </select>
-                  </div>
-                  <div className="dinosatNBBodySimControlGroup">
-                    <label>Trail Length</label>
-                    <input type="number" value={trailLength} onChange={(e) => setTrailLength(parseInt(e.target.value) || 100)} className="dinosatNBBodySimInput" min="10" max="2000" />
-                  </div>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label>Scale Mode</label>
+                  <select value={scaleMode} onChange={(e) => setScaleMode(e.target.value)} className="nbody-select">
+                    <option value="log">Logarithmic</option>
+                    <option value="linear">Linear</option>
+                  </select>
                 </div>
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="dinosatNBBodySimControlGroupSlider">
-                    <label>Grid Warp<span className="dinosatNBBodySimSliderValue">{gridWarpStrength}</span></label>
-                    <div className="dinosatNBBodySimSliderGroup"><input type="range" value={gridWarpStrength} onChange={(e) => setGridWarpStrength(parseFloat(e.target.value))} className="dinosatNBBodySimSlider" min="0" max="200" step="1" /></div>
-                  </div>
-                  <div className="dinosatNBBodySimControlGroupSlider">
-                    <label>Warp Spread<span className="dinosatNBBodySimSliderValue">{gridWarpSpread}</span></label>
-                    <div className="dinosatNBBodySimSliderGroup"><input type="range" value={gridWarpSpread} onChange={(e) => setGridWarpSpread(parseFloat(e.target.value))} className="dinosatNBBodySimSlider" min="10" max="100" step="5" /></div>
-                  </div>
+                <div className="nbody-control-group">
+                  <label>Trail Length</label>
+                  <input type="number" value={trailLength} onChange={(e) => setTrailLength(parseInt(e.target.value) || 100)} className="nbody-input" min="10" max="2000" />
                 </div>
-                <div className="dinosatNBBodySimControlGroupStack">
-                  <div className="nbody-section-header"><FontAwesomeIcon icon={faGlobe} /> Bodies ({bodies.length})</div>
-                  <div className="dinosatNBBodySimControlActionsLong">
-                    <button className="dinosatNBBodySimBtnLong dinosatNBBodySimBtnPrimary" onClick={openAddBodyModal}><FontAwesomeIcon icon={faPlus} /> Add</button>
-                    <button className="dinosatNBBodySimBtnLong dinosatNBBodySimBtnSecondary" onClick={() => setBodies([])}><FontAwesomeIcon icon={faTrash} /> Clear</button>
-                  </div>
-                  <div className="nbody-body-list">
-                    {bodies.map(body => (
-                      <div key={body.id} className={`nbody-body-item ${selectedBody === body.id ? "selected" : ""} ${body.isDebris ? "debris" : ""}`} onClick={() => setSelectedBody(body.id)}>
-                        <div className="nbody-body-color" style={{ backgroundColor: body.isDebris ? '#666' : body.color }} />
-                        <div className="nbody-body-info"><span className="nbody-body-name">{body.name}{body.isDebris ? ' ☁️' : ''}</span></div>
-                        <div className="nbody-body-actions">
-                          <button onClick={(e) => { e.stopPropagation(); setFocusedBody(focusedBody === body.id ? null : body.id); }} className={focusedBody === body.id ? "active" : ""}><FontAwesomeIcon icon={faCrosshairs} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); updateBody(body.id, { visible: !body.visible }); }}><FontAwesomeIcon icon={body.visible ? faEye : faEyeSlash} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); if (!isRunning) setEditBodyModal({ ...body, mass: body.gm / G_CODATA }); }} disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faEdit} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); removeBody(body.id); }} className="danger" disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faTrash} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="nbody-control-group-slider">
+                  <label>Grid Warp<span className="nbody-slider-value">{gridWarpStrength}</span></label>
+                  <div className="nbody-slider-group"><input type="range" value={gridWarpStrength} onChange={(e) => setGridWarpStrength(parseFloat(e.target.value))} className="nbody-slider" min="0" max="200" step="1" /></div>
                 </div>
-                <div className="dinosatNBBodySimControlActions">
-                  <button className="dinosatNBBodySimBtn dinosatNBBodySimBtnPrimary" onClick={() => setBodies([])}><FontAwesomeIcon icon={faRedo} /> Reset</button>
-                  <button className="dinosatNBBodySimBtn dinosatNBBodySimBtnSecondary" onClick={() => setHudVisible(!hudVisible)}><FontAwesomeIcon icon={faChartLine} /> Stats HUD</button>
+                <div className="nbody-control-group-slider">
+                  <label>Warp Spread<span className="nbody-slider-value">{gridWarpSpread}</span></label>
+                  <div className="nbody-slider-group"><input type="range" value={gridWarpSpread} onChange={(e) => setGridWarpSpread(parseFloat(e.target.value))} className="nbody-slider" min="10" max="100" step="5" /></div>
                 </div>
               </div>
-              {selectedBodyData && (
-                <div className="nbody-controls-section">
-                  <div className="nbody-section-header"><FontAwesomeIcon icon={faRocket} /> {selectedBodyData.name}</div>
-                  <div className="nbody-detail-grid">
-                    <div className="nbody-detail-item"><span>Pos X</span><span>{formatNumber(selectedBodyData.x / AU)} AU</span></div>
-                    <div className="nbody-detail-item"><span>Pos Y</span><span>{formatNumber(selectedBodyData.y / AU)} AU</span></div>
-                    <div className="nbody-detail-item"><span>Pos Z</span><span>{formatNumber(selectedBodyData.z / AU)} AU</span></div>
-                    <div className="nbody-detail-item"><span>Vel X</span><span>{formatNumber(selectedBodyData.vx / 1000)} km/s</span></div>
-                    <div className="nbody-detail-item"><span>Vel Y</span><span>{formatNumber(selectedBodyData.vy / 1000)} km/s</span></div>
-                    <div className="nbody-detail-item"><span>Vel Z</span><span>{formatNumber(selectedBodyData.vz / 1000)} km/s</span></div>
-                    <div className="nbody-detail-item"><span>Speed</span><span>{formatNumber(Math.sqrt(selectedBodyData.vx ** 2 + selectedBodyData.vy ** 2 + selectedBodyData.vz ** 2) / 1000)} km/s</span></div>
-                    <div className="nbody-detail-item"><span>Mass</span><span>{formatNumber(selectedBodyData.gm / G_CODATA)} kg</span></div>
-                  </div>
-                  {selectedBodyOrbital && (
-                    <>
-                      <div className="nbody-section-subheader">Orbital Elements (Osculating)<span className={`nbody-orbit-type-label ${getOrbitTypeClass(selectedBodyOrbital.orbitType)}`}>({selectedBodyOrbital.orbitType})</span></div>
-                      <div className="nbody-detail-grid">
-                        {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Semi-Major</span><span>{formatNumber(selectedBodyOrbital.semiMajorAxis / AU)} AU</span></div>)}
-                        {selectedBodyOrbital.orbitType === "hyperbolic" && (<div className="nbody-detail-item"><span>|Semi-Major|</span><span>{formatNumber(Math.abs(selectedBodyOrbital.semiMajorAxis) / AU)} AU</span></div>)}
-                        <div className="nbody-detail-item"><span>Eccentricity</span><span>{formatNumber(selectedBodyOrbital.eccentricity, 4)}</span></div>
-                        <div className="nbody-detail-item"><span>Inclination</span><span>{formatNumber(selectedBodyOrbital.inclination)}°</span></div>
-                        {selectedBodyOrbital.orbitType !== "hyperbolic" && selectedBodyOrbital.orbitType !== "parabolic" && (<div className="nbody-detail-item"><span>Period</span><span>{formatTime(selectedBodyOrbital.period)}</span></div>)}
-                        {selectedBodyOrbital.orbitType === "hyperbolic" && (<div className="nbody-detail-item"><span>V∞</span><span>{formatNumber(Math.sqrt(-selectedBodyData.gm / selectedBodyOrbital.semiMajorAxis) / 1000, 2)} km/s</span></div>)}
-                        {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Apoapsis</span><span>{formatNumber(selectedBodyOrbital.apoapsis / AU)} AU</span></div>)}
-                        <div className="nbody-detail-item"><span>Periapsis</span><span>{formatNumber(Math.abs(selectedBodyOrbital.periapsis) / AU)} AU</span></div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-section-header">
+                  <FontAwesomeIcon icon={faGlobe} />
+                  <span>Bodies ({bodies.length})</span>
+                </div>
+                <div className="nbody-control-actions-inline">
+                  <button className="nbody-btn nbody-btn-primary" onClick={openAddBodyModal}><FontAwesomeIcon icon={faPlus} /> Add</button>
+                  <button className="nbody-btn nbody-btn-secondary" onClick={clearAllBodies}><FontAwesomeIcon icon={faTrash} /> Clear</button>
+                </div>
+                <div className="nbody-body-list">
+                  {bodies.map(body => (
+                    <div key={body.id} className={`nbody-body-item ${selectedBody === body.id ? "selected" : ""} ${body.isDebris ? "debris" : ""}`} onClick={() => setSelectedBody(body.id)}>
+                      <div className="nbody-body-color" style={{ backgroundColor: body.isDebris ? '#666' : body.color }} />
+                      <div className="nbody-body-info">
+                        <span className="nbody-body-name">{body.name}</span>
+                        {body.isDebris && <FontAwesomeIcon icon={faAtom} className="nbody-debris-icon" title="Debris" />}
                       </div>
-                      {selectedBodyOrbital.orbitType === "hyperbolic" && (<div className="nbody-hyperbolic-warning">Unbound trajectory - will escape system</div>)}
-                    </>
-                  )}
+                      <div className="nbody-body-actions">
+                        <button onClick={(e) => { e.stopPropagation(); setFocusedBody(focusedBody === body.id ? null : body.id); }} className={focusedBody === body.id ? "active" : ""}><FontAwesomeIcon icon={faCrosshairs} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); updateBody(body.id, { visible: !body.visible }); }}><FontAwesomeIcon icon={body.visible ? faEye : faEyeSlash} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); if (!isRunning) setEditBodyModal({ ...body, mass: body.gm / G_CODATA }); }} disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faEdit} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); removeBody(body.id); }} className="danger" disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faTrash} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="nbody-control-actions">
+                <button className="nbody-btn nbody-btn-primary" onClick={resetSimulation}><FontAwesomeIcon icon={faRotate} /> Reset</button>
+                <button className="nbody-btn nbody-btn-secondary" onClick={() => setHudVisible(!hudVisible)}><FontAwesomeIcon icon={faChartLine} /> Stats</button>
+              </div>
+            </div>
+
+            {selectedBodyData && (
+              <div className="nbody-inspector-panel">
+                <div className="nbody-panel-header-with-badge">
+                  <h3><FontAwesomeIcon icon={faRocket} /> {selectedBodyData.name}</h3>
+                </div>
+                <div className="nbody-detail-grid">
+                  <div className="nbody-detail-item"><span>Pos X</span><span>{formatNumber(selectedBodyData.x / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Pos Y</span><span>{formatNumber(selectedBodyData.y / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Pos Z</span><span>{formatNumber(selectedBodyData.z / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Vel X</span><span>{formatNumber(selectedBodyData.vx / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Vel Y</span><span>{formatNumber(selectedBodyData.vy / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Vel Z</span><span>{formatNumber(selectedBodyData.vz / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Speed</span><span>{formatNumber(Math.sqrt(selectedBodyData.vx ** 2 + selectedBodyData.vy ** 2 + selectedBodyData.vz ** 2) / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Mass</span><span>{formatNumber(selectedBodyData.gm / G_CODATA)} kg</span></div>
+                </div>
+                {selectedBodyOrbital && (
+                  <>
+                    <div className="nbody-section-subheader">
+                      Orbital Elements
+                      <span className={`nbody-orbit-type-label ${getOrbitTypeClass(selectedBodyOrbital.orbitType)}`}>({selectedBodyOrbital.orbitType})</span>
+                    </div>
+                    <div className="nbody-detail-grid">
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Semi-Major</span><span>{formatNumber(selectedBodyOrbital.semiMajorAxis / AU)} AU</span></div>)}
+                      {selectedBodyOrbital.orbitType === "hyperbolic" && (<div className="nbody-detail-item"><span>|Semi-Major|</span><span>{formatNumber(Math.abs(selectedBodyOrbital.semiMajorAxis) / AU)} AU</span></div>)}
+                      <div className="nbody-detail-item"><span>Eccentricity</span><span>{formatNumber(selectedBodyOrbital.eccentricity, 4)}</span></div>
+                      <div className="nbody-detail-item"><span>Inclination</span><span>{formatNumber(selectedBodyOrbital.inclination)}deg</span></div>
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && selectedBodyOrbital.orbitType !== "parabolic" && (<div className="nbody-detail-item"><span>Period</span><span>{formatTime(selectedBodyOrbital.period)}</span></div>)}
+                      <div className="nbody-detail-item"><span>Periapsis</span><span>{formatNumber(Math.abs(selectedBodyOrbital.periapsis) / AU)} AU</span></div>
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Apoapsis</span><span>{formatNumber(selectedBodyOrbital.apoapsis / AU)} AU</span></div>)}
+                    </div>
+                    {selectedBodyOrbital.orbitType === "hyperbolic" && (
+                      <div className="nbody-physics-notice nbody-notice-warning">
+                        <FontAwesomeIcon icon={faExclamationTriangle} />
+                        <span>Unbound trajectory - will escape system</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </aside>
+
+          <div className="nbody-content-area">
+            <nav className="nbody-tabs">
+              <button className="nbody-tab" onClick={() => setIsRunning(!isRunning)}>
+                <FontAwesomeIcon icon={isRunning ? faPause : faPlay} />
+                <span>{isRunning ? "Pause" : "Play"}</span>
+              </button>
+              <button className="nbody-tab" onClick={resetSimulation}>
+                <FontAwesomeIcon icon={faRedo} />
+                <span>Reset</span>
+              </button>
+              {SPEED_OPTIONS.map(opt => (
+                <button key={opt.label} className={`nbody-tab ${speedMultiplier === opt.value ? "nbody-tab-active" : ""}`} onClick={() => setSpeedMultiplier(opt.value)}>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+              <span className="nbody-time-readout">T+ {formatTime(simulationTime)}</span>
+              <button className={`nbody-tab ${showTrails ? "nbody-tab-active" : ""}`} onClick={() => setShowTrails(!showTrails)}><span>Trails</span></button>
+              <button className={`nbody-tab ${showLabels ? "nbody-tab-active" : ""}`} onClick={() => setShowLabels(!showLabels)}><span>Labels</span></button>
+              <button className={`nbody-tab ${showVectors ? "nbody-tab-active" : ""}`} onClick={() => setShowVectors(!showVectors)}><span>Vectors</span></button>
+              <button className={`nbody-tab ${showGrid ? "nbody-tab-active" : ""}`} onClick={() => setShowGrid(!showGrid)}><span>Grid</span></button>
+              <button className="nbody-tab" onClick={() => { if (cameraRef.current) { cameraRef.current.position.set(100, 60, 100); cameraRef.current.lookAt(0, 0, 0); } }}><span>Reset Cam</span></button>
+            </nav>
+
+            <div className="nbody-tab-content">
+              <div ref={mountRef} className="nbody-canvas-container" />
+
+              {pnWarnings.length > 0 && (
+                <div className="nbody-pn-warnings">
+                  {pnWarnings.map((w, idx) => (
+                    <div key={idx} className="nbody-warning-item">
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>{w.message} ({w.bodies.join(' / ')})</span>
+                    </div>
+                  ))}
                 </div>
               )}
-            </>
-          )}
+
+              {systemStats.rocheViolations && systemStats.rocheViolations.length > 0 && (
+                <div className="nbody-roche-warnings">
+                  {systemStats.rocheViolations.map((v, idx) => (
+                    <div key={idx} className="nbody-warning-item nbody-warning-critical">
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>Roche Limit: {v.secondaryName} inside Roche limit of {v.primaryName} ({(v.ratio * 100).toFixed(1)}%)</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {hudVisible && (
+                <div ref={hudPanelRef} className="nbody-hud-panel" style={{ transform: `translate(calc(-50% + ${hudPosition.x}px), calc(-50% + ${hudPosition.y}px))` }} onMouseDown={handleHudMouseDown}>
+                  <div className="nbody-hud-header">
+                    <span>System Telemetry</span>
+                    <button className="nbody-close-btn" onClick={() => setHudVisible(false)}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+                  </div>
+                  <div className="nbody-hud-content">
+                    <div className="nbody-hud-section">
+                      <h4>Energy Conservation</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>Total Energy</span><span>{formatNumber(systemStats.totalEnergy)} J</span></div>
+                        <div className="nbody-hud-item"><span>Kinetic</span><span>{formatNumber(systemStats.kineticEnergy)} J</span></div>
+                        <div className="nbody-hud-item"><span>Potential</span><span>{formatNumber(systemStats.potentialEnergy)} J</span></div>
+                        {physicsConfig.includeGR && (<div className="nbody-hud-item"><span>Relativistic</span><span>{formatNumber(systemStats.relativisticEnergy)} J</span></div>)}
+                        <div className="nbody-hud-item"><span>Energy Drift</span><span className={getEnergyDriftClass(systemStats.energyDrift)}>{formatNumber(systemStats.energyDrift, 4)}%</span></div>
+                        <div className="nbody-hud-item"><span>RKF45 Err</span><span>{formatNumber(systemStats.lastErrorNorm, 3)}</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Momentum</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>Px</span><span>{formatNumber(systemStats.totalMomentum.x)}</span></div>
+                        <div className="nbody-hud-item"><span>Py</span><span>{formatNumber(systemStats.totalMomentum.y)}</span></div>
+                        <div className="nbody-hud-item"><span>Pz</span><span>{formatNumber(systemStats.totalMomentum.z)}</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Center of Mass</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>X</span><span>{formatNumber(systemStats.centerOfMass.x / AU)} AU</span></div>
+                        <div className="nbody-hud-item"><span>Y</span><span>{formatNumber(systemStats.centerOfMass.y / AU)} AU</span></div>
+                        <div className="nbody-hud-item"><span>Z</span><span>{formatNumber(systemStats.centerOfMass.z / AU)} AU</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Performance</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>FPS</span><span>{actualFps}</span></div>
+                        <div className="nbody-hud-item"><span>Bodies</span><span>{systemStats.bodyCount}</span></div>
+                        <div className="nbody-hud-item"><span>Integrator</span><span className="nbody-status-on">{integrator === INTEGRATORS.RK5 ? 'RKF45' : integrator.toUpperCase()}</span></div>
+                        <div className="nbody-hud-item"><span>Timestep</span><span className="nbody-status-on">{physicsConfig.timestepMethod === 'fixed' ? "FIXED" : physicsConfig.timestepMethod.toUpperCase()}</span></div>
+                        <div className="nbody-hud-item"><span>Normalized</span><span className={physicsConfig.useNormalizedUnits ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.useNormalizedUnits ? "ON" : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Barycentric</span><span className={physicsConfig.barycentricCorrection ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.barycentricCorrection ? "ON" : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Collisions</span><span className={physicsConfig.collisionMode !== 'none' ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.collisionMode === 'none' ? 'OFF' : 'MERGE'}</span></div>
+                        <div className="nbody-hud-item"><span>Roche</span><span className={physicsConfig.enableRocheLimit ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.enableRocheLimit ? (physicsConfig.rocheDisruptionMode === 'disrupt' ? 'DEBRIS' : 'WARN') : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Softening</span><span className={softeningConfig.enabled ? "nbody-status-warning" : "nbody-status-off"}>{softeningConfig.enabled ? softeningConfig.mode.toUpperCase() : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>GR</span><span className={physicsConfig.includeGR ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.includeGR ? (physicsConfig.grMode === '2.5pn' ? (physicsConfig.relativisticMode ? (physicsConfig.retardedGravity ? `RET c/${physicsConfig.cReductionFactor}` : `2.5PN c/${physicsConfig.cReductionFactor}`) : "2.5PN+GW") : "1PN") : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>J2</span><span className={physicsConfig.includeJ2 ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.includeJ2 ? (physicsConfig.j2BackReaction ? "PRECESSING" : "FIXED") : "OFF"}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="nbody-main-view">
-          <div className="nbody-header">
-            <div className="nbody-playback-controls">
-              <button className="nbody-playback-btn" onClick={() => setIsRunning(!isRunning)}><FontAwesomeIcon icon={isRunning ? faPause : faPlay} /></button>
-              <button className="nbody-playback-btn" onClick={resetSimulation}><FontAwesomeIcon icon={faRedo} /></button>
-              {SPEED_OPTIONS.map(opt => (<button key={opt.label} className={`nbody-speed-btn ${speedMultiplier === opt.value ? "active" : ""}`} onClick={() => setSpeedMultiplier(opt.value)}>{opt.label}</button>))}
-              <div className="nbody-time-display">T+ {formatTime(simulationTime)}</div>
-              <button className={`nbody-playback-btn ${hudVisible ? "active" : ""}`} onClick={() => setHudVisible(!hudVisible)}><FontAwesomeIcon icon={faChartLine} /> HUD</button>
-            </div>
+        <footer className="nbody-footer">
+          <div className="nbody-footer-content">
+            <span>T+ {formatTime(simulationTime)}</span>
+            <span>FPS: {actualFps}</span>
+            <span>Bodies: {systemStats.bodyCount}</span>
+            <span>Drift: {formatNumber(systemStats.energyDrift, 3)}%</span>
+            <span>Integrator: {integrator === INTEGRATORS.RK5 ? 'RKF45' : integrator.toUpperCase()}</span>
+            <span>{isRunning ? "RUNNING" : "PAUSED"}</span>
           </div>
-          <div ref={mountRef} className="nbody-canvas-container" />
-          {pnWarnings.length > 0 && (
-            <div className="nbody-pn-warnings">
-              {pnWarnings.map((w, idx) => (
-                <div key={idx} className="nbody-pn-warning-item">⚠️ {w.message} ({w.bodies.join(' ↔ ')})</div>
-              ))}
-            </div>
-          )}
-          {systemStats.rocheViolations && systemStats.rocheViolations.length > 0 && (
-            <div className="nbody-roche-warnings">
-              {systemStats.rocheViolations.map((v, idx) => (
-                <div key={idx} className="nbody-roche-warning-item">⚠️ Roche Limit: {v.secondaryName} inside Roche limit of {v.primaryName} ({(v.ratio * 100).toFixed(1)}%)</div>
-              ))}
-            </div>
-          )}
-          <div className="nbody-view-controls">
-            <div className="nbody-panel-header"><span>View Controls</span></div>
-            <div className="nbody-panel-content">
-              <button className={`nbody-view-btn ${showTrails ? "active" : ""}`} onClick={() => setShowTrails(!showTrails)}>Trails</button>
-              <button className={`nbody-view-btn ${showLabels ? "active" : ""}`} onClick={() => setShowLabels(!showLabels)}>Labels</button>
-              <button className={`nbody-view-btn ${showVectors ? "active" : ""}`} onClick={() => setShowVectors(!showVectors)}>Vectors</button>
-              <button className={`nbody-view-btn ${showGrid ? "active" : ""}`} onClick={() => setShowGrid(!showGrid)}>Grid</button>
-              <button className="nbody-view-btn" onClick={() => { if (cameraRef.current) { cameraRef.current.position.set(100, 60, 100); cameraRef.current.lookAt(0, 0, 0); } }}>Reset Cam</button>
-            </div>
-          </div>
-          {hudVisible && (
-            <div ref={hudPanelRef} className="nbody-hud-panel" style={{ transform: `translate(calc(-50% + ${hudPosition.x}px), calc(-50% + ${hudPosition.y}px))` }} onMouseDown={handleHudMouseDown}>
-              <div className="nbody-hud-header"><span>System Statistics</span><button className="nbody-close-btn" onClick={() => setHudVisible(false)}><FontAwesomeIcon icon={faXmarkSquare} /></button></div>
-              <div className="nbody-hud-content">
-                <div className="nbody-hud-section">
-                  <h4>Energy Conservation</h4>
-                  <div className="nbody-hud-grid">
-                    <div className="nbody-hud-item"><span>Total Energy</span><span>{formatNumber(systemStats.totalEnergy)} J</span></div>
-                    <div className="nbody-hud-item"><span>Kinetic</span><span>{formatNumber(systemStats.kineticEnergy)} J</span></div>
-                    <div className="nbody-hud-item"><span>Potential</span><span>{formatNumber(systemStats.potentialEnergy)} J</span></div>
-                    {physicsConfig.includeGR && (<div className="nbody-hud-item"><span>Relativistic</span><span>{formatNumber(systemStats.relativisticEnergy)} J</span></div>)}
-                    <div className="nbody-hud-item"><span>Energy Drift</span><span className={getEnergyDriftClass(systemStats.energyDrift)}>{formatNumber(systemStats.energyDrift, 4)}%{physicsConfig.includeGR && <small title="1PN energy is approximate - drift may not reflect true integration error"> *</small>}</span></div>
-                  </div>
-                </div>
-                <div className="nbody-hud-section">
-                  <h4>Momentum</h4>
-                  <div className="nbody-hud-grid">
-                    <div className="nbody-hud-item"><span>P<sub>x</sub></span><span>{formatNumber(systemStats.totalMomentum.x)} kg·m/s</span></div>
-                    <div className="nbody-hud-item"><span>P<sub>y</sub></span><span>{formatNumber(systemStats.totalMomentum.y)} kg·m/s</span></div>
-                    <div className="nbody-hud-item"><span>P<sub>z</sub></span><span>{formatNumber(systemStats.totalMomentum.z)} kg·m/s</span></div>
-                  </div>
-                </div>
-                <div className="nbody-hud-section">
-                  <h4>Center of Mass</h4>
-                  <div className="nbody-hud-grid">
-                    <div className="nbody-hud-item"><span>X</span><span>{formatNumber(systemStats.centerOfMass.x / AU)} AU</span></div>
-                    <div className="nbody-hud-item"><span>Y</span><span>{formatNumber(systemStats.centerOfMass.y / AU)} AU</span></div>
-                    <div className="nbody-hud-item"><span>Z</span><span>{formatNumber(systemStats.centerOfMass.z / AU)} AU</span></div>
-                  </div>
-                </div>
-                <div className="nbody-hud-section">
-                  <h4>Performance</h4>
-                  <div className="nbody-hud-grid">
-                    <div className="nbody-hud-item"><span>FPS</span><span>{actualFps}</span></div>
-                    <div className="nbody-hud-item"><span>Bodies</span><span>{systemStats.bodyCount}</span></div>
-                    <div className="nbody-hud-item"><span>Integrator</span><span className={getStatusOnClass()}>{integrator === INTEGRATORS.RK5 ? 'RK5' : integrator.toUpperCase()}</span></div>
-                    <div className="nbody-hud-item"><span>Timestep</span><span className={getStatusOnClass()}>{physicsConfig.timestepMethod === 'fixed' ? "FIXED" : physicsConfig.timestepMethod.toUpperCase()}</span></div>
-                    <div className="nbody-hud-item"><span>Normalized</span><span className={physicsConfig.useNormalizedUnits ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.useNormalizedUnits ? "ON" : "OFF"}</span></div>
-                    <div className="nbody-hud-item"><span>Barycentric</span><span className={physicsConfig.barycentricCorrection ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.barycentricCorrection ? "ON" : "OFF"}</span></div>
-                    <div className="nbody-hud-item"><span>Collisions</span><span className={physicsConfig.collisionMode !== 'none' ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.collisionMode === 'none' ? 'OFF' : `MERGE${physicsConfig.collisionMassLoss > 0 ? ` -${(physicsConfig.collisionMassLoss * 100).toFixed(0)}%` : ''}`}</span></div>
-                    <div className="nbody-hud-item"><span>Roche</span><span className={physicsConfig.enableRocheLimit ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.enableRocheLimit ? (physicsConfig.rocheDisruptionMode === 'disrupt' ? 'DEBRIS' : 'WARNING') : "OFF"}</span></div>
-                    <div className="nbody-hud-item"><span>Softening</span><span className={softeningConfig.enabled ? "nbody-status-warning" : getStatusOffClass()}>{softeningConfig.enabled ? softeningConfig.mode.toUpperCase() : "OFF"}</span></div>
-                    <div className="nbody-hud-item"><span>GR</span><span className={physicsConfig.includeGR ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.includeGR ? (physicsConfig.grMode === '2.5pn' ? (physicsConfig.relativisticMode ? (physicsConfig.retardedGravity ? `RET c/${physicsConfig.cReductionFactor}` : `2.5PN c/${physicsConfig.cReductionFactor}`) : "2.5PN+GW") : "1PN") : "OFF"}</span></div>
-                    <div className="nbody-hud-item"><span>J2</span><span className={physicsConfig.includeJ2 ? getStatusOnClass() : getStatusOffClass()}>{physicsConfig.includeJ2 ? (physicsConfig.j2BackReaction ? "PRECESSING" : "FIXED") : "OFF"}</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        </footer>
       </div>
 
       {addBodyModal && (
-        <div className="nbody-modal-overlay" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }}>
-          <div className="nbody-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="nbody-modal-header"><span>Add Celestial Body</span><button className="nbody-close-btn" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button></div>
+          <div className="nbody-modal">
+            <div className="nbody-modal-header">
+              <span>Add Celestial Body</span>
+              <button className="nbody-close-btn" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+            </div>
             <div className="nbody-modal-content">
-              {bodies.length === 0 && (<div className="nbody-modal-tip"><FontAwesomeIcon icon={faFlask} /><div><strong>Getting Started:</strong> Add a massive central body (like a star) at the origin to begin your simulation.</div></div>)}
+              {bodies.length === 0 && (
+                <div className="nbody-modal-tip">
+                  <FontAwesomeIcon icon={faFlask} />
+                  <div><strong>Getting Started:</strong> Add a massive central body (like a star) at the origin to begin your simulation.</div>
+                </div>
+              )}
               <div className="nbody-modal-section">
                 <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faGlobe} />Basic Properties</div>
                 <div className="nbody-modal-section-content">
@@ -3535,7 +3827,7 @@ export default function NBodySimulator() {
                   </div>
                   <div className="nbody-modal-color-row">
                     <label>Color</label>
-                    <Tippy content={<DinoLabsColorPicker color={newBody.color} onChange={(c) => setNewBody({ ...newBody, color: c })} />} visible={addBodyColorPickerOpen} onClickOutside={() => setAddBodyColorPickerOpen(false)} interactive={true} placement="right" className="color-picker-tippy" appendTo={() => document.body}>
+                    <Tippy content={<DinoLabsColorPicker color={newBody.color} onChange={(c) => setNewBody({ ...newBody, color: c })} />} visible={addBodyColorPickerOpen} onClickOutside={() => setAddBodyColorPickerOpen(false)} interactive={true} placement="bottom" className="color-picker-tippy" appendTo={() => document.body}>
                       <div className="nbody-color-picker-swatch" onClick={() => setAddBodyColorPickerOpen((prev) => !prev)} style={{ backgroundColor: newBody.color }} />
                     </Tippy>
                   </div>
@@ -3549,7 +3841,7 @@ export default function NBodySimulator() {
                       <div className="nbody-modal-field nbody-modal-field-wide">
                         <label>Trajectory Mode</label>
                         <select value={trajectoryMode} onChange={(e) => setTrajectoryMode(e.target.value)} className="nbody-select">
-                          <option value="orbit">Orbital (Bound Trajectory)</option>
+                          <option value="orbit">Orbital (Bound)</option>
                           <option value="flyby">Flyby / Gravity Assist</option>
                           <option value="interstellar">Interstellar Object</option>
                           <option value="manual">Manual Entry</option>
@@ -3557,49 +3849,38 @@ export default function NBodySimulator() {
                       </div>
                     </div>
                     {trajectoryMode === "orbit" && (
-                      <>
-                        <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
-                          <div className="nbody-modal-field"><label>Central Body</label><select value={orbitConfig.centralBodyId || ""} onChange={(e) => setOrbitConfig({ ...orbitConfig, centralBodyId: e.target.value || null })} className="nbody-select"><option value="">Select body...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
-                          <div className="nbody-modal-field"><label>Orbit Type</label><select value={orbitConfig.orbitType} onChange={(e) => setOrbitConfig({ ...orbitConfig, orbitType: e.target.value })} className="nbody-select"><option value="circular">Circular (e=0)</option><option value="elliptical">Elliptical (0&lt;e&lt;1)</option><option value="parabolic">Parabolic (e=1)</option><option value="hyperbolic">Hyperbolic (e&gt;1)</option></select></div>
-                          <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={orbitConfig.distance / AU} onChange={(e) => setOrbitConfig({ ...orbitConfig, distance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
-                          {(orbitConfig.orbitType === "elliptical" || orbitConfig.orbitType === "hyperbolic") && (<div className="nbody-modal-field"><label>Eccentricity</label><input type="number" value={orbitConfig.eccentricity} onChange={(e) => setOrbitConfig({ ...orbitConfig, eccentricity: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>)}
-                          <div className="nbody-modal-field"><label>Inclination (°)</label><input type="number" value={orbitConfig.inclination} onChange={(e) => setOrbitConfig({ ...orbitConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>True Anomaly (°)</label><input type="number" value={orbitConfig.trueAnomaly} onChange={(e) => setOrbitConfig({ ...orbitConfig, trueAnomaly: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>RAAN Ω (°)</label><input type="number" value={orbitConfig.longitudeOfAscendingNode} onChange={(e) => setOrbitConfig({ ...orbitConfig, longitudeOfAscendingNode: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>Arg. Periapsis ω (°)</label><input type="number" value={orbitConfig.argumentOfPeriapsis} onChange={(e) => setOrbitConfig({ ...orbitConfig, argumentOfPeriapsis: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>Direction</label><select value={orbitConfig.prograde ? "prograde" : "retrograde"} onChange={(e) => setOrbitConfig({ ...orbitConfig, prograde: e.target.value === "prograde" })} className="nbody-select"><option value="prograde">Prograde (CCW)</option><option value="retrograde">Retrograde (CW)</option></select></div>
-                        </div>
-                        {orbitConfig.centralBodyId && (<div className="nbody-modal-calculated"><div className="nbody-modal-calculated-item"><span>Orbital Info</span><span>{getOrbitalInfo(bodies.find(b => b.id === orbitConfig.centralBodyId), orbitConfig)}</span></div></div>)}
-                      </>
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field"><label>Central Body</label><select value={orbitConfig.centralBodyId || ""} onChange={(e) => setOrbitConfig({ ...orbitConfig, centralBodyId: e.target.value || null })} className="nbody-select"><option value="">Select...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                        <div className="nbody-modal-field"><label>Orbit Type</label><select value={orbitConfig.orbitType} onChange={(e) => setOrbitConfig({ ...orbitConfig, orbitType: e.target.value })} className="nbody-select"><option value="circular">Circular</option><option value="elliptical">Elliptical</option><option value="parabolic">Parabolic</option><option value="hyperbolic">Hyperbolic</option></select></div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={orbitConfig.distance / AU} onChange={(e) => setOrbitConfig({ ...orbitConfig, distance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
+                        {(orbitConfig.orbitType === "elliptical" || orbitConfig.orbitType === "hyperbolic") && (<div className="nbody-modal-field"><label>Eccentricity</label><input type="number" value={orbitConfig.eccentricity} onChange={(e) => setOrbitConfig({ ...orbitConfig, eccentricity: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>)}
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={orbitConfig.inclination} onChange={(e) => setOrbitConfig({ ...orbitConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>True Anomaly (deg)</label><input type="number" value={orbitConfig.trueAnomaly} onChange={(e) => setOrbitConfig({ ...orbitConfig, trueAnomaly: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>RAAN (deg)</label><input type="number" value={orbitConfig.longitudeOfAscendingNode} onChange={(e) => setOrbitConfig({ ...orbitConfig, longitudeOfAscendingNode: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Arg. Periapsis (deg)</label><input type="number" value={orbitConfig.argumentOfPeriapsis} onChange={(e) => setOrbitConfig({ ...orbitConfig, argumentOfPeriapsis: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Direction</label><select value={orbitConfig.prograde ? "prograde" : "retrograde"} onChange={(e) => setOrbitConfig({ ...orbitConfig, prograde: e.target.value === "prograde" })} className="nbody-select"><option value="prograde">Prograde</option><option value="retrograde">Retrograde</option></select></div>
+                      </div>
                     )}
                     {trajectoryMode === "flyby" && (
-                      <>
-                        <div className="nbody-modal-tip nbody-modal-info-flyby" style={{ marginTop: '0.75rem' }}><FontAwesomeIcon icon={faRocket} /><div><strong>Flyby Trajectory:</strong> Object approaches target on a hyperbolic path for gravity assist maneuvers.</div></div>
-                        <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.5rem' }}>
-                          <div className="nbody-modal-field"><label>Target Body</label><select value={flybyConfig.targetBodyId || ""} onChange={(e) => setFlybyConfig({ ...flybyConfig, targetBodyId: e.target.value || null })} className="nbody-select"><option value="">Select body...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
-                          <div className="nbody-modal-field"><label>Phase</label><select value={flybyConfig.inbound ? "inbound" : "outbound"} onChange={(e) => setFlybyConfig({ ...flybyConfig, inbound: e.target.value === "inbound" })} className="nbody-select"><option value="inbound">Inbound</option><option value="outbound">Outbound</option></select></div>
-                          <div className="nbody-modal-field"><label>V∞ (km/s)</label><input type="number" value={flybyConfig.vInfinity / 1000} onChange={(e) => setFlybyConfig({ ...flybyConfig, vInfinity: (parseFloat(e.target.value) || 10) * 1000 })} className="nbody-input" step="1" /></div>
-                          <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={flybyConfig.periapsisDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, periapsisDistance: (parseFloat(e.target.value) || 0.1) * AU })} className="nbody-input" step="0.01" /></div>
-                          <div className="nbody-modal-field"><label>Approach Angle (°)</label><input type="number" value={flybyConfig.approachAngle} onChange={(e) => setFlybyConfig({ ...flybyConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>Inclination (°)</label><input type="number" value={flybyConfig.inclination} onChange={(e) => setFlybyConfig({ ...flybyConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field nbody-modal-field-wide"><label>Start Distance (AU)</label><input type="number" value={flybyConfig.startDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, startDistance: (parseFloat(e.target.value) || 5) * AU })} className="nbody-input" step="0.5" /></div>
-                        </div>
-                        {flybyConfig.targetBodyId && (() => { const tb = bodies.find(b => b.id === flybyConfig.targetBodyId); const state = tb ? calculateFlybyState(tb, flybyConfig) : null; if (!state) return null; return (<div className="nbody-modal-calculated"><div className="nbody-modal-calculated-item"><span>Eccentricity</span><span>{formatNumber(state.eccentricity, 3)}</span></div><div className="nbody-modal-calculated-item"><span>Deflection</span><span>{formatNumber(state.deflectionAngle, 1)}°</span></div><div className="nbody-modal-calculated-item"><span>V Periapsis</span><span>{formatNumber(state.periapsisVelocity / 1000, 2)} km/s</span></div><div className="nbody-modal-calculated-item"><span>Impact Param</span><span>{formatNumber(state.impactParameter / AU, 3)} AU</span></div></div>); })()}
-                      </>
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field"><label>Target Body</label><select value={flybyConfig.targetBodyId || ""} onChange={(e) => setFlybyConfig({ ...flybyConfig, targetBodyId: e.target.value || null })} className="nbody-select"><option value="">Select...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                        <div className="nbody-modal-field"><label>Phase</label><select value={flybyConfig.inbound ? "inbound" : "outbound"} onChange={(e) => setFlybyConfig({ ...flybyConfig, inbound: e.target.value === "inbound" })} className="nbody-select"><option value="inbound">Inbound</option><option value="outbound">Outbound</option></select></div>
+                        <div className="nbody-modal-field"><label>V-inf (km/s)</label><input type="number" value={flybyConfig.vInfinity / 1000} onChange={(e) => setFlybyConfig({ ...flybyConfig, vInfinity: (parseFloat(e.target.value) || 10) * 1000 })} className="nbody-input" step="1" /></div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={flybyConfig.periapsisDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, periapsisDistance: (parseFloat(e.target.value) || 0.1) * AU })} className="nbody-input" step="0.01" /></div>
+                        <div className="nbody-modal-field"><label>Approach Angle (deg)</label><input type="number" value={flybyConfig.approachAngle} onChange={(e) => setFlybyConfig({ ...flybyConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={flybyConfig.inclination} onChange={(e) => setFlybyConfig({ ...flybyConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field nbody-modal-field-wide"><label>Start Distance (AU)</label><input type="number" value={flybyConfig.startDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, startDistance: (parseFloat(e.target.value) || 5) * AU })} className="nbody-input" step="0.5" /></div>
+                      </div>
                     )}
                     {trajectoryMode === "interstellar" && (
-                      <>
-                        <div className="nbody-modal-tip nbody-modal-info-interstellar" style={{ marginTop: '0.75rem' }}><FontAwesomeIcon icon={faGlobe} /><div><strong>Interstellar Object:</strong> Simulates objects entering the system from interstellar space on unbound trajectories.</div></div>
-                        <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.5rem' }}>
-                          <div className="nbody-modal-field"><label>Reference Body</label><select value={interstellarConfig.referenceBodyId || ""} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, referenceBodyId: e.target.value || null })} className="nbody-select"><option value="">Select body...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
-                          <div className="nbody-modal-field"><label>V∞ (km/s)</label><input type="number" value={interstellarConfig.vInfinity / 1000} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, vInfinity: (parseFloat(e.target.value) || 26) * 1000 })} className="nbody-input" step="1" /></div>
-                          <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={interstellarConfig.periapsisDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, periapsisDistance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
-                          <div className="nbody-modal-field"><label>Approach Angle (°)</label><input type="number" value={interstellarConfig.approachAngle} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>Inclination (°)</label><input type="number" value={interstellarConfig.inclination} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
-                          <div className="nbody-modal-field"><label>Start Distance (AU)</label><input type="number" value={interstellarConfig.startDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, startDistance: (parseFloat(e.target.value) || 50) * AU })} className="nbody-input" step="5" /></div>
-                        </div>
-                        {interstellarConfig.referenceBodyId && (() => { const rb = bodies.find(b => b.id === interstellarConfig.referenceBodyId); const state = rb ? calculateInterstellarState(rb, interstellarConfig) : null; if (!state) return null; return (<div className="nbody-modal-calculated"><div className="nbody-modal-calculated-item"><span>Eccentricity</span><span>{formatNumber(state.eccentricity, 3)}</span></div><div className="nbody-modal-calculated-item"><span>V Periapsis</span><span>{formatNumber(state.periapsisVelocity / 1000, 2)} km/s</span></div></div>); })()}
-                      </>
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field"><label>Reference Body</label><select value={interstellarConfig.referenceBodyId || ""} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, referenceBodyId: e.target.value || null })} className="nbody-select"><option value="">Select...</option>{bodies.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                        <div className="nbody-modal-field"><label>V-inf (km/s)</label><input type="number" value={interstellarConfig.vInfinity / 1000} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, vInfinity: (parseFloat(e.target.value) || 26) * 1000 })} className="nbody-input" step="1" /></div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={interstellarConfig.periapsisDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, periapsisDistance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
+                        <div className="nbody-modal-field"><label>Approach Angle (deg)</label><input type="number" value={interstellarConfig.approachAngle} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={interstellarConfig.inclination} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Start Distance (AU)</label><input type="number" value={interstellarConfig.startDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, startDistance: (parseFloat(e.target.value) || 50) * AU })} className="nbody-input" step="5" /></div>
+                      </div>
                     )}
                     {trajectoryMode === "manual" && (
                       <div className="nbody-modal-grid nbody-modal-grid-3" style={{ marginTop: '0.75rem' }}>
@@ -3614,7 +3895,7 @@ export default function NBodySimulator() {
                   </div>
                 </div>
               )}
-              {(trajectoryMode === "manual" || bodies.length === 0) && bodies.length === 0 && (
+              {bodies.length === 0 && (
                 <div className="nbody-modal-section">
                   <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCrosshairs} />Initial State</div>
                   <div className="nbody-modal-section-content">
@@ -3630,14 +3911,13 @@ export default function NBodySimulator() {
                 </div>
               )}
               <div className="nbody-modal-section">
-                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) & Spin</div>
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) and Spin</div>
                 <div className="nbody-modal-section-content">
-                  <div className="nbody-physics-warning">Spin axis will precess under torque if J2 back-reaction is enabled.</div>
                   <div className="nbody-modal-grid nbody-modal-grid-4">
-                    <div className="nbody-modal-field"><label>J2 (×10⁻³)</label><input type="number" value={(newBody.j2 || 0) * 1000} onChange={(e) => setNewBody({ ...newBody, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" placeholder="1.083" /></div>
-                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={newBody.j2Radius || ''} onChange={(e) => setNewBody({ ...newBody, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" placeholder="Optional" /></div>
-                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={newBody.spinRate || ''} onChange={(e) => setNewBody({ ...newBody, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" placeholder="7.29e-5" /></div>
-                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={newBody.momentOfInertiaFactor || 0.4} onChange={(e) => setNewBody({ ...newBody, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" placeholder="0.4" /></div>
+                    <div className="nbody-modal-field"><label>J2 (x10^-3)</label><input type="number" value={(newBody.j2 || 0) * 1000} onChange={(e) => setNewBody({ ...newBody, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" /></div>
+                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={newBody.j2Radius || ''} onChange={(e) => setNewBody({ ...newBody, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={newBody.spinRate || ''} onChange={(e) => setNewBody({ ...newBody, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" /></div>
+                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={newBody.momentOfInertiaFactor || 0.4} onChange={(e) => setNewBody({ ...newBody, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis X</label><input type="number" value={newBody.spinAxisX} onChange={(e) => setNewBody({ ...newBody, spinAxisX: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis Y</label><input type="number" value={newBody.spinAxisY} onChange={(e) => setNewBody({ ...newBody, spinAxisY: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis Z</label><input type="number" value={newBody.spinAxisZ} onChange={(e) => setNewBody({ ...newBody, spinAxisZ: parseFloat(e.target.value) || 1 })} className="nbody-input" step="0.1" /></div>
@@ -3650,13 +3930,13 @@ export default function NBodySimulator() {
               <button className="nbody-modal-btn confirm" onClick={addBody}><FontAwesomeIcon icon={faPlus} /> Add Body</button>
             </div>
           </div>
-        </div>
       )}
 
       {editBodyModal && (
-        <div className="nbody-modal-overlay" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }}>
-          <div className="nbody-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="nbody-modal-header"><span>Edit: {editBodyModal.name}</span><button className="nbody-close-btn" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button></div>
+          <div className="nbody-modal">            <div className="nbody-modal-header">
+              <span>Edit: {editBodyModal.name}</span>
+              <button className="nbody-close-btn" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+            </div>
             <div className="nbody-modal-content">
               <div className="nbody-modal-section">
                 <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faGlobe} />Basic Properties</div>
@@ -3668,14 +3948,14 @@ export default function NBodySimulator() {
                   </div>
                   <div className="nbody-modal-color-row">
                     <label>Color</label>
-                    <Tippy content={<DinoLabsColorPicker color={editBodyModal.color} onChange={(c) => setEditBodyModal({ ...editBodyModal, color: c })} />} visible={editBodyColorPickerOpen} onClickOutside={() => setEditBodyColorPickerOpen(false)} interactive={true} placement="right" className="color-picker-tippy" appendTo={() => document.body}>
+                    <Tippy content={<DinoLabsColorPicker color={editBodyModal.color} onChange={(c) => setEditBodyModal({ ...editBodyModal, color: c })} />} visible={editBodyColorPickerOpen} onClickOutside={() => setEditBodyColorPickerOpen(false)} interactive={true} placement="bottom" className="color-picker-tippy" appendTo={() => document.body}>
                       <div className="nbody-color-picker-swatch" onClick={() => setEditBodyColorPickerOpen((prev) => !prev)} style={{ backgroundColor: editBodyModal.color }} />
                     </Tippy>
                   </div>
                 </div>
               </div>
               <div className="nbody-modal-section">
-                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCrosshairs} />Position & Velocity</div>
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCrosshairs} />Position and Velocity</div>
                 <div className="nbody-modal-section-content">
                   <div className="nbody-modal-grid nbody-modal-grid-3">
                     <div className="nbody-modal-field"><label>Position X (m)</label><input type="number" value={editBodyModal.x} onChange={(e) => setEditBodyModal({ ...editBodyModal, x: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
@@ -3688,14 +3968,13 @@ export default function NBodySimulator() {
                 </div>
               </div>
               <div className="nbody-modal-section">
-                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) & Spin</div>
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) and Spin</div>
                 <div className="nbody-modal-section-content">
-                  <div className="nbody-physics-warning">Spin axis will precess under torque if J2 back-reaction is enabled.</div>
                   <div className="nbody-modal-grid nbody-modal-grid-4">
-                    <div className="nbody-modal-field"><label>J2 (×10⁻³)</label><input type="number" value={(editBodyModal.j2 || 0) * 1000} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" placeholder="1.083" /></div>
-                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={editBodyModal.j2Radius || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" placeholder="Optional" /></div>
-                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={editBodyModal.spinRate || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" placeholder="7.29e-5" /></div>
-                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={editBodyModal.momentOfInertiaFactor || 0.4} onChange={(e) => setEditBodyModal({ ...editBodyModal, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" placeholder="0.4" /></div>
+                    <div className="nbody-modal-field"><label>J2 (x10^-3)</label><input type="number" value={(editBodyModal.j2 || 0) * 1000} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" /></div>
+                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={editBodyModal.j2Radius || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={editBodyModal.spinRate || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" /></div>
+                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={editBodyModal.momentOfInertiaFactor || 0.4} onChange={(e) => setEditBodyModal({ ...editBodyModal, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis X</label><input type="number" value={editBodyModal.spinAxisX || 0} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisX: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis Y</label><input type="number" value={editBodyModal.spinAxisY || 0} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisY: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
                     <div className="nbody-modal-field"><label>Spin Axis Z</label><input type="number" value={editBodyModal.spinAxisZ || 1} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisZ: parseFloat(e.target.value) || 1 })} className="nbody-input" step="0.1" /></div>
@@ -3738,7 +4017,6 @@ export default function NBodySimulator() {
               }}><FontAwesomeIcon icon={faEdit} /> Save Changes</button>
             </div>
           </div>
-        </div>
       )}
     </div>
   );
