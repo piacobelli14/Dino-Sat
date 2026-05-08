@@ -294,7 +294,7 @@ const propagateComet = (comet, date) => {
     xOrbital = a * (cosE - e);
     yOrbital = a * Math.sqrt(1 - e * e) * sinE;
   } else {
-    const q = Number.isFinite(el.q) ? el.q : (Number.isFinite(el.a) ? Math.abs(el.a) * (1 - e) : null);
+    const q = Number.isFinite(el.q) ? el.q : (Number.isFinite(el.a) ? Math.abs(el.a) * (e - 1) : null);
     if (q === null || q <= 0) return null;
     const absA = q / (e - 1);
     if (absA <= 0) return null;
@@ -338,8 +338,8 @@ const propagateEarth = (date) => {
   const lambda = L + (1.914602 - 0.004817 * T) * Math.sin(g) * ORBITAL_CONSTANTS.DEG_TO_RAD
     + (0.019993 - 0.000101 * T) * Math.sin(2 * g) * ORBITAL_CONSTANTS.DEG_TO_RAD;
   const r = 1.00014 - 0.01671 * Math.cos(g) - 0.00014 * Math.cos(2 * g);
-  const x = r * Math.cos(lambda);
-  const y = r * Math.sin(lambda);
+  const x = -r * Math.cos(lambda);
+  const y = -r * Math.sin(lambda);
   return new THREE.Vector3(
     x * ORBITAL_CONSTANTS.SCALE_FACTOR,
     0,
@@ -371,9 +371,7 @@ const enrichComet = (s) => {
     const periodDays = period !== null ? period * 365.25 : null;
     const meanMotion = period !== null && period > 0 ? 360.0 / periodDays : null;
     const velocityAtPerihelion = q !== null && q > 0
-      ? (isBound
-        ? Math.sqrt(SUN_GM * (2 / (q * AU_KM) - 1 / (a * AU_KM)))
-        : Math.sqrt(SUN_GM * (2 / (q * AU_KM) + (e - 1) / (q * AU_KM / (1 - 1 / e + 1)))))
+      ? Math.sqrt(SUN_GM * (1 + e) / (q * AU_KM))
       : null;
     const velocityAtAphelion = aphelion !== null && aphelion > 0
       ? Math.sqrt(SUN_GM * (2 / (aphelion * AU_KM) - 1 / (a * AU_KM)))
@@ -425,7 +423,7 @@ const computeAdvancedDerivatives = (sat) => {
   const isEarthCrosser = sat.perihelionAU !== null && sat.perihelionAU < 1.017 && (sat.aphelionAU === null || sat.aphelionAU > 0.983);
   const earthCrossing = isEarthCrosser;
   const marsCrossing = sat.perihelionAU !== null && sat.perihelionAU < 1.666 && (sat.aphelionAU === null || sat.aphelionAU > 1.381);
-  const jupiterCrossing = sat.perihelionAU !== null && sat.aphelionAU !== null && sat.perihelionAU < 5.46 && sat.aphelionAU > 4.95;
+  const jupiterCrossing = sat.perihelionAU !== null && sat.perihelionAU < 5.46 && (sat.aphelionAU === null || sat.aphelionAU > 4.95);
   const isSungrazer = sat.perihelionAU !== null && sat.perihelionAU < 0.01;
   const isInterstellar = e > 1.05;
   return {
@@ -1441,7 +1439,7 @@ const CometWatchDetail = ({ data, onClose, onRequestAIAnalysis, aiAnalysis, aiLo
               <div className="dinoSatRiskCell dinoSatRiskLow">N/A</div>
               <div className="dinoSatRiskCell dinoSatRiskHigh">HIGH</div>
             </div>
-            <div className="dinoSatRiskMatrixRow">
+                        <div className="dinoSatRiskMatrixRow">
               <div>Mission Targets</div>
               <div className="dinoSatRiskCell dinoSatRiskLow">LOW</div>
               <div className="dinoSatRiskCell dinoSatRiskMod">MOD</div>
@@ -3194,7 +3192,7 @@ export default function CometTracker() {
     let activeCount = 0;
     let interactive = false;
     const startTime = performance.now();
-    const url = `${import.meta.env.VITE_API_AUTH_URL}/comet-stream`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/comet-stream`;
 
     let eventSource;
     try {
@@ -3209,7 +3207,7 @@ export default function CometTracker() {
     let helloReceived = false;
     const connectionTimeoutId = setTimeout(() => {
       if (!helloReceived && eventSource.readyState !== EventSource.OPEN) {
-        setErrors(prev => [...prev, "Stream connection timeout — server did not respond."]);
+        setErrors(prev => [...prev, "Stream connection timed out — server did not respond."]);
         setLoading(false);
         try { eventSource.close(); } catch (error) {}
         if (eventSourceRef.current === eventSource) {
@@ -3312,7 +3310,7 @@ export default function CometTracker() {
   const fetchNEOWatchData = useCallback(async () => {
     setNEOWatchLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/comet-watch`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/comet-watch`);
       const j = await r.json();
       if (j.success) setNEOWatch(j.data);
     } catch (error) {} finally {
@@ -3325,7 +3323,7 @@ export default function CometTracker() {
     if (!force && neoWatchAI) return;
     setNEOWatchAILoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/comet-watch-ai`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/comet-watch-ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ neoWatch })
@@ -3355,7 +3353,7 @@ export default function CometTracker() {
 
     setMissionIntelLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/comet-intelligence`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/comet-intelligence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comet: enrichComet(comet) }),
@@ -3397,7 +3395,7 @@ export default function CometTracker() {
 
     setObservationLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/comet-observation`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/comet-observation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comet: enrichComet(comet) }),
@@ -3424,7 +3422,7 @@ export default function CometTracker() {
   const fetchPHACatalog = useCallback(async () => {
     setPHALoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/comet-population-census`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/comet-population-census`);
       const j = await r.json();
       if (j.success) setPHACatalog(j.populations);
     } catch (error) {} finally {
@@ -3435,7 +3433,7 @@ export default function CometTracker() {
   const fetchSentryWatch = useCallback(async () => {
     setSentryLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/apparition-watch`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/apparition-watch`);
       const j = await r.json();
       if (j.success) {
         setSentryCandidates(j.candidates || []);

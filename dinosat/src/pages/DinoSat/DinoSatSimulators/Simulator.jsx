@@ -21,14 +21,16 @@ import "../../../styles/mainStyles/DinoSat/DinoSatSimulators/Simulator.css";
 export default function NBodySimulator() {
   const SPEED_OF_LIGHT = 299792458.0;
   const AU = 149597870700.0;
+  const DAY_SECONDS = 86400.0;
+
   const G_CODATA = 6.67430e-11;
   const GM_SUN = 1.32712440042e20;
   const GM_EARTH = 3.986004418e14;
   const GM_JUPITER = 1.26712764e17;
+
   const SOLAR_RADIUS = 6.957e8;
   const EARTH_RADIUS_MEAN = 6.371e6;
   const EARTH_RADIUS_EQUATORIAL = 6.378137e6;
-  const DAY_SECONDS = 86400.0;
 
   const INTEGRATORS = {
     VELOCITY_VERLET: "verlet",
@@ -48,25 +50,28 @@ export default function NBodySimulator() {
   ];
 
   const [bodies, setBodies] = useState([]);
+  const [selectedBody, setSelectedBody] = useState(null);
+  const [focusedBody, setFocusedBody] = useState(null);
+
   const [isRunning, setIsRunning] = useState(false);
   const [simulationTime, setSimulationTime] = useState(0);
   const [timeStep, setTimeStep] = useState(60);
   const [speedMultiplier, setSpeedMultiplier] = useState(10);
   const [integrator, setIntegrator] = useState(INTEGRATORS.RK5);
+  const [actualFps, setActualFps] = useState(60);
+
   const [showTrails, setShowTrails] = useState(true);
   const [showVectors, setShowVectors] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [trailLength, setTrailLength] = useState(1000);
+  const [scaleMode, setScaleMode] = useState("log");
   const [gridWarpStrength, setGridWarpStrength] = useState(50);
   const [gridWarpSpread, setGridWarpSpread] = useState(90);
-  const [selectedBody, setSelectedBody] = useState(null);
-  const [focusedBody, setFocusedBody] = useState(null);
+
   const [hudVisible, setHudVisible] = useState(false);
   const [addBodyModal, setAddBodyModal] = useState(false);
   const [editBodyModal, setEditBodyModal] = useState(null);
-  const [scaleMode, setScaleMode] = useState("log");
-  const [actualFps, setActualFps] = useState(60);
   const [addBodyColorPickerOpen, setAddBodyColorPickerOpen] = useState(false);
   const [editBodyColorPickerOpen, setEditBodyColorPickerOpen] = useState(false);
 
@@ -119,6 +124,8 @@ export default function NBodySimulator() {
     momentOfInertiaFactor: 0.4
   });
 
+  const [trajectoryMode, setTrajectoryMode] = useState("orbit");
+
   const [orbitConfig, setOrbitConfig] = useState({
     enabled: true,
     centralBodyId: null,
@@ -131,8 +138,6 @@ export default function NBodySimulator() {
     trueAnomaly: 0,
     prograde: true
   });
-
-  const [trajectoryMode, setTrajectoryMode] = useState("orbit");
 
   const [flybyConfig, setFlybyConfig] = useState({
     targetBodyId: null,
@@ -152,6 +157,82 @@ export default function NBodySimulator() {
     inclination: 30,
     startDistance: 50 * AU
   });
+
+  const [systemStats, setSystemStats] = useState({
+    totalEnergy: 0,
+    kineticEnergy: 0,
+    potentialEnergy: 0,
+    relativisticEnergy: 0,
+    totalMomentum: { x: 0, y: 0, z: 0 },
+    centerOfMass: { x: 0, y: 0, z: 0 },
+    bodyCount: 0,
+    initialEnergy: null,
+    energyDrift: 0,
+    rocheViolations: [],
+    lastErrorNorm: 0
+  });
+
+  const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingHud, setIsDraggingHud] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const rendererRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const meshesRef = useRef({});
+  const trailsRef = useRef({});
+  const labelsRef = useRef({});
+  const vectorsRef = useRef({});
+  const gridRef = useRef(null);
+  const labelContainerRef = useRef(null);
+  const animationRef = useRef(null);
+  const lastTimeRef = useRef(0);
+  const fpsCounterRef = useRef(0);
+  const lastFpsTimeRef = useRef(0);
+  const hudPanelRef = useRef(null);
+  const initialEnergyRef = useRef(null);
+  const bodiesRef = useRef([]);
+  const simulationTimeRef = useRef(0);
+  const mergedBodyIdsRef = useRef(new Set());
+  const initialBodiesRef = useRef([]);
+  const adaptiveDtRef = useRef(null);
+  const lastErrorNormRef = useRef(0);
+
+  bodiesRef.current = bodies;
+  simulationTimeRef.current = simulationTime;
+
+  const generateId = () => `body_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const formatNumber = (num, decimals = 2) => {
+    if (num === null || num === undefined || isNaN(num)) return "N/A";
+    if (!isFinite(num)) return num > 0 ? "INF" : "-INF";
+    if (Math.abs(num) < 1e-10) return "0";
+    if (Math.abs(num) >= 1e9 || Math.abs(num) < 1e-3) {
+      return num.toExponential(decimals);
+    }
+    return num.toFixed(decimals);
+  };
+
+  const formatTime = (seconds) => {
+    if (!isFinite(seconds)) return "INF";
+    const days = Math.floor(seconds / DAY_SECONDS);
+    const years = Math.floor(days / 365.25);
+    const remainingDays = Math.floor(days % 365.25);
+    if (years > 0) return `${years}y ${remainingDays}d`;
+    if (days > 0) return `${days}d ${Math.floor((seconds % DAY_SECONDS) / 3600)}h`;
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
+  };
+
+  const kahanSum = (current, input, error) => {
+    const y = input - error;
+    const t = current + y;
+    const newError = (t - current) - y;
+    return { value: t, error: newError };
+  };
 
   const createRingBuffer = useCallback((size) => {
     return {
@@ -229,6 +310,87 @@ export default function NBodySimulator() {
       if (newBuf.count < newBuf.size) newBuf.count++;
     }
     return newBuf;
+  }, []);
+
+  const quaternionMultiply = useCallback((q1, q2) => {
+    return {
+      w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
+      x: q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
+      y: q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
+      z: q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
+    };
+  }, []);
+
+  const quaternionNormalize = useCallback((q) => {
+    const mag = Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
+    return { w: q.w / mag, x: q.x / mag, y: q.y / mag, z: q.z / mag };
+  }, []);
+
+  const quaternionConjugate = useCallback((q) => {
+    return { w: q.w, x: -q.x, y: -q.y, z: -q.z };
+  }, []);
+
+  const rotateVectorByQuaternion = useCallback((v, q) => {
+    const qv = { w: 0, x: v.x, y: v.y, z: v.z };
+    const qConj = quaternionConjugate(q);
+    const result = quaternionMultiply(quaternionMultiply(q, qv), qConj);
+    return { x: result.x, y: result.y, z: result.z };
+  }, [quaternionMultiply, quaternionConjugate]);
+
+  const spinAxisToQuaternion = useCallback((spinAxisX, spinAxisY, spinAxisZ) => {
+    const mag = Math.sqrt(spinAxisX * spinAxisX + spinAxisY * spinAxisY + spinAxisZ * spinAxisZ);
+    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
+    const nx = spinAxisX / mag;
+    const ny = spinAxisY / mag;
+    const nz = spinAxisZ / mag;
+    const refZ = { x: 0, y: 0, z: 1 };
+    const dot = nz;
+    if (dot > 0.9999) return { w: 1, x: 0, y: 0, z: 0 };
+    if (dot < -0.9999) return { w: 0, x: 1, y: 0, z: 0 };
+    const crossX = refZ.y * nz - refZ.z * ny;
+    const crossY = refZ.z * nx - refZ.x * nz;
+    const crossZ = refZ.x * ny - refZ.y * nx;
+    const crossMag = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+    const halfAngle = angle / 2;
+    const sinHalf = Math.sin(halfAngle);
+    return quaternionNormalize({
+      w: Math.cos(halfAngle),
+      x: (crossX / crossMag) * sinHalf,
+      y: (crossY / crossMag) * sinHalf,
+      z: (crossZ / crossMag) * sinHalf
+    });
+  }, [quaternionNormalize]);
+
+  const quaternionToSpinAxis = useCallback((q) => {
+    const bodyZ = rotateVectorByQuaternion({ x: 0, y: 0, z: 1 }, q);
+    const mag = Math.sqrt(bodyZ.x * bodyZ.x + bodyZ.y * bodyZ.y + bodyZ.z * bodyZ.z);
+    if (mag < 1e-10) return { x: 0, y: 0, z: 1 };
+    return { x: bodyZ.x / mag, y: bodyZ.y / mag, z: bodyZ.z / mag };
+  }, [rotateVectorByQuaternion]);
+
+  const rotateVector = useCallback((vec, omega, inc, argPeri) => {
+    const cosO = Math.cos(omega);
+    const sinO = Math.sin(omega);
+    const cosI = Math.cos(inc);
+    const sinI = Math.sin(inc);
+    const cosW = Math.cos(argPeri);
+    const sinW = Math.sin(argPeri);
+    const x = vec.x;
+    const y = vec.y;
+    const z = vec.z;
+    const Px = cosW * x - sinW * y;
+    const Py = sinW * x + cosW * y;
+    const Pz = z;
+    const Ix = Px;
+    const Iy = Py * cosI - Pz * sinI;
+    const Iz = Py * sinI + Pz * cosI;
+    return {
+      x: Ix * cosO - Iy * sinO,
+      y: Ix * sinO + Iy * cosO,
+      z: Iz
+    };
   }, []);
 
   const solveKeplerEquation = useCallback((M, e, tolerance = 1e-12, maxIter = 50) => {
@@ -311,14 +473,14 @@ export default function NBodySimulator() {
       [sinW * sinI, cosW * sinI, cosI]
     ];
     const rInertial = {
-      x: R[0][0] * rPQW.x + R[0][1] * rPQW.y,
-      y: R[1][0] * rPQW.x + R[1][1] * rPQW.y,
-      z: R[2][0] * rPQW.x + R[2][1] * rPQW.y
+      x: R[0][0] * rPQW.x + R[0][1] * rPQW.y + R[0][2] * rPQW.z,
+      y: R[1][0] * rPQW.x + R[1][1] * rPQW.y + R[1][2] * rPQW.z,
+      z: R[2][0] * rPQW.x + R[2][1] * rPQW.y + R[2][2] * rPQW.z
     };
     const vInertial = {
-      x: R[0][0] * vPQW.x + R[0][1] * vPQW.y,
-      y: R[1][0] * vPQW.x + R[1][1] * vPQW.y,
-      z: R[2][0] * vPQW.x + R[2][1] * vPQW.y
+      x: R[0][0] * vPQW.x + R[0][1] * vPQW.y + R[0][2] * vPQW.z,
+      y: R[1][0] * vPQW.x + R[1][1] * vPQW.y + R[1][2] * vPQW.z,
+      z: R[2][0] * vPQW.x + R[2][1] * vPQW.y + R[2][2] * vPQW.z
     };
     return {
       x: centralPos.x + rInertial.x,
@@ -331,9 +493,9 @@ export default function NBodySimulator() {
   }, []);
 
   const propagateKeplerBackward = useCallback((body, centralBody, dt, mu) => {
-    const r_vec = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
-    const v_vec = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
-    const elements = stateVectorsToOrbitalElements(r_vec, v_vec, mu);
+    const r_vec_now = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
+    const v_vec_now = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
+    const elements = stateVectorsToOrbitalElements(r_vec_now, v_vec_now, mu);
     const { a, e, inc, Omega, omega, nu } = elements;
     if (e < 1e-10 || Math.abs(a) < 1e-10) {
       return {
@@ -365,7 +527,13 @@ export default function NBodySimulator() {
       nuNew = 2 * Math.atan(Math.sqrt((e + 1) / (e - 1)) * Math.tanh(H / 2));
     }
     const newElements = { a, e, inc, Omega, omega, nu: nuNew, mu };
-    return orbitalElementsToStateVectors(newElements, centralBody, { x: centralBody.vx, y: centralBody.vy, z: centralBody.vz });
+    const centralPosPast = {
+      x: centralBody.x + centralBody.vx * dt,
+      y: centralBody.y + centralBody.vy * dt,
+      z: centralBody.z + centralBody.vz * dt
+    };
+    const centralVelPast = { x: centralBody.vx, y: centralBody.vy, z: centralBody.vz };
+    return orbitalElementsToStateVectors(newElements, centralPosPast, centralVelPast);
   }, [stateVectorsToOrbitalElements, orbitalElementsToStateVectors, solveKeplerEquation]);
 
   const initializeHistoryBuffer = useCallback((body, allBodies, currentTime, bufferSize, effectiveC) => {
@@ -403,6 +571,254 @@ export default function NBodySimulator() {
     return buffer;
   }, [createRingBuffer, ringBufferPush, propagateKeplerBackward, AU]);
 
+  const calculateOrbitalState = useCallback((centralBody, config) => {
+    if (!centralBody) return null;
+    const { orbitType, distance, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, trueAnomaly, prograde } = config;
+    const mu = centralBody.gm;
+    let e = eccentricity;
+    switch (orbitType) {
+      case "circular": e = 0; break;
+      case "elliptical": e = Math.max(0, Math.min(0.9999, eccentricity)); break;
+      case "parabolic": e = 1.0; break;
+      case "hyperbolic": e = Math.max(1.0001, eccentricity); break;
+      default: e = 0;
+    }
+    let p;
+    if (orbitType === "parabolic") {
+      p = 2 * distance;
+    } else if (orbitType === "hyperbolic") {
+      const a = distance / (1 - e);
+      p = Math.abs(a) * (e * e - 1);
+    } else {
+      const a = distance / (1 - e);
+      p = a * (1 - e * e);
+    }
+    const nuRad = (trueAnomaly * Math.PI) / 180;
+    const cosNu = Math.cos(nuRad);
+    const sinNu = Math.sin(nuRad);
+    const r = p / (1 + e * cosNu);
+    const rPQw = { x: r * cosNu, y: r * sinNu, z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    let vPQw = {
+      x: -sqrtMuP * sinNu,
+      y: sqrtMuP * (e + cosNu),
+      z: 0
+    };
+    if (!prograde) {
+      vPQw.x = -vPQw.x;
+      vPQw.y = -vPQw.y;
+      vPQw.z = -vPQw.z;
+    }
+    const omegaRad = (longitudeOfAscendingNode * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const argPeriRad = (argumentOfPeriapsis * Math.PI) / 180;
+    const rInertial = rotateVector(rPQw, omegaRad, incRad, argPeriRad);
+    const vInertial = rotateVector(vPQw, omegaRad, incRad, argPeriRad);
+    return {
+      x: centralBody.x + rInertial.x,
+      y: centralBody.y + rInertial.y,
+      z: centralBody.z + rInertial.z,
+      vx: centralBody.vx + vInertial.x,
+      vy: centralBody.vy + vInertial.y,
+      vz: centralBody.vz + vInertial.z
+    };
+  }, [rotateVector]);
+
+  const getOrbitalInfo = useCallback((centralBody, config) => {
+    if (!centralBody) return "Select a central body";
+    const mu = centralBody.gm;
+    const r = config.distance;
+    let e = config.eccentricity;
+    switch (config.orbitType) {
+      case "circular": e = 0; break;
+      case "parabolic": e = 1; break;
+      case "hyperbolic": e = Math.max(1.0001, e); break;
+      default: e = Math.max(0, Math.min(0.9999, e));
+    }
+    let a, p;
+    if (config.orbitType === "parabolic") {
+      p = 2 * r;
+    } else if (config.orbitType === "hyperbolic") {
+      a = r / (1 - e);
+      p = Math.abs(a) * (e * e - 1);
+    } else {
+      a = r / (1 - e);
+      p = a * (1 - e * e);
+    }
+    const nuRad = (config.trueAnomaly * Math.PI) / 180;
+    const dist = p / (1 + e * Math.cos(nuRad));
+    const speed = Math.sqrt(mu * (2 / dist - (Math.abs(1 / a) * (e >= 1 ? -1 : 1))));
+    let period = "INF";
+    if (config.orbitType === "circular" || config.orbitType === "elliptical") {
+      const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / mu);
+      period = formatTime(T);
+    }
+    return `v=${(speed / 1000).toFixed(2)} km/s, T=${period}`;
+  }, []);
+
+  const calculateFlybyState = useCallback((targetBody, config) => {
+    if (!targetBody) return null;
+    const { periapsisDistance, vInfinity, approachAngle, inclination, inbound, startDistance } = config;
+    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
+    const mu = targetBody.gm;
+    const rp = periapsisDistance;
+    const vinf = vInfinity;
+    const e = 1 + (rp * vinf * vinf) / mu;
+    const a = -mu / (vinf * vinf);
+    const p = rp * (1 + e);
+    const nuInf = Math.acos(-1 / e);
+    const cosNu = (p / startDistance - 1) / e;
+    let nu = Math.acos(Math.max(-1, Math.min(1, cosNu)));
+    if (inbound) nu = -nu;
+    const r = p / (1 + e * Math.cos(nu));
+    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
+    const deflection = 2 * Math.asin(1 / e);
+    const approachRad = (approachAngle * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const omega = inbound ? (approachRad + nuInf) : (approachRad - nuInf);
+    const rInertial = rotateVector(rPQw, omega, incRad, 0);
+    const vInertial = rotateVector(vPQw, omega, incRad, 0);
+    const b = -a * Math.sqrt(e * e - 1);
+    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
+    return {
+      x: targetBody.x + rInertial.x,
+      y: targetBody.y + rInertial.y,
+      z: targetBody.z + rInertial.z,
+      vx: targetBody.vx + vInertial.x,
+      vy: targetBody.vy + vInertial.y,
+      vz: targetBody.vz + vInertial.z,
+      eccentricity: e,
+      deflectionAngle: deflection * 180 / Math.PI,
+      periapsisVelocity: vPeriapsis,
+      impactParameter: b,
+      trueAnomaly: nu * 180 / Math.PI
+    };
+  }, [rotateVector]);
+
+  const calculateInterstellarState = useCallback((referenceBody, config) => {
+    if (!referenceBody) return null;
+    const { periapsisDistance, vInfinity, approachAngle, inclination, startDistance } = config;
+    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
+    const mu = referenceBody.gm;
+    const rp = periapsisDistance;
+    const vinf = vInfinity;
+    const e = 1 + (rp * vinf * vinf) / mu;
+    const a = -mu / (vinf * vinf);
+    const p = rp * (1 + e);
+    const nuInf = Math.acos(-1 / e);
+    const cosNu = (p / startDistance - 1) / e;
+    let nu = -Math.acos(Math.max(-1, Math.min(1, cosNu)));
+    const r = p / (1 + e * Math.cos(nu));
+    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
+    const approachRad = (approachAngle * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const omega = approachRad + nuInf;
+    const rInertial = rotateVector(rPQw, omega, incRad, 0);
+    const vInertial = rotateVector(vPQw, omega, incRad, 0);
+    const b = -a * Math.sqrt(e * e - 1);
+    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
+    return {
+      x: referenceBody.x + rInertial.x,
+      y: referenceBody.y + rInertial.y,
+      z: referenceBody.z + rInertial.z,
+      vx: referenceBody.vx + vInertial.x,
+      vy: referenceBody.vy + vInertial.y,
+      vz: referenceBody.vz + vInertial.z,
+      eccentricity: e,
+      periapsisVelocity: vPeriapsis,
+      impactParameter: b
+    };
+  }, [rotateVector]);
+
+  const computeOrbitalElements = useCallback((body, centralBody) => {
+    if (!centralBody) return null;
+    const r_vec = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
+    const v_vec = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
+    const r = Math.sqrt(r_vec.x ** 2 + r_vec.y ** 2 + r_vec.z ** 2);
+    const v = Math.sqrt(v_vec.x ** 2 + v_vec.y ** 2 + v_vec.z ** 2);
+    const mu = centralBody.gm + body.gm;
+    const h_vec = {
+      x: r_vec.y * v_vec.z - r_vec.z * v_vec.y,
+      y: r_vec.z * v_vec.x - r_vec.x * v_vec.z,
+      z: r_vec.x * v_vec.y - r_vec.y * v_vec.x
+    };
+    const h = Math.sqrt(h_vec.x ** 2 + h_vec.y ** 2 + h_vec.z ** 2);
+    const n_vec = { x: -h_vec.y, y: h_vec.x, z: 0 };
+    const n = Math.sqrt(n_vec.x ** 2 + n_vec.y ** 2);
+    const rdotv = r_vec.x * v_vec.x + r_vec.y * v_vec.y + r_vec.z * v_vec.z;
+    const e_vec = {
+      x: (v_vec.y * h_vec.z - v_vec.z * h_vec.y) / mu - r_vec.x / r,
+      y: (v_vec.z * h_vec.x - v_vec.x * h_vec.z) / mu - r_vec.y / r,
+      z: (v_vec.x * h_vec.y - v_vec.y * h_vec.x) / mu - r_vec.z / r
+    };
+    const e = Math.sqrt(e_vec.x ** 2 + e_vec.y ** 2 + e_vec.z ** 2);
+    const energy = v * v / 2 - mu / r;
+    const a = -mu / (2 * energy);
+    const inc = h > 1e-10 ? Math.acos(Math.max(-1, Math.min(1, h_vec.z / h))) : 0;
+
+    let Omega = 0;
+    if (n > 1e-10) {
+      Omega = Math.atan2(n_vec.y, n_vec.x);
+      if (Omega < 0) Omega += 2 * Math.PI;
+    }
+
+    let omega = 0;
+    if (n > 1e-10 && e > 1e-10) {
+      const ndote = n_vec.x * e_vec.x + n_vec.y * e_vec.y + n_vec.z * e_vec.z;
+      omega = Math.acos(Math.max(-1, Math.min(1, ndote / (n * e))));
+      if (e_vec.z < 0) omega = 2 * Math.PI - omega;
+    } else if (e > 1e-10) {
+      omega = Math.atan2(e_vec.y, e_vec.x);
+    }
+
+    let nu = 0;
+    if (e > 1e-10) {
+      const edotr = e_vec.x * r_vec.x + e_vec.y * r_vec.y + e_vec.z * r_vec.z;
+      nu = Math.acos(Math.max(-1, Math.min(1, edotr / (e * r))));
+      if (rdotv < 0) nu = 2 * Math.PI - nu;
+    } else {
+      const cp = { x: n_vec.y * r_vec.z - n_vec.z * r_vec.y, y: n_vec.z * r_vec.x - n_vec.x * r_vec.z, z: n_vec.x * r_vec.y - n_vec.y * r_vec.x };
+      if (n > 1e-10) {
+        nu = Math.acos(Math.max(-1, Math.min(1, (n_vec.x * r_vec.x + n_vec.y * r_vec.y + n_vec.z * r_vec.z) / (n * r))));
+        if (rdotv < 0) nu = 2 * Math.PI - nu;
+      }
+    }
+
+    const period = e < 1 ? 2 * Math.PI * Math.sqrt(Math.abs(a * a * a) / mu) : Infinity;
+    const periapsis = a * (1 - e);
+    const apoapsis = e < 1 ? a * (1 + e) : Infinity;
+    let orbitType = 'circular';
+    if (e < 1e-4) orbitType = 'circular';
+    else if (e < 0.999) orbitType = 'elliptical';
+    else if (e < 1.001) orbitType = 'parabolic';
+    else orbitType = 'hyperbolic';
+
+    return {
+      semiMajorAxis: a,
+      eccentricity: e,
+      inclination: inc * 180 / Math.PI,
+      longitudeOfAscendingNode: Omega * 180 / Math.PI,
+      argumentOfPeriapsis: omega * 180 / Math.PI,
+      trueAnomaly: nu * 180 / Math.PI,
+      period,
+      periapsis,
+      apoapsis,
+      specificEnergy: energy,
+      orbitType
+    };
+  }, []);
+
+  const getEffectiveSpeedOfLight = useCallback(() => {
+    if (physicsConfig.relativisticMode && physicsConfig.includeGR) {
+      return SPEED_OF_LIGHT / physicsConfig.cReductionFactor;
+    }
+    return SPEED_OF_LIGHT;
+  }, [physicsConfig.relativisticMode, physicsConfig.includeGR, physicsConfig.cReductionFactor, SPEED_OF_LIGHT]);
+
   const softeningKernels = useMemo(() => ({
     plummer: {
       forceMod: (r, eps) => {
@@ -415,6 +831,18 @@ export default function NBodySimulator() {
         const r2 = r * r;
         const eps2 = eps * eps;
         return 1.0 / Math.sqrt(r2 + eps2);
+      },
+      jerkInvR3: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        const denom = r2 + eps2;
+        return 1.0 / Math.pow(denom, 1.5);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        const denom = r2 + eps2;
+        return 3.0 / (denom * Math.sqrt(denom));
       }
     },
     spline: {
@@ -445,6 +873,38 @@ export default function NBodySimulator() {
           phi = (1.0 / h) * ((4.0 / 3.0) * u * u - u * u * u + 0.3 * u * u * u * u - (1.0 / 30.0) * u * u * u * u * u - 8.0 / 5.0 + 1.0 / (15.0 * u));
         }
         return -phi;
+      },
+      jerkInvR3: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) return 1.0 / (r * r * r);
+        if (r <= 1e-30) return 0;
+        let W;
+        if (u < 1.0) {
+          W = (4.0 / 3.0) - 1.2 * u * u + 0.5 * u * u * u;
+        } else {
+          W = (8.0 / 3.0) - 3.0 * u + 1.2 * u * u - (1.0 / 6.0) * u * u * u - 1.0 / (15.0 * u * u);
+        }
+        return W / (r * r * r);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) return 3.0 / (r * r * r * r * r);
+        if (r <= 1e-30) return 0;
+        let W;
+        let dWdu;
+        if (u < 1.0) {
+          W = (4.0 / 3.0) - 1.2 * u * u + 0.5 * u * u * u;
+          dWdu = -2.4 * u + 1.5 * u * u;
+        } else {
+          W = (8.0 / 3.0) - 3.0 * u + 1.2 * u * u - (1.0 / 6.0) * u * u * u - 1.0 / (15.0 * u * u);
+          dWdu = -3.0 + 2.4 * u - 0.5 * u * u + 2.0 / (15.0 * u * u * u);
+        }
+        const dWdr = dWdu / h;
+        const r3 = r * r * r;
+        const r4 = r3 * r;
+        return (3.0 * W) / (r4 * r) - dWdr / r4;
       }
     },
     wendlandC2: {
@@ -464,6 +924,30 @@ export default function NBodySimulator() {
         const omq4 = omq * omq * omq * omq;
         const phi = omq4 * (1.0 + 4.0 * q) + (21.0 / 5.0) * q * q - (4.0 / 3.0) * q * q * q;
         return phi / h;
+      },
+      jerkInvR3: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 1.0 / (r * r * r);
+        if (r <= 1e-30) return 0;
+        const omq = 1.0 - q;
+        const omq3 = omq * omq * omq;
+        const W = 1.0 - omq3 * omq * (1.0 + 4.0 * q);
+        return W / (r * r * r);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 3.0 / (r * r * r * r * r);
+        if (r <= 1e-30) return 0;
+        const omq = 1.0 - q;
+        const omq3 = omq * omq * omq;
+        const W = 1.0 - omq3 * omq * (1.0 + 4.0 * q);
+        const dWdq = 4.0 * omq3 * (1.0 + 4.0 * q) - 4.0 * omq3 * omq;
+        const dWdr = dWdq / h;
+        const r4 = r * r * r * r;
+        const r5 = r4 * r;
+        return (3.0 * W) / r5 - dWdr / r4;
       }
     }
   }), []);
@@ -476,13 +960,6 @@ export default function NBodySimulator() {
   const symmetricSoftening = useCallback((eps_i, eps_j) => {
     return 0.5 * (eps_i + eps_j);
   }, []);
-
-  const getEffectiveSpeedOfLight = useCallback(() => {
-    if (physicsConfig.relativisticMode && physicsConfig.includeGR) {
-      return SPEED_OF_LIGHT / physicsConfig.cReductionFactor;
-    }
-    return SPEED_OF_LIGHT;
-  }, [physicsConfig.relativisticMode, physicsConfig.includeGR, physicsConfig.cReductionFactor, SPEED_OF_LIGHT]);
 
   const toNormalizedUnits = useCallback((bodyStates) => {
     if (bodyStates.length === 0) return { bodies: [], scale: { mass: 1, length: 1, time: 1, vel: 1, G: G_CODATA } };
@@ -755,332 +1232,6 @@ export default function NBodySimulator() {
     return { states, collisions };
   }, []);
 
-  const openAddBodyModal = useCallback(() => {
-    if (bodies.length === 0) {
-      setNewBody({
-        name: "Sun",
-        mass: GM_SUN / G_CODATA,
-        radius: SOLAR_RADIUS,
-        x: 0, y: 0, z: 0,
-        vx: 0, vy: 0, vz: 0,
-        color: "#FFD700",
-        j2: 0,
-        j2Radius: null,
-        spinAxisX: 0,
-        spinAxisY: 0,
-        spinAxisZ: 1,
-        spinRate: 2.87e-6,
-        momentOfInertiaFactor: 0.07
-      });
-      setTrajectoryMode("manual");
-      setOrbitConfig(prev => ({ ...prev, enabled: false, centralBodyId: null }));
-    } else {
-      setNewBody({
-        name: "",
-        mass: GM_EARTH / G_CODATA,
-        radius: EARTH_RADIUS_MEAN,
-        x: AU, y: 0, z: 0,
-        vx: 0, vy: 29780, vz: 0,
-        color: "#4ECDC4",
-        j2: 0.001083,
-        j2Radius: EARTH_RADIUS_EQUATORIAL,
-        spinAxisX: 0,
-        spinAxisY: 0,
-        spinAxisZ: 1,
-        spinRate: 7.292e-5,
-        momentOfInertiaFactor: 0.331
-      });
-      setTrajectoryMode("orbit");
-      setOrbitConfig({
-        enabled: true,
-        centralBodyId: bodies[0]?.id || null,
-        orbitType: "circular",
-        distance: AU,
-        eccentricity: 0,
-        inclination: 0,
-        longitudeOfAscendingNode: 0,
-        argumentOfPeriapsis: 0,
-        trueAnomaly: 0,
-        prograde: true
-      });
-      setFlybyConfig({
-        targetBodyId: bodies[0]?.id || null,
-        periapsisDistance: 1.0 * AU,
-        vInfinity: 30000,
-        approachAngle: 0,
-        inclination: 0,
-        inbound: true,
-        startDistance: 10 * AU
-      });
-      setInterstellarConfig({
-        referenceBodyId: bodies[0]?.id || null,
-        periapsisDistance: 0.5 * AU,
-        vInfinity: 26000,
-        approachAngle: 45,
-        inclination: 30,
-        startDistance: 50 * AU
-      });
-    }
-    setAddBodyModal(true);
-  }, [bodies, GM_SUN, SOLAR_RADIUS, GM_EARTH, EARTH_RADIUS_MEAN, EARTH_RADIUS_EQUATORIAL, AU, G_CODATA]);
-
-  const [systemStats, setSystemStats] = useState({
-    totalEnergy: 0,
-    kineticEnergy: 0,
-    potentialEnergy: 0,
-    relativisticEnergy: 0,
-    totalMomentum: { x: 0, y: 0, z: 0 },
-    centerOfMass: { x: 0, y: 0, z: 0 },
-    bodyCount: 0,
-    initialEnergy: null,
-    energyDrift: 0,
-    rocheViolations: [],
-    lastErrorNorm: 0
-  });
-
-  const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
-  const [isDraggingHud, setIsDraggingHud] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const mountRef = useRef(null);
-  const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
-  const cameraRef = useRef(null);
-  const controlsRef = useRef(null);
-  const meshesRef = useRef({});
-  const trailsRef = useRef({});
-  const labelsRef = useRef({});
-  const vectorsRef = useRef({});
-  const gridRef = useRef(null);
-  const labelContainerRef = useRef(null);
-  const animationRef = useRef(null);
-  const lastTimeRef = useRef(0);
-  const fpsCounterRef = useRef(0);
-  const lastFpsTimeRef = useRef(0);
-  const hudPanelRef = useRef(null);
-  const initialEnergyRef = useRef(null);
-  const bodiesRef = useRef([]);
-  const simulationTimeRef = useRef(0);
-  const mergedBodyIdsRef = useRef(new Set());
-  const initialBodiesRef = useRef([]);
-  const adaptiveDtRef = useRef(null);
-  const lastErrorNormRef = useRef(0);
-
-  bodiesRef.current = bodies;
-  simulationTimeRef.current = simulationTime;
-
-  const generateId = () => `body_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-  const rotateVector = useCallback((vec, omega, inc, argPeri) => {
-    const cosO = Math.cos(omega);
-    const sinO = Math.sin(omega);
-    const cosI = Math.cos(inc);
-    const sinI = Math.sin(inc);
-    const cosW = Math.cos(argPeri);
-    const sinW = Math.sin(argPeri);
-    const x = vec.x;
-    const y = vec.y;
-    const z = vec.z;
-    const Px = cosW * x - sinW * y;
-    const Py = sinW * x + cosW * y;
-    const Pz = z;
-    const Ix = Px;
-    const Iy = Py * cosI - Pz * sinI;
-    const Iz = Py * sinI + Pz * cosI;
-    return {
-      x: Ix * cosO - Iy * sinO,
-      y: Ix * sinO + Iy * cosO,
-      z: Iz
-    };
-  }, []);
-
-  const calculateOrbitalState = useCallback((centralBody, config) => {
-    if (!centralBody) return null;
-    const { orbitType, distance, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, trueAnomaly, prograde } = config;
-    const mu = centralBody.gm;
-    let e = eccentricity;
-    switch (orbitType) {
-      case "circular": e = 0; break;
-      case "elliptical": e = Math.max(0, Math.min(0.9999, eccentricity)); break;
-      case "parabolic": e = 1.0; break;
-      case "hyperbolic": e = Math.max(1.0001, eccentricity); break;
-      default: e = 0;
-    }
-    let p;
-    if (orbitType === "parabolic") {
-      p = 2 * distance;
-    } else if (orbitType === "hyperbolic") {
-      const a = distance / (1 - e);
-      p = Math.abs(a) * (e * e - 1);
-    } else {
-      const a = distance / (1 - e);
-      p = a * (1 - e * e);
-    }
-    const nuRad = (trueAnomaly * Math.PI) / 180;
-    const cosNu = Math.cos(nuRad);
-    const sinNu = Math.sin(nuRad);
-    const r = p / (1 + e * cosNu);
-    const rPQw = { x: r * cosNu, y: r * sinNu, z: 0 };
-    const sqrtMuP = Math.sqrt(mu / p);
-    let vPQw = {
-      x: -sqrtMuP * sinNu,
-      y: sqrtMuP * (e + cosNu),
-      z: 0
-    };
-    if (!prograde) {
-      vPQw.x = -vPQw.x;
-      vPQw.y = -vPQw.y;
-      vPQw.z = -vPQw.z;
-    }
-    const omegaRad = (longitudeOfAscendingNode * Math.PI) / 180;
-    const incRad = (inclination * Math.PI) / 180;
-    const argPeriRad = (argumentOfPeriapsis * Math.PI) / 180;
-    const rInertial = rotateVector(rPQw, omegaRad, incRad, argPeriRad);
-    const vInertial = rotateVector(vPQw, omegaRad, incRad, argPeriRad);
-    return {
-      x: centralBody.x + rInertial.x,
-      y: centralBody.y + rInertial.y,
-      z: centralBody.z + rInertial.z,
-      vx: centralBody.vx + vInertial.x,
-      vy: centralBody.vy + vInertial.y,
-      vz: centralBody.vz + vInertial.z
-    };
-  }, [rotateVector]);
-
-  const getOrbitalInfo = useCallback((centralBody, config) => {
-    if (!centralBody) return "Select a central body";
-    const mu = centralBody.gm;
-    const r = config.distance;
-    let e = config.eccentricity;
-    switch (config.orbitType) {
-      case "circular": e = 0; break;
-      case "parabolic": e = 1; break;
-      case "hyperbolic": e = Math.max(1.0001, e); break;
-      default: e = Math.max(0, Math.min(0.9999, e));
-    }
-    let a, p;
-    if (config.orbitType === "parabolic") {
-      p = 2 * r;
-    } else if (config.orbitType === "hyperbolic") {
-      a = r / (1 - e);
-      p = Math.abs(a) * (e * e - 1);
-    } else {
-      a = r / (1 - e);
-      p = a * (1 - e * e);
-    }
-    const nuRad = (config.trueAnomaly * Math.PI) / 180;
-    const dist = p / (1 + e * Math.cos(nuRad));
-    const speed = Math.sqrt(mu * (2 / dist - (Math.abs(1 / a) * (e >= 1 ? -1 : 1))));
-    let period = "INF";
-    if (config.orbitType === "circular" || config.orbitType === "elliptical") {
-      const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / mu);
-      period = formatTime(T);
-    }
-    return `v=${(speed / 1000).toFixed(2)} km/s, T=${period}`;
-  }, []);
-
-  const calculateFlybyState = useCallback((targetBody, config) => {
-    if (!targetBody) return null;
-    const { periapsisDistance, vInfinity, approachAngle, inclination, inbound, startDistance } = config;
-    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
-    const mu = targetBody.gm;
-    const rp = periapsisDistance;
-    const vinf = vInfinity;
-    const e = 1 + (rp * vinf * vinf) / mu;
-    const a = -mu / (vinf * vinf);
-    const p = rp * (1 + e);
-    const nuInf = Math.acos(-1 / e);
-    const cosNu = (p / startDistance - 1) / e;
-    let nu = Math.acos(Math.max(-1, Math.min(1, cosNu)));
-    if (inbound) nu = -nu;
-    const r = p / (1 + e * Math.cos(nu));
-    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
-    const sqrtMuP = Math.sqrt(mu / p);
-    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
-    const deflection = 2 * Math.asin(1 / e);
-    const approachRad = (approachAngle * Math.PI) / 180;
-    const incRad = (inclination * Math.PI) / 180;
-    const omega = approachRad - (Math.PI - Math.abs(nuInf));
-    const rInertial = rotateVector(rPQw, omega, incRad, 0);
-    const vInertial = rotateVector(vPQw, omega, incRad, 0);
-    const b = -a * Math.sqrt(e * e - 1);
-    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
-    return {
-      x: targetBody.x + rInertial.x,
-      y: targetBody.y + rInertial.y,
-      z: targetBody.z + rInertial.z,
-      vx: targetBody.vx + vInertial.x,
-      vy: targetBody.vy + vInertial.y,
-      vz: targetBody.vz + vInertial.z,
-      eccentricity: e,
-      deflectionAngle: deflection * 180 / Math.PI,
-      periapsisVelocity: vPeriapsis,
-      impactParameter: b,
-      trueAnomaly: nu * 180 / Math.PI
-    };
-  }, [rotateVector]);
-
-  const calculateInterstellarState = useCallback((referenceBody, config) => {
-    if (!referenceBody) return null;
-    const { periapsisDistance, vInfinity, approachAngle, inclination, startDistance } = config;
-    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
-    const mu = referenceBody.gm;
-    const rp = periapsisDistance;
-    const vinf = vInfinity;
-    const e = 1 + (rp * vinf * vinf) / mu;
-    const a = -mu / (vinf * vinf);
-    const p = rp * (1 + e);
-    const nuInf = Math.acos(-1 / e);
-    const cosNu = (p / startDistance - 1) / e;
-    let nu = -Math.acos(Math.max(-1, Math.min(1, cosNu)));
-    const r = p / (1 + e * Math.cos(nu));
-    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
-    const sqrtMuP = Math.sqrt(mu / p);
-    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
-    const approachRad = (approachAngle * Math.PI) / 180;
-    const incRad = (inclination * Math.PI) / 180;
-    const omega = approachRad - (Math.PI - Math.abs(nuInf));
-    const rInertial = rotateVector(rPQw, omega, incRad, 0);
-    const vInertial = rotateVector(vPQw, omega, incRad, 0);
-    const b = -a * Math.sqrt(e * e - 1);
-    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
-    return {
-      x: referenceBody.x + rInertial.x,
-      y: referenceBody.y + rInertial.y,
-      z: referenceBody.z + rInertial.z,
-      vx: referenceBody.vx + vInertial.x,
-      vy: referenceBody.vy + vInertial.y,
-      vz: referenceBody.vz + vInertial.z,
-      eccentricity: e,
-      periapsisVelocity: vPeriapsis,
-      impactParameter: b
-    };
-  }, [rotateVector]);
-
-  const scaleVector = useCallback((x, y, z) => {
-    if (scaleMode === "linear") {
-      const scale = 50 / AU;
-      return { x: x * scale, y: y * scale, z: z * scale };
-    } else {
-      const dist = Math.sqrt(x * x + y * y + z * z);
-      if (dist < 1000) return { x: x / 10000, y: y / 10000, z: z / 10000 };
-      const logDist = Math.log10(dist / AU * 100 + 1) * 20;
-      const scale = logDist / dist;
-      return { x: x * scale, y: y * scale, z: z * scale };
-    }
-  }, [scaleMode, AU]);
-
-  const scaleRadius = useCallback((radius, gm) => {
-    const minSize = 1.5;
-    const maxSize = 10;
-    const logRadius = Math.log10(radius + 1);
-    const logSolarRadius = Math.log10(SOLAR_RADIUS);
-    const logEarthRadius = Math.log10(EARTH_RADIUS_MEAN);
-    const normalized = (logRadius - logEarthRadius) / (logSolarRadius - logEarthRadius);
-    const scaled = minSize + normalized * (maxSize - minSize);
-    return Math.max(minSize, Math.min(maxSize, scaled));
-  }, [SOLAR_RADIUS, EARTH_RADIUS_MEAN]);
-
   const getRetardedPosition = useCallback((targetBody, observerBody, c, currentTime) => {
     const history = targetBody.positionHistory;
     if (!history || history.count < 2 || !physicsConfig.retardedGravity) {
@@ -1097,7 +1248,12 @@ export default function NBodySimulator() {
         return { x: history.x[firstIdx], y: history.y[firstIdx], z: history.z[firstIdx] };
       }
       if (retardedTime >= lastT) {
-        return { x: targetBody.x, y: targetBody.y, z: targetBody.z };
+        const dtForward = retardedTime - lastT;
+        return {
+          x: history.x[lastIdx] + history.vx[lastIdx] * dtForward,
+          y: history.y[lastIdx] + history.vy[lastIdx] * dtForward,
+          z: history.z[lastIdx] + history.vz[lastIdx] * dtForward
+        };
       }
 
       let lo = 0, hi = history.count - 1;
@@ -1247,7 +1403,7 @@ export default function NBodySimulator() {
             type: 'velocity',
             bodies: [bodyStates[i].name, bodyStates[j].name],
             value: vOverC,
-            message: `v/c = ${(vOverC * 100).toFixed(1)}% - PN expansion inaccurate`
+            message: `v/c = ${(vOverC * 100).toFixed(1)}% - PN expansion inaccurate.`
           });
         }
 
@@ -1260,7 +1416,7 @@ export default function NBodySimulator() {
             type: 'separation',
             bodies: [bodyStates[i].name, bodyStates[j].name],
             value: rOverRs,
-            message: `r/r_s = ${rOverRs.toFixed(1)} - Strong field regime, PN invalid`
+            message: `r/r_s = ${rOverRs.toFixed(1)} - Strong field regime, PN invalid.`
           });
         }
       }
@@ -1371,17 +1527,27 @@ export default function NBodySimulator() {
         const invR3 = invR * invR * invR;
 
         let forceMod = 1.0;
-        if (sConf.enabled) {
+        let kernelInvR3 = invR3;
+        let kernelRadialFactor = 3.0 * invR3 * invR * invR;
+        if (sConf.enabled && r > 0) {
           const eps = symmetricSoftening(softenings[i], softenings[j]);
           const adaptiveThreshold = 10.0 * eps;
           if (r > adaptiveThreshold) {
             forceMod = 1.0;
+            kernelInvR3 = invR3;
+            kernelRadialFactor = 3.0 * invR3 * invR * invR;
           } else if (sConf.mode === 'plummer') {
             forceMod = softeningKernels.plummer.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.plummer.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.plummer.jerkRadialFactor(r, eps);
           } else if (sConf.mode === 'spline') {
             forceMod = softeningKernels.spline.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.spline.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.spline.jerkRadialFactor(r, eps);
           } else if (sConf.mode === 'wendlandC2') {
             forceMod = softeningKernels.wendlandC2.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.wendlandC2.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.wendlandC2.jerkRadialFactor(r, eps);
           }
         }
 
@@ -1542,33 +1708,20 @@ export default function NBodySimulator() {
         const dvz = bodyStates[j].vz - bodyStates[i].vz;
         const rDotv = dx * dvx + dy * dvy + dz * dvz;
 
-        let jerkInvR3 = invR3;
-        if (sConf.enabled && r > 0) {
-          const eps = symmetricSoftening(softenings[i], softenings[j]);
-          if (sConf.mode === 'plummer') {
-            const r2 = r * r;
-            const eps2 = eps * eps;
-            const denom = r2 + eps2;
-            jerkInvR3 = 1.0 / Math.pow(denom, 1.5);
-          } else if (sConf.mode === 'spline' || sConf.mode === 'wendlandC2') {
-            jerkInvR3 = effectiveInvR3;
-          }
-        }
-
-        const alpha = 3 * rDotv / rSq;
-
         if (!jIsDebris) {
-          const termJ = GMj * jerkInvR3;
-          jerks[i].x += termJ * (dvx - alpha * dx);
-          jerks[i].y += termJ * (dvy - alpha * dy);
-          jerks[i].z += termJ * (dvz - alpha * dz);
+          const termJ_inv = GMj * kernelInvR3;
+          const termJ_rad = GMj * rDotv * kernelRadialFactor;
+          jerks[i].x += termJ_inv * dvx - termJ_rad * dx;
+          jerks[i].y += termJ_inv * dvy - termJ_rad * dy;
+          jerks[i].z += termJ_inv * dvz - termJ_rad * dz;
         }
 
         if (!iIsDebris) {
-          const termI = GMi * jerkInvR3;
-          jerks[j].x += termI * (-dvx - alpha * (-dx));
-          jerks[j].y += termI * (-dvy - alpha * (-dy));
-          jerks[j].z += termI * (-dvz - alpha * (-dz));
+          const termI_inv = GMi * kernelInvR3;
+          const termI_rad = GMi * rDotv * kernelRadialFactor;
+          jerks[j].x += termI_inv * (-dvx) - termI_rad * (-dx);
+          jerks[j].y += termI_inv * (-dvy) - termI_rad * (-dy);
+          jerks[j].z += termI_inv * (-dvz) - termI_rad * (-dz);
         }
       }
     }
@@ -1771,13 +1924,6 @@ export default function NBodySimulator() {
     return Math.min(maxTimestep, dt);
   }, [computeForces, computeSnap, softeningConfig, physicsConfig]);
 
-  const kahanSum = (current, input, error) => {
-    const y = input - error;
-    const t = current + y;
-    const newError = (t - current) - y;
-    return { value: t, error: newError };
-  };
-
   const computeInertiaTensor = useCallback((body, scale) => {
     const mass = body.gm / (scale ? 1 : G_CODATA);
     const radius = body.j2Radius || body.radius;
@@ -1790,64 +1936,6 @@ export default function NBodySimulator() {
     const I_zz = I_mean + (2 * j2 * MR2) / 3;
     return { I_xx, I_yy, I_zz };
   }, [G_CODATA]);
-
-  const quaternionMultiply = useCallback((q1, q2) => {
-    return {
-      w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
-      x: q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
-      y: q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
-      z: q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
-    };
-  }, []);
-
-  const quaternionNormalize = useCallback((q) => {
-    const mag = Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
-    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
-    return { w: q.w / mag, x: q.x / mag, y: q.y / mag, z: q.z / mag };
-  }, []);
-
-  const quaternionConjugate = useCallback((q) => {
-    return { w: q.w, x: -q.x, y: -q.y, z: -q.z };
-  }, []);
-
-  const rotateVectorByQuaternion = useCallback((v, q) => {
-    const qv = { w: 0, x: v.x, y: v.y, z: v.z };
-    const qConj = quaternionConjugate(q);
-    const result = quaternionMultiply(quaternionMultiply(q, qv), qConj);
-    return { x: result.x, y: result.y, z: result.z };
-  }, [quaternionMultiply, quaternionConjugate]);
-
-  const spinAxisToQuaternion = useCallback((spinAxisX, spinAxisY, spinAxisZ) => {
-    const mag = Math.sqrt(spinAxisX * spinAxisX + spinAxisY * spinAxisY + spinAxisZ * spinAxisZ);
-    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
-    const nx = spinAxisX / mag;
-    const ny = spinAxisY / mag;
-    const nz = spinAxisZ / mag;
-    const refZ = { x: 0, y: 0, z: 1 };
-    const dot = nz;
-    if (dot > 0.9999) return { w: 1, x: 0, y: 0, z: 0 };
-    if (dot < -0.9999) return { w: 0, x: 1, y: 0, z: 0 };
-    const crossX = refZ.y * nz - refZ.z * ny;
-    const crossY = refZ.z * nx - refZ.x * nz;
-    const crossZ = refZ.x * ny - refZ.y * nx;
-    const crossMag = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-    const halfAngle = angle / 2;
-    const sinHalf = Math.sin(halfAngle);
-    return quaternionNormalize({
-      w: Math.cos(halfAngle),
-      x: (crossX / crossMag) * sinHalf,
-      y: (crossY / crossMag) * sinHalf,
-      z: (crossZ / crossMag) * sinHalf
-    });
-  }, [quaternionNormalize]);
-
-  const quaternionToSpinAxis = useCallback((q) => {
-    const bodyZ = rotateVectorByQuaternion({ x: 0, y: 0, z: 1 }, q);
-    const mag = Math.sqrt(bodyZ.x * bodyZ.x + bodyZ.y * bodyZ.y + bodyZ.z * bodyZ.z);
-    if (mag < 1e-10) return { x: 0, y: 0, z: 1 };
-    return { x: bodyZ.x / mag, y: bodyZ.y / mag, z: bodyZ.z / mag };
-  }, [rotateVectorByQuaternion]);
 
   const integrateRK5 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
     const forceOptions = {
@@ -1929,7 +2017,7 @@ export default function NBodySimulator() {
         vx: b.vx + b2 * k1[i].dvx * dt,
         vy: b.vy + b2 * k1[i].dvy * dt,
         vz: b.vz + b2 * k1[i].dvz * dt,
-        orientation: quaternionNormalize({ w: q.w + b2 * k1[i].dqw * dt, x: q.x + b2 * k1[i].dqx * dt, y: q.y + b2 * k1[i].dqy * dt, z: q.z + b2 * k1[i].dqz * dt }),
+        orientation: { w: q.w + b2 * k1[i].dqw * dt, x: q.x + b2 * k1[i].dqx * dt, y: q.y + b2 * k1[i].dqy * dt, z: q.z + b2 * k1[i].dqz * dt },
         omegaBody_x: (b.omegaBody_x || 0) + b2 * k1[i].dOmegaX * dt,
         omegaBody_y: (b.omegaBody_y || 0) + b2 * k1[i].dOmegaY * dt,
         spinRate: (b.spinRate || 0) + b2 * k1[i].dOmegaZ * dt
@@ -1947,7 +2035,7 @@ export default function NBodySimulator() {
         vx: b.vx + (b3 * k1[i].dvx + c3 * k2[i].dvx) * dt,
         vy: b.vy + (b3 * k1[i].dvy + c3 * k2[i].dvy) * dt,
         vz: b.vz + (b3 * k1[i].dvz + c3 * k2[i].dvz) * dt,
-        orientation: quaternionNormalize({ w: q.w + (b3 * k1[i].dqw + c3 * k2[i].dqw) * dt, x: q.x + (b3 * k1[i].dqx + c3 * k2[i].dqx) * dt, y: q.y + (b3 * k1[i].dqy + c3 * k2[i].dqy) * dt, z: q.z + (b3 * k1[i].dqz + c3 * k2[i].dqz) * dt }),
+        orientation: { w: q.w + (b3 * k1[i].dqw + c3 * k2[i].dqw) * dt, x: q.x + (b3 * k1[i].dqx + c3 * k2[i].dqx) * dt, y: q.y + (b3 * k1[i].dqy + c3 * k2[i].dqy) * dt, z: q.z + (b3 * k1[i].dqz + c3 * k2[i].dqz) * dt },
         omegaBody_x: (b.omegaBody_x || 0) + (b3 * k1[i].dOmegaX + c3 * k2[i].dOmegaX) * dt,
         omegaBody_y: (b.omegaBody_y || 0) + (b3 * k1[i].dOmegaY + c3 * k2[i].dOmegaY) * dt,
         spinRate: (b.spinRate || 0) + (b3 * k1[i].dOmegaZ + c3 * k2[i].dOmegaZ) * dt
@@ -1965,7 +2053,7 @@ export default function NBodySimulator() {
         vx: b.vx + (b4 * k1[i].dvx + c4 * k2[i].dvx + d4 * k3[i].dvx) * dt,
         vy: b.vy + (b4 * k1[i].dvy + c4 * k2[i].dvy + d4 * k3[i].dvy) * dt,
         vz: b.vz + (b4 * k1[i].dvz + c4 * k2[i].dvz + d4 * k3[i].dvz) * dt,
-        orientation: quaternionNormalize({ w: q.w + (b4 * k1[i].dqw + c4 * k2[i].dqw + d4 * k3[i].dqw) * dt, x: q.x + (b4 * k1[i].dqx + c4 * k2[i].dqx + d4 * k3[i].dqx) * dt, y: q.y + (b4 * k1[i].dqy + c4 * k2[i].dqy + d4 * k3[i].dqy) * dt, z: q.z + (b4 * k1[i].dqz + c4 * k2[i].dqz + d4 * k3[i].dqz) * dt }),
+        orientation: { w: q.w + (b4 * k1[i].dqw + c4 * k2[i].dqw + d4 * k3[i].dqw) * dt, x: q.x + (b4 * k1[i].dqx + c4 * k2[i].dqx + d4 * k3[i].dqx) * dt, y: q.y + (b4 * k1[i].dqy + c4 * k2[i].dqy + d4 * k3[i].dqy) * dt, z: q.z + (b4 * k1[i].dqz + c4 * k2[i].dqz + d4 * k3[i].dqz) * dt },
         omegaBody_x: (b.omegaBody_x || 0) + (b4 * k1[i].dOmegaX + c4 * k2[i].dOmegaX + d4 * k3[i].dOmegaX) * dt,
         omegaBody_y: (b.omegaBody_y || 0) + (b4 * k1[i].dOmegaY + c4 * k2[i].dOmegaY + d4 * k3[i].dOmegaY) * dt,
         spinRate: (b.spinRate || 0) + (b4 * k1[i].dOmegaZ + c4 * k2[i].dOmegaZ + d4 * k3[i].dOmegaZ) * dt
@@ -1983,7 +2071,7 @@ export default function NBodySimulator() {
         vx: b.vx + (b5 * k1[i].dvx + c5 * k2[i].dvx + d5 * k3[i].dvx + e5 * k4[i].dvx) * dt,
         vy: b.vy + (b5 * k1[i].dvy + c5 * k2[i].dvy + d5 * k3[i].dvy + e5 * k4[i].dvy) * dt,
         vz: b.vz + (b5 * k1[i].dvz + c5 * k2[i].dvz + d5 * k3[i].dvz + e5 * k4[i].dvz) * dt,
-        orientation: quaternionNormalize({ w: q.w + (b5 * k1[i].dqw + c5 * k2[i].dqw + d5 * k3[i].dqw + e5 * k4[i].dqw) * dt, x: q.x + (b5 * k1[i].dqx + c5 * k2[i].dqx + d5 * k3[i].dqx + e5 * k4[i].dqx) * dt, y: q.y + (b5 * k1[i].dqy + c5 * k2[i].dqy + d5 * k3[i].dqy + e5 * k4[i].dqy) * dt, z: q.z + (b5 * k1[i].dqz + c5 * k2[i].dqz + d5 * k3[i].dqz + e5 * k4[i].dqz) * dt }),
+        orientation: { w: q.w + (b5 * k1[i].dqw + c5 * k2[i].dqw + d5 * k3[i].dqw + e5 * k4[i].dqw) * dt, x: q.x + (b5 * k1[i].dqx + c5 * k2[i].dqx + d5 * k3[i].dqx + e5 * k4[i].dqx) * dt, y: q.y + (b5 * k1[i].dqy + c5 * k2[i].dqy + d5 * k3[i].dqy + e5 * k4[i].dqy) * dt, z: q.z + (b5 * k1[i].dqz + c5 * k2[i].dqz + d5 * k3[i].dqz + e5 * k4[i].dqz) * dt },
         omegaBody_x: (b.omegaBody_x || 0) + (b5 * k1[i].dOmegaX + c5 * k2[i].dOmegaX + d5 * k3[i].dOmegaX + e5 * k4[i].dOmegaX) * dt,
         omegaBody_y: (b.omegaBody_y || 0) + (b5 * k1[i].dOmegaY + c5 * k2[i].dOmegaY + d5 * k3[i].dOmegaY + e5 * k4[i].dOmegaY) * dt,
         spinRate: (b.spinRate || 0) + (b5 * k1[i].dOmegaZ + c5 * k2[i].dOmegaZ + d5 * k3[i].dOmegaZ + e5 * k4[i].dOmegaZ) * dt
@@ -2001,7 +2089,7 @@ export default function NBodySimulator() {
         vx: b.vx + (b6 * k1[i].dvx + c6 * k2[i].dvx + d6 * k3[i].dvx + e6 * k4[i].dvx + f6 * k5[i].dvx) * dt,
         vy: b.vy + (b6 * k1[i].dvy + c6 * k2[i].dvy + d6 * k3[i].dvy + e6 * k4[i].dvy + f6 * k5[i].dvy) * dt,
         vz: b.vz + (b6 * k1[i].dvz + c6 * k2[i].dvz + d6 * k3[i].dvz + e6 * k4[i].dvz + f6 * k5[i].dvz) * dt,
-        orientation: quaternionNormalize({ w: q.w + (b6 * k1[i].dqw + c6 * k2[i].dqw + d6 * k3[i].dqw + e6 * k4[i].dqw + f6 * k5[i].dqw) * dt, x: q.x + (b6 * k1[i].dqx + c6 * k2[i].dqx + d6 * k3[i].dqx + e6 * k4[i].dqx + f6 * k5[i].dqx) * dt, y: q.y + (b6 * k1[i].dqy + c6 * k2[i].dqy + d6 * k3[i].dqy + e6 * k4[i].dqy + f6 * k5[i].dqy) * dt, z: q.z + (b6 * k1[i].dqz + c6 * k2[i].dqz + d6 * k3[i].dqz + e6 * k4[i].dqz + f6 * k5[i].dqz) * dt }),
+        orientation: { w: q.w + (b6 * k1[i].dqw + c6 * k2[i].dqw + d6 * k3[i].dqw + e6 * k4[i].dqw + f6 * k5[i].dqw) * dt, x: q.x + (b6 * k1[i].dqx + c6 * k2[i].dqx + d6 * k3[i].dqx + e6 * k4[i].dqx + f6 * k5[i].dqx) * dt, y: q.y + (b6 * k1[i].dqy + c6 * k2[i].dqy + d6 * k3[i].dqy + e6 * k4[i].dqy + f6 * k5[i].dqy) * dt, z: q.z + (b6 * k1[i].dqz + c6 * k2[i].dqz + d6 * k3[i].dqz + e6 * k4[i].dqz + f6 * k5[i].dqz) * dt },
         omegaBody_x: (b.omegaBody_x || 0) + (b6 * k1[i].dOmegaX + c6 * k2[i].dOmegaX + d6 * k3[i].dOmegaX + e6 * k4[i].dOmegaX + f6 * k5[i].dOmegaX) * dt,
         omegaBody_y: (b.omegaBody_y || 0) + (b6 * k1[i].dOmegaY + c6 * k2[i].dOmegaY + d6 * k3[i].dOmegaY + e6 * k4[i].dOmegaY + f6 * k5[i].dOmegaY) * dt,
         spinRate: (b.spinRate || 0) + (b6 * k1[i].dOmegaZ + c6 * k2[i].dOmegaZ + d6 * k3[i].dOmegaZ + e6 * k4[i].dOmegaZ + f6 * k5[i].dOmegaZ) * dt
@@ -2022,12 +2110,13 @@ export default function NBodySimulator() {
 
     const result = prepState.map((b, i) => {
       const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
-      const newQ = quaternionNormalize({
+      const newQRaw = {
         w: q.w + (n1 * k1[i].dqw + n3 * k3[i].dqw + n4 * k4[i].dqw + n5 * k5[i].dqw + n6 * k6[i].dqw) * dt,
         x: q.x + (n1 * k1[i].dqx + n3 * k3[i].dqx + n4 * k4[i].dqx + n5 * k5[i].dqx + n6 * k6[i].dqx) * dt,
         y: q.y + (n1 * k1[i].dqy + n3 * k3[i].dqy + n4 * k4[i].dqy + n5 * k5[i].dqy + n6 * k6[i].dqy) * dt,
         z: q.z + (n1 * k1[i].dqz + n3 * k3[i].dqz + n4 * k4[i].dqz + n5 * k5[i].dqz + n6 * k6[i].dqz) * dt
-      });
+      };
+      const newQ = quaternionNormalize(newQRaw);
       const newSpinAxis = quaternionToSpinAxis(newQ);
 
       const errPosX = dt * (e1 * k1[i].dx + e3 * k3[i].dx + e4 * k4[i].dx + eOrd5 * k5[i].dx + e6Err * k6[i].dx);
@@ -2063,34 +2152,6 @@ export default function NBodySimulator() {
     result.__errorNorm = errorNorm;
     return result;
   }, [computeForces, softeningConfig, physicsConfig, computeInertiaTensor, spinAxisToQuaternion, quaternionConjugate, rotateVectorByQuaternion, quaternionMultiply, quaternionNormalize, quaternionToSpinAxis]);
-
-  const integrateVerlet = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
-    const forceOptions = {
-      softeningConfig,
-      includeGR: physicsConfig.includeGR,
-      grMode: physicsConfig.grMode,
-      includeJ2: physicsConfig.includeJ2,
-      j2BackReaction: physicsConfig.j2BackReaction,
-      scale: scale,
-      currentTime: currentTime
-    };
-    const { accelerations: a1 } = computeForces(bodyStates, forceOptions);
-    const nextPosStates = bodyStates.map((body, i) => ({
-      ...body,
-      x: body.x + body.vx * dt + 0.5 * a1[i].x * dt * dt,
-      y: body.y + body.vy * dt + 0.5 * a1[i].y * dt * dt,
-      z: body.z + body.vz * dt + 0.5 * a1[i].z * dt * dt
-    }));
-    const { accelerations: a2 } = computeForces(nextPosStates, { ...forceOptions, currentTime: currentTime + dt });
-    const result = nextPosStates.map((body, i) => ({
-      ...body,
-      vx: body.vx + 0.5 * (a1[i].x + a2[i].x) * dt,
-      vy: body.vy + 0.5 * (a1[i].y + a2[i].y) * dt,
-      vz: body.vz + 0.5 * (a1[i].z + a2[i].z) * dt
-    }));
-    result.__errorNorm = 0;
-    return result;
-  }, [computeForces, softeningConfig, physicsConfig]);
 
   const integrateRK4 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
     const forceOptions = {
@@ -2224,6 +2285,34 @@ export default function NBodySimulator() {
     return state;
   }, [computeForces, softeningConfig, physicsConfig]);
 
+  const integrateVerlet = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale,
+      currentTime: currentTime
+    };
+    const { accelerations: a1 } = computeForces(bodyStates, forceOptions);
+    const nextPosStates = bodyStates.map((body, i) => ({
+      ...body,
+      x: body.x + body.vx * dt + 0.5 * a1[i].x * dt * dt,
+      y: body.y + body.vy * dt + 0.5 * a1[i].y * dt * dt,
+      z: body.z + body.vz * dt + 0.5 * a1[i].z * dt * dt
+    }));
+    const { accelerations: a2 } = computeForces(nextPosStates, { ...forceOptions, currentTime: currentTime + dt });
+    const result = nextPosStates.map((body, i) => ({
+      ...body,
+      vx: body.vx + 0.5 * (a1[i].x + a2[i].x) * dt,
+      vy: body.vy + 0.5 * (a1[i].y + a2[i].y) * dt,
+      vz: body.vz + 0.5 * (a1[i].z + a2[i].z) * dt
+    }));
+    result.__errorNorm = 0;
+    return result;
+  }, [computeForces, softeningConfig, physicsConfig]);
+
   const integrate = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
     switch (integrator) {
       case INTEGRATORS.RK5: return integrateRK5(bodyStates, dt, scale, currentTime);
@@ -2300,18 +2389,6 @@ export default function NBodySimulator() {
       }
     }
 
-    let grPotentials = null;
-    if (physicsConfig.includeGR) {
-      grPotentials = new Array(nActive).fill(0);
-      for (let i = 0; i < nActive; i++) {
-        for (let k = 0; k < nActive; k++) {
-          if (k !== i && rMags[i][k] > 0) {
-            grPotentials[i] += G_CODATA * masses[k] / rMags[i][k];
-          }
-        }
-      }
-    }
-
     for (let i = 0; i < nActive; i++) {
       for (let j = i + 1; j < nActive; j++) {
         const r = rMags[i][j];
@@ -2359,11 +2436,24 @@ export default function NBodySimulator() {
 
           const potSqTerm = -0.5 * Uij * Uij / (c2 * mi * mj) * (mi + mj);
 
-          const phi_i = grPotentials[i];
-          const phi_j = grPotentials[j];
-          const crossPotentialTerm = -(Uij / c2) * (phi_i / mi + phi_j / mj) * 0.5 * (mi + mj);
+          relativisticEnergy += velDepTerm + potSqTerm;
+        }
+      }
+    }
 
-          relativisticEnergy += velDepTerm + potSqTerm + crossPotentialTerm;
+    if (physicsConfig.includeGR && nActive >= 3) {
+      for (let a = 0; a < nActive; a++) {
+        for (let b = 0; b < nActive; b++) {
+          if (b === a) continue;
+          for (let cIdx = 0; cIdx < nActive; cIdx++) {
+            if (cIdx === a || cIdx === b) continue;
+            const r_ab = rMags[a][b];
+            const r_ac = rMags[a][cIdx];
+            if (r_ab > 0 && r_ac > 0) {
+              const triple = -(G_CODATA * G_CODATA * masses[a] * masses[b] * masses[cIdx]) / (2.0 * c2 * r_ab * r_ac);
+              relativisticEnergy += triple;
+            }
+          }
         }
       }
     }
@@ -2394,83 +2484,98 @@ export default function NBodySimulator() {
     };
   }, [softeningConfig, softeningKernels, calculateSoftening, symmetricSoftening, G_CODATA, physicsConfig, getEffectiveSpeedOfLight, checkRocheLimitViolations]);
 
-  const computeOrbitalElements = useCallback((body, centralBody) => {
-    if (!centralBody) return null;
-    const r_vec = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
-    const v_vec = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
-    const r = Math.sqrt(r_vec.x ** 2 + r_vec.y ** 2 + r_vec.z ** 2);
-    const v = Math.sqrt(v_vec.x ** 2 + v_vec.y ** 2 + v_vec.z ** 2);
-    const mu = centralBody.gm + body.gm;
-    const h_vec = {
-      x: r_vec.y * v_vec.z - r_vec.z * v_vec.y,
-      y: r_vec.z * v_vec.x - r_vec.x * v_vec.z,
-      z: r_vec.x * v_vec.y - r_vec.y * v_vec.x
-    };
-    const h = Math.sqrt(h_vec.x ** 2 + h_vec.y ** 2 + h_vec.z ** 2);
-    const n_vec = { x: -h_vec.y, y: h_vec.x, z: 0 };
-    const n = Math.sqrt(n_vec.x ** 2 + n_vec.y ** 2);
-    const rdotv = r_vec.x * v_vec.x + r_vec.y * v_vec.y + r_vec.z * v_vec.z;
-    const e_vec = {
-      x: (v_vec.y * h_vec.z - v_vec.z * h_vec.y) / mu - r_vec.x / r,
-      y: (v_vec.z * h_vec.x - v_vec.x * h_vec.z) / mu - r_vec.y / r,
-      z: (v_vec.x * h_vec.y - v_vec.y * h_vec.x) / mu - r_vec.z / r
-    };
-    const e = Math.sqrt(e_vec.x ** 2 + e_vec.y ** 2 + e_vec.z ** 2);
-    const energy = v * v / 2 - mu / r;
-    const a = -mu / (2 * energy);
-    const inc = h > 1e-10 ? Math.acos(Math.max(-1, Math.min(1, h_vec.z / h))) : 0;
-
-    let Omega = 0;
-    if (n > 1e-10) {
-      Omega = Math.atan2(n_vec.y, n_vec.x);
-      if (Omega < 0) Omega += 2 * Math.PI;
-    }
-
-    let omega = 0;
-    if (n > 1e-10 && e > 1e-10) {
-      const ndote = n_vec.x * e_vec.x + n_vec.y * e_vec.y + n_vec.z * e_vec.z;
-      omega = Math.acos(Math.max(-1, Math.min(1, ndote / (n * e))));
-      if (e_vec.z < 0) omega = 2 * Math.PI - omega;
-    } else if (e > 1e-10) {
-      omega = Math.atan2(e_vec.y, e_vec.x);
-    }
-
-    let nu = 0;
-    if (e > 1e-10) {
-      const edotr = e_vec.x * r_vec.x + e_vec.y * r_vec.y + e_vec.z * r_vec.z;
-      nu = Math.acos(Math.max(-1, Math.min(1, edotr / (e * r))));
-      if (rdotv < 0) nu = 2 * Math.PI - nu;
+  const scaleVector = useCallback((x, y, z) => {
+    if (scaleMode === "linear") {
+      const scale = 50 / AU;
+      return { x: x * scale, y: y * scale, z: z * scale };
     } else {
-      const cp = { x: n_vec.y * r_vec.z - n_vec.z * r_vec.y, y: n_vec.z * r_vec.x - n_vec.x * r_vec.z, z: n_vec.x * r_vec.y - n_vec.y * r_vec.x };
-      if (n > 1e-10) {
-        nu = Math.acos(Math.max(-1, Math.min(1, (n_vec.x * r_vec.x + n_vec.y * r_vec.y + n_vec.z * r_vec.z) / (n * r))));
-        if (rdotv < 0) nu = 2 * Math.PI - nu;
-      }
+      const dist = Math.sqrt(x * x + y * y + z * z);
+      if (dist < 1000) return { x: x / 10000, y: y / 10000, z: z / 10000 };
+      const logDist = Math.log10(dist / AU * 100 + 1) * 20;
+      const scale = logDist / dist;
+      return { x: x * scale, y: y * scale, z: z * scale };
     }
+  }, [scaleMode, AU]);
 
-    const period = e < 1 ? 2 * Math.PI * Math.sqrt(Math.abs(a * a * a) / mu) : Infinity;
-    const periapsis = a * (1 - e);
-    const apoapsis = e < 1 ? a * (1 + e) : Infinity;
-    let orbitType = 'circular';
-    if (e < 1e-4) orbitType = 'circular';
-    else if (e < 0.999) orbitType = 'elliptical';
-    else if (e < 1.001) orbitType = 'parabolic';
-    else orbitType = 'hyperbolic';
+  const scaleRadius = useCallback((radius, gm) => {
+    const minSize = 1.5;
+    const maxSize = 10;
+    const logRadius = Math.log10(radius + 1);
+    const logSolarRadius = Math.log10(SOLAR_RADIUS);
+    const logEarthRadius = Math.log10(EARTH_RADIUS_MEAN);
+    const normalized = (logRadius - logEarthRadius) / (logSolarRadius - logEarthRadius);
+    const scaled = minSize + normalized * (maxSize - minSize);
+    return Math.max(minSize, Math.min(maxSize, scaled));
+  }, [SOLAR_RADIUS, EARTH_RADIUS_MEAN]);
 
-    return {
-      semiMajorAxis: a,
-      eccentricity: e,
-      inclination: inc * 180 / Math.PI,
-      longitudeOfAscendingNode: Omega * 180 / Math.PI,
-      argumentOfPeriapsis: omega * 180 / Math.PI,
-      trueAnomaly: nu * 180 / Math.PI,
-      period,
-      periapsis,
-      apoapsis,
-      specificEnergy: energy,
-      orbitType
-    };
-  }, []);
+  const openAddBodyModal = useCallback(() => {
+    if (bodies.length === 0) {
+      setNewBody({
+        name: "Sun",
+        mass: GM_SUN / G_CODATA,
+        radius: SOLAR_RADIUS,
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        color: "#FFD700",
+        j2: 0,
+        j2Radius: null,
+        spinAxisX: 0,
+        spinAxisY: 0,
+        spinAxisZ: 1,
+        spinRate: 2.87e-6,
+        momentOfInertiaFactor: 0.07
+      });
+      setTrajectoryMode("manual");
+      setOrbitConfig(prev => ({ ...prev, enabled: false, centralBodyId: null }));
+    } else {
+      setNewBody({
+        name: "",
+        mass: GM_EARTH / G_CODATA,
+        radius: EARTH_RADIUS_MEAN,
+        x: AU, y: 0, z: 0,
+        vx: 0, vy: 29780, vz: 0,
+        color: "#4ECDC4",
+        j2: 0.001083,
+        j2Radius: EARTH_RADIUS_EQUATORIAL,
+        spinAxisX: 0,
+        spinAxisY: 0,
+        spinAxisZ: 1,
+        spinRate: 7.292e-5,
+        momentOfInertiaFactor: 0.331
+      });
+      setTrajectoryMode("orbit");
+      setOrbitConfig({
+        enabled: true,
+        centralBodyId: bodies[0]?.id || null,
+        orbitType: "circular",
+        distance: AU,
+        eccentricity: 0,
+        inclination: 0,
+        longitudeOfAscendingNode: 0,
+        argumentOfPeriapsis: 0,
+        trueAnomaly: 0,
+        prograde: true
+      });
+      setFlybyConfig({
+        targetBodyId: bodies[0]?.id || null,
+        periapsisDistance: 1.0 * AU,
+        vInfinity: 30000,
+        approachAngle: 0,
+        inclination: 0,
+        inbound: true,
+        startDistance: 10 * AU
+      });
+      setInterstellarConfig({
+        referenceBodyId: bodies[0]?.id || null,
+        periapsisDistance: 0.5 * AU,
+        vInfinity: 26000,
+        approachAngle: 45,
+        inclination: 30,
+        startDistance: 50 * AU
+      });
+    }
+    setAddBodyModal(true);
+  }, [bodies, GM_SUN, SOLAR_RADIUS, GM_EARTH, EARTH_RADIUS_MEAN, EARTH_RADIUS_EQUATORIAL, AU, G_CODATA]);
 
   const addBody = useCallback(() => {
     let finalX = parseFloat(newBody.x) || 0;
@@ -2703,40 +2808,18 @@ export default function NBodySimulator() {
     }
   }, [createTrailBuffer, trailLength]);
 
-  const formatNumber = (num, decimals = 2) => {
-    if (num === null || num === undefined || isNaN(num)) return "N/A";
-    if (!isFinite(num)) return num > 0 ? "INF" : "-INF";
-    if (Math.abs(num) < 1e-10) return "0";
-    if (Math.abs(num) >= 1e9 || Math.abs(num) < 1e-3) {
-      return num.toExponential(decimals);
-    }
-    return num.toFixed(decimals);
-  };
-
-  const formatTime = (seconds) => {
-    if (!isFinite(seconds)) return "INF";
-    const days = Math.floor(seconds / DAY_SECONDS);
-    const years = Math.floor(days / 365.25);
-    const remainingDays = Math.floor(days % 365.25);
-    if (years > 0) return `${years}y ${remainingDays}d`;
-    if (days > 0) return `${days}d ${Math.floor((seconds % DAY_SECONDS) / 3600)}h`;
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${mins}m`;
-  };
-
-  const handleHudMouseDown = useCallback((e) => {
-    if (e.target.closest(".nbody-close-btn")) return;
-    e.preventDefault();
+  const handleHudMouseDown = useCallback((event) => {
+    if (event.target.closest(".nbody-close-btn")) return;
+    event.preventDefault();
     setIsDraggingHud(true);
-    setDragStart({ x: e.clientX - hudPosition.x, y: e.clientY - hudPosition.y });
+    setDragStart({ x: event.clientX - hudPosition.x, y: event.clientY - hudPosition.y });
   }, [hudPosition]);
 
-  const handleHudMouseMove = useCallback((e) => {
+  const handleHudMouseMove = useCallback((event) => {
     if (!isDraggingHud || !hudPanelRef.current) return;
-    e.preventDefault();
-    let newX = e.clientX - dragStart.x;
-    let newY = e.clientY - dragStart.y;
+    event.preventDefault();
+    let newX = event.clientX - dragStart.x;
+    let newY = event.clientY - dragStart.y;
     const winW = window.innerWidth, winH = window.innerHeight;
     const rect = hudPanelRef.current.getBoundingClientRect();
     const minX = (rect.width / 2) - (winW / 2) + 10;
@@ -3147,11 +3230,12 @@ export default function NBodySimulator() {
             }
           }
 
-          normalizedState = integrate(normalizedState, effectiveDt, scale, normalizedTime);
-          if (typeof normalizedState.__errorNorm === 'number') {
-            cumulativeErr += normalizedState.__errorNorm;
+          const stepResult = integrate(normalizedState, effectiveDt, scale, normalizedTime);
+          if (typeof stepResult.__errorNorm === 'number') {
+            cumulativeErr += stepResult.__errorNorm;
             stepCount++;
           }
+          normalizedState = stepResult;
           normalizedTime += effectiveDt;
 
           if (physicsConfig.collisionMode !== 'none') {

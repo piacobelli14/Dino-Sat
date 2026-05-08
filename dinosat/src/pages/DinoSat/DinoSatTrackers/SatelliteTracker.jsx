@@ -131,38 +131,33 @@ const GROUND_TRACK_CITIES = [
 
 const WORLD_MAP_IMAGE_URL = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57752/land_shallow_topo_2048.jpg";
 
-const safeRenderText = (value) => {
-  if (value === null || value === undefined) return "—";
-  const sanitize = (s) => typeof s === "string" ? s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1") : s;
-  if (typeof value === "string") return sanitize(value);
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) {
-    return value.map(v => {
-      if (v === null || v === undefined) return "";
-      if (typeof v === "string") return sanitize(v);
-      if (typeof v === "number" || typeof v === "boolean") return String(v);
-      if (typeof v === "object") {
-        const candidate = v.text || v.description || v.value || v.label || v.name || v.event;
-        if (typeof candidate === "string") return sanitize(candidate);
-        const stringEntries = Object.entries(v).filter(([, val]) => typeof val === "string" || typeof val === "number");
-        if (stringEntries.length > 0) {
-          return stringEntries.map(([k, val]) => `${k}: ${sanitize(String(val))}`).join(", ");
-        }
-        return "";
-      }
-      return String(v);
-    }).filter(s => s && s.length > 0).join(". ");
+const dateToJulianDate = (date) => {
+  return date.getTime() / 86400000.0 + 2440587.5;
+};
+
+const eciToScene = (eci) => {
+  const distKm = Math.sqrt(eci.x * eci.x + eci.y * eci.y + eci.z * eci.z);
+  if (distKm <= 0 || !Number.isFinite(distKm)) {
+    return null;
   }
-  if (typeof value === "object") {
-    const candidate = value.text || value.description || value.value || value.label || value.name || value.event;
-    if (typeof candidate === "string") return sanitize(candidate);
-    const stringEntries = Object.entries(value).filter(([, val]) => typeof val === "string" || typeof val === "number");
-    if (stringEntries.length > 0) {
-      return stringEntries.map(([k, val]) => `${k}: ${sanitize(String(val))}`).join(". ");
-    }
-    return "—";
-  }
-  return String(value);
+  const altKm = distKm - EARTH_RADIUS_KM;
+  const sceneR = SCENE_EARTH_RADIUS + altKm / ORBITAL_CONSTANTS.SCALE_FACTOR;
+  const scale = sceneR / distKm;
+  return new THREE.Vector3(eci.x * scale, eci.z * scale, -eci.y * scale);
+};
+
+const computeSunDirectionECI = (date) => {
+  const targetJD = dateToJulianDate(date);
+  const T = (targetJD - 2451545.0) / 36525.0;
+  const L = (280.46646 + 36000.76983 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
+  const g = (357.52911 + 35999.05029 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
+  const lambda = L + (1.914602 - 0.004817 * T) * Math.sin(g) * ORBITAL_CONSTANTS.DEG_TO_RAD
+    + (0.019993 - 0.000101 * T) * Math.sin(2 * g) * ORBITAL_CONSTANTS.DEG_TO_RAD;
+  const obliquity = (23.4393 - 0.0130042 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
+  const x = Math.cos(lambda);
+  const y = Math.cos(obliquity) * Math.sin(lambda);
+  const z = Math.sin(obliquity) * Math.sin(lambda);
+  return { x, y, z };
 };
 
 const niceTickStep = (range, target) => {
@@ -210,31 +205,38 @@ const csvQuote = (val) => {
   return `"${s}"`;
 };
 
-const dateToJulianDate = (date) => date.getTime() / 86400000.0 + 2440587.5;
-
-const eciToScene = (eci) => {
-  const distKm = Math.sqrt(eci.x * eci.x + eci.y * eci.y + eci.z * eci.z);
-  if (distKm <= 0 || !Number.isFinite(distKm)) {
-    return null;
+const safeRenderText = (value) => {
+  if (value === null || value === undefined) return "—";
+  const sanitize = (s) => typeof s === "string" ? s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1") : s;
+  if (typeof value === "string") return sanitize(value);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    return value.map(v => {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "string") return sanitize(v);
+      if (typeof v === "number" || typeof v === "boolean") return String(v);
+      if (typeof v === "object") {
+        const candidate = v.text || v.description || v.value || v.label || v.name || v.event;
+        if (typeof candidate === "string") return sanitize(candidate);
+        const stringEntries = Object.entries(v).filter(([, val]) => typeof val === "string" || typeof val === "number");
+        if (stringEntries.length > 0) {
+          return stringEntries.map(([k, val]) => `${k}: ${sanitize(String(val))}`).join(", ");
+        }
+        return "";
+      }
+      return String(v);
+    }).filter(s => s && s.length > 0).join(". ");
   }
-  const altKm = distKm - EARTH_RADIUS_KM;
-  const sceneR = SCENE_EARTH_RADIUS + altKm / ORBITAL_CONSTANTS.SCALE_FACTOR;
-  const scale = sceneR / distKm;
-  return new THREE.Vector3(eci.x * scale, eci.z * scale, -eci.y * scale);
-};
-
-const computeSunDirectionECI = (date) => {
-  const targetJD = dateToJulianDate(date);
-  const T = (targetJD - 2451545.0) / 36525.0;
-  const L = (280.46646 + 36000.76983 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
-  const g = (357.52911 + 35999.05029 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
-  const lambda = L + (1.914602 - 0.004817 * T) * Math.sin(g) * ORBITAL_CONSTANTS.DEG_TO_RAD
-    + (0.019993 - 0.000101 * T) * Math.sin(2 * g) * ORBITAL_CONSTANTS.DEG_TO_RAD;
-  const obliquity = (23.4393 - 0.0130042 * T) * ORBITAL_CONSTANTS.DEG_TO_RAD;
-  const x = Math.cos(lambda);
-  const y = Math.cos(obliquity) * Math.sin(lambda);
-  const z = Math.sin(obliquity) * Math.sin(lambda);
-  return { x, y, z };
+  if (typeof value === "object") {
+    const candidate = value.text || value.description || value.value || value.label || value.name || value.event;
+    if (typeof candidate === "string") return sanitize(candidate);
+    const stringEntries = Object.entries(value).filter(([, val]) => typeof val === "string" || typeof val === "number");
+    if (stringEntries.length > 0) {
+      return stringEntries.map(([k, val]) => `${k}: ${sanitize(String(val))}`).join(". ");
+    }
+    return "—";
+  }
+  return String(value);
 };
 
 const tleAgeColor = (ageDays) => {
@@ -491,7 +493,6 @@ const detectConjunctions = (satellites, satelliteData, thresholdKm, currentDate,
   }
 
   const cellSize = Math.max(thresholdKm, PERFORMANCE_CONSTANTS.CONJUNCTION_GRID_CELL_KM);
-  const altThreshKm = thresholdKm * 1.5;
 
   const grid = new Map();
   const cellKeyFor = (px, py, pz) => {
@@ -546,7 +547,7 @@ const detectConjunctions = (satellites, satelliteData, thresholdKm, currentDate,
         const realKm = Math.sqrt(dx2 * dx2 + dy2 * dy2 + dz2 * dz2);
         const altDiff = Math.abs(a.altitudeKm - b.altitudeKm);
 
-        if (realKm < thresholdKm && altDiff < altThreshKm) {
+        if (realKm < thresholdKm) {
           conjunctions.push({
             a: a.sat,
             b: b.sat,
@@ -1179,7 +1180,9 @@ const ChartCanvas = ({ values, height = 140, colorFn, accent, label, unit, value
     setHover({ index: idx, clientX: e.clientX, clientY: e.clientY, rectLeft: rect.left, rectTop: rect.top });
   }, [numericValues, width, renderMode]);
 
-  const handleMouseLeave = useCallback(() => setHover(null), []);
+  const handleMouseLeave = useCallback(() => {
+    setHover(null);
+  }, []);
 
   if (!stats || numericValues.length === 0) {
     return (
@@ -2606,7 +2609,9 @@ const PassPredictionsTab = ({ satellite, satrec, observerLocation, onLocationCha
     }, 50);
   }, [satrec, observerLocation, hours, minEl]);
 
-  useEffect(() => { compute(); }, [compute]);
+  useEffect(() => {
+    compute();
+  }, [compute]);
 
   const azCompass = (deg) => {
     const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
@@ -2950,7 +2955,11 @@ const ObservationsTab = ({ satellite, observation, loading, onRefresh }) => {
   };
 
   const hostnameOf = (url) => {
-    try { return new URL(url).hostname.replace("www.", ""); } catch (error) { return url; }
+    try {
+      return new URL(url).hostname.replace("www.", "");
+    } catch (error) {
+      return url;
+    }
   };
 
   const renderOverview = () => (
@@ -3471,7 +3480,9 @@ export default function SatelliteTracker() {
       satelliteInstanceRef.current.setMatrixAt(idx, tempMatrix.current);
       glowInstanceRef.current.setMatrixAt(idx, tempMatrix.current);
       let baseColor = satellite.color;
-      if (colorByTleAgeRef.current) { baseColor = tleAgeColor(satellite.tleAgeDays); }
+      if (colorByTleAgeRef.current) {
+        baseColor = tleAgeColor(satellite.tleAgeDays);
+      }
       tempColor.current.set(baseColor);
       const boost = (1.0 + data.shadowFactor * 2.0) * data.shadowFactor;
       tempColor.current.multiplyScalar(boost);
@@ -3483,7 +3494,9 @@ export default function SatelliteTracker() {
     glowInstanceRef.current.count = idx;
     satelliteInstanceRef.current.instanceMatrix.needsUpdate = true;
     glowInstanceRef.current.instanceMatrix.needsUpdate = true;
-    if (satelliteInstanceRef.current.instanceColor) { satelliteInstanceRef.current.instanceColor.needsUpdate = true; }
+    if (satelliteInstanceRef.current.instanceColor) {
+      satelliteInstanceRef.current.instanceColor.needsUpdate = true;
+    }
   }, []);
 
   const createLabel = useCallback((text, color) => {
@@ -3760,7 +3773,7 @@ export default function SatelliteTracker() {
     let activeCount = 0;
     let interactive = false;
     const startTime = performance.now();
-    const url = `${import.meta.env.VITE_API_AUTH_URL}/satellite-stream`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/satellite-stream`;
 
     let eventSource;
     try {
@@ -3886,7 +3899,7 @@ export default function SatelliteTracker() {
   const fetchSpaceWeatherData = useCallback(async () => {
     setSpaceWeatherLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/space-weather`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/space-weather`);
       const j = await r.json();
       if (j.success) setSpaceWeather(j.data);
     } catch (error) {} finally {
@@ -3899,7 +3912,7 @@ export default function SatelliteTracker() {
     if (!force && spaceWeatherAI) return;
     setSpaceWeatherAILoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/space-weather-ai`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/space-weather-ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ spaceWeather })
@@ -3929,7 +3942,7 @@ export default function SatelliteTracker() {
 
     setMissionIntelLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/mission-intelligence`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/mission-intelligence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ satellite: enrichSatellite(satellite) }),
@@ -3971,7 +3984,7 @@ export default function SatelliteTracker() {
 
     setObservationLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/observation-data`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/observation-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ satellite: enrichSatellite(satellite) }),
@@ -3998,7 +4011,7 @@ export default function SatelliteTracker() {
   const fetchConstellationHealth = useCallback(async () => {
     setConstellationLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/constellation-health`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/constellation-health`);
       const j = await r.json();
       if (j.success) setConstellationHealth(j.constellations);
     } catch (error) {} finally {
@@ -4009,7 +4022,7 @@ export default function SatelliteTracker() {
   const fetchDecayWatch = useCallback(async () => {
     setDecayLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/decay-watch`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/decay-watch`);
       const j = await r.json();
       if (j.success) {
         setDecayCandidates(j.candidates || []);
@@ -4175,15 +4188,41 @@ export default function SatelliteTracker() {
     setSatellites(prev => prev.map(satellite => ({ ...satellite, active: false })));
   }, []);
 
-  const togglePlay = useCallback(() => setIsPlaying(p => !p), []);
-  const toggleOrbits = useCallback(() => setShowOrbits(v => !v), []);
-  const toggleTrails = useCallback(() => setShowTrails(v => !v), []);
-  const toggleLabels = useCallback(() => setShowLabels(v => !v), []);
-  const toggleEquatorialGrid = useCallback(() => setShowEquatorialGrid(v => !v), []);
-  const toggleAxisMarkers = useCallback(() => setShowAxisMarkers(v => !v), []);
-  const toggleAltitudeBands = useCallback(() => setShowAltitudeBands(v => !v), []);
-  const toggleDistanceRings = useCallback(() => setShowDistanceRings(v => !v), []);
-  const toggleBloom = useCallback(() => setBloomEnabled(v => !v), []);
+  const togglePlay = useCallback(() => {
+    setIsPlaying(p => !p);
+  }, []);
+
+  const toggleOrbits = useCallback(() => {
+    setShowOrbits(v => !v);
+  }, []);
+
+  const toggleTrails = useCallback(() => {
+    setShowTrails(v => !v);
+  }, []);
+
+  const toggleLabels = useCallback(() => {
+    setShowLabels(v => !v);
+  }, []);
+
+  const toggleEquatorialGrid = useCallback(() => {
+    setShowEquatorialGrid(v => !v);
+  }, []);
+
+  const toggleAxisMarkers = useCallback(() => {
+    setShowAxisMarkers(v => !v);
+  }, []);
+
+  const toggleAltitudeBands = useCallback(() => {
+    setShowAltitudeBands(v => !v);
+  }, []);
+
+  const toggleDistanceRings = useCallback(() => {
+    setShowDistanceRings(v => !v);
+  }, []);
+
+  const toggleBloom = useCallback(() => {
+    setBloomEnabled(v => !v);
+  }, []);
 
   const toggleHUD = useCallback(() => {
     setHudVisible(v => {
@@ -4534,10 +4573,23 @@ export default function SatelliteTracker() {
       starPositions[i3 + 2] = radius * Math.cos(phi);
       const starType = Math.random();
       let baseColor, intensity, size;
-      if (starType < 0.5) { baseColor = { r: 0.9, g: 0.95, b: 1.0 }; intensity = 0.7 + Math.random() * 0.3; size = 1.0 + Math.random() * 0.5; }
-      else if (starType < 0.7) { baseColor = { r: 1.0, g: 0.95, b: 0.85 }; intensity = 0.75 + Math.random() * 0.25; size = 1.2 + Math.random() * 0.8; }
-      else if (starType < 0.85) { baseColor = { r: 1.0, g: 0.7, b: 0.4 }; intensity = 0.8 + Math.random() * 0.2; size = 1.8 + Math.random() * 1.0; }
-      else { baseColor = { r: 0.95, g: 0.92, b: 1.0 }; intensity = 0.6 + Math.random() * 0.3; size = 0.5 + Math.random() * 0.3; }
+      if (starType < 0.5) {
+        baseColor = { r: 0.9, g: 0.95, b: 1.0 };
+        intensity = 0.7 + Math.random() * 0.3;
+        size = 1.0 + Math.random() * 0.5;
+      } else if (starType < 0.7) {
+        baseColor = { r: 1.0, g: 0.95, b: 0.85 };
+        intensity = 0.75 + Math.random() * 0.25;
+        size = 1.2 + Math.random() * 0.8;
+      } else if (starType < 0.85) {
+        baseColor = { r: 1.0, g: 0.7, b: 0.4 };
+        intensity = 0.8 + Math.random() * 0.2;
+        size = 1.8 + Math.random() * 1.0;
+      } else {
+        baseColor = { r: 0.95, g: 0.92, b: 1.0 };
+        intensity = 0.6 + Math.random() * 0.3;
+        size = 0.5 + Math.random() * 0.3;
+      }
       starColors[i3] = baseColor.r * intensity;
       starColors[i3 + 1] = baseColor.g * intensity;
       starColors[i3 + 2] = baseColor.b * intensity;
@@ -4603,10 +4655,16 @@ export default function SatelliteTracker() {
         }
       });
       Object.values(orbitLinesRef.current).forEach(line => {
-        if (line) { line.geometry.dispose(); line.material.dispose(); }
+        if (line) {
+          line.geometry.dispose();
+          line.material.dispose();
+        }
       });
       Object.values(trailLinesRef.current).forEach(line => {
-        if (line) { line.geometry.dispose(); line.material.dispose(); }
+        if (line) {
+          line.geometry.dispose();
+          line.material.dispose();
+        }
       });
       composer.dispose();
       window.removeEventListener("resize", handleResize);
@@ -4615,8 +4673,11 @@ export default function SatelliteTracker() {
         if (child instanceof THREE.Mesh || child instanceof THREE.InstancedMesh) {
           if (child.geometry) child.geometry.dispose();
           if (child.material) {
-            if (Array.isArray(child.material)) { child.material.forEach(mat => mat.dispose()); }
-            else { child.material.dispose(); }
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => mat.dispose());
+            } else {
+              child.material.dispose();
+            }
           }
         }
         if (child instanceof THREE.Line || child instanceof THREE.Points) {
@@ -4823,7 +4884,11 @@ export default function SatelliteTracker() {
       if (satellite.active) {
         const data = satelliteDataRef.current.get(satellite.id);
         if (data) {
-          if (data.inShadow) { inShadow++; } else { sunlit++; }
+          if (data.inShadow) {
+            inShadow++;
+          } else {
+            sunlit++;
+          }
         }
       }
     });

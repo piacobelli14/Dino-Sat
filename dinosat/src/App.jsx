@@ -9,16 +9,17 @@ import Login from "./pages/Authnetication/AuthLogin.jsx";
 import Register from "./pages/Authnetication/AuthRegister.jsx";
 import Reset from "./pages/Authnetication/AuthReset.jsx";
 import Verification from "./pages/Authnetication/AuthVerifyEmail.jsx";
+import Account from "./pages/Account/Account.jsx";
+import Team from "./pages/Account/Team.jsx";
 import CelestialReference from "./pages/DinoSat/CelestialReference.jsx";
 import SatelliteTracker from "./pages/DinoSat/DinoSatTrackers/SatelliteTracker.jsx";
 import CometTracker from "./pages/DinoSat/DinoSatTrackers/CometTracker.jsx";
 import AsteroidTracker from "./pages/DinoSat/DinoSatTrackers/AsteroidTracker.jsx";
 import EarthConditions from "./pages/DinoSat/DinoSatMonitors/EarthConditions.jsx";
+import SatelliteFeeds from "./pages/DinoSat/DinoSatMonitors/SatelliteFeeds.jsx";
 import Simulator from "./pages/DinoSat/DinoSatSimulators/Simulator.jsx";
-import AddSpecimen from "./pages/DinoGeode/DinoGeodeAddSpecimen.jsx";
-import BrowseSpecimen from "./pages/DinoGeode/DinoGeodeBrowseSpecimen.jsx";
-import MineralCatalog from "./pages/DinoGeode/DinoGeodeMineralCatalog.jsx";
-import DinoSproutBotanicalCatalog from "./pages/DinoSprout/DinoSproutBotanicalCatalog.jsx";
+
+
 
 function App() {
   const [osClass, setOsClass] = useState("");
@@ -49,18 +50,16 @@ function App() {
             <Route path="/reset" element={<Reset />} />
             <Route path="/verify" element={<Verification />} />
 
+            <Route path="/account" element={<Account />} />
+            <Route path="/team" element={<Team />} />
+
             <Route path="/celestial-catalog" element={<ProtectedRoute><CelestialReference /></ProtectedRoute>} />
             <Route path="/satellite-tracker" element={<ProtectedRoute><SatelliteTracker /></ProtectedRoute>} />
             <Route path="/comet-tracker" element={<ProtectedRoute><CometTracker /></ProtectedRoute>} />
             <Route path="/asteroid-tracker" element={<ProtectedRoute><AsteroidTracker /></ProtectedRoute>} />
             <Route path="/earth-conditions" element={<ProtectedRoute><EarthConditions /></ProtectedRoute>} />
+            <Route path="/satellite-feeds" element={<ProtectedRoute><SatelliteFeeds /></ProtectedRoute>} />
             <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
-
-            <Route path="/geode-add-specimen" element={<ProtectedRoute><AddSpecimen /></ProtectedRoute>} />
-            <Route path="/geode-browse-specimen" element={<ProtectedRoute><BrowseSpecimen /></ProtectedRoute>} />
-            <Route path="/geode-mineral-catalog" element={<ProtectedRoute><MineralCatalog /></ProtectedRoute>} />
-
-            <Route path="/sprout-botanical-catalog" element={<DinoSproutBotanicalCatalog />} />
 
             <Route index element={<Navigate to="/login" replace />} />
           </Routes>

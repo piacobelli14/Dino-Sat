@@ -40,7 +40,10 @@ import {
   faMoon,
   faBook,
   faPhone,
-  faMobilePhone
+  faMobilePhone,
+  faVideoCamera, 
+  faUserCog,
+  faUsersCog
 } from "@fortawesome/free-solid-svg-icons";
 import "../styles/helperStyles/NavBar.css";
 import useAuth from "../UseAuth.jsx";
@@ -49,11 +52,12 @@ import useIsTouchDevice from "../TouchDevice.jsx";
 const DinoLabsNav = ({ activePage }) => {
   const navigate = useNavigate();
   const isTouchDevice = useIsTouchDevice();
-  const { token, isAdmin, loading } = useAuth();
+  const { token, isAdmin, loading, userID, organizationID } = useAuth();
   const [isHamburger, setIsHamburger] = useState(false);
   const [isTokenExpired, setIsTokenExpired] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openSubDropdown, setOpenSubDropdown] = useState(null);
+  
 
   useEffect(() => {
     const checkTokenExpiration = () => {
@@ -171,242 +175,180 @@ const DinoLabsNav = ({ activePage }) => {
           <div className="homeHamburgerContent">
             {token && !isTokenExpired && (
               <>
+               
                 <button
                   className="navigationButtonWrapper"
-                  onClick={() => toggleDropdown("sat")}
+                  onClick={() => toggleSubDropdown("sat-trackers")}
                   style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
                 >
                   <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faSatellite} className="navigationButtonIcon" />
-                    Dino Sat
+                    <FontAwesomeIcon icon={faClipboard} className="navigationButtonIcon" />
+                    Trackers
                   </div>
                   <FontAwesomeIcon
-                    icon={openDropdown === "sat" ? faChevronUp : faChevronDown}
+                    icon={openSubDropdown === "sat-trackers" ? faChevronUp : faChevronDown}
                     className="navigationButtonIconTrailer"
                   />
                 </button>
 
-                {openDropdown === "sat" && (
+                {openSubDropdown === "sat-trackers" && (
                   <>
                     <button
                       className="navigationButtonWrapper"
-                      onClick={() => toggleSubDropdown("sat-trackers")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
+                      onClick={() => navigate("/satellite-tracker")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faClipboard} className="navigationButtonIcon" />
-                        Trackers
+                        <FontAwesomeIcon icon={faSatellite} className="navigationButtonIcon" />
+                        Satellite Tracker
                       </div>
-                      <FontAwesomeIcon
-                        icon={openSubDropdown === "sat-trackers" ? faChevronUp : faChevronDown}
-                        className="navigationButtonIconTrailer"
-                      />
                     </button>
-
-                    {openDropdown === "sat" && openSubDropdown === "sat-trackers" && (
-                      <>
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/satellite-tracker")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faSatellite} className="navigationButtonIcon" />
-                            Satellite Tracker
-                          </div>
-                        </button>
-
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/asteroid-tracker")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
-                            Asteroid Tracker
-                          </div>
-                        </button>
-
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/comet-tracker")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
-                            Comet Tracker
-                          </div>
-                        </button>
-                        
-                        
-                      </>
-                    )}
 
                     <button
                       className="navigationButtonWrapper"
-                      onClick={() => toggleSubDropdown("sat-simulators")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
+                      onClick={() => navigate("/asteroid-tracker")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
                     >
                       <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faComputer} className="navigationButtonIcon" />
-                        Simulators
+                        <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
+                        Asteroid Tracker
                       </div>
-                      <FontAwesomeIcon
-                        icon={openSubDropdown === "sat-simulators" ? faChevronUp : faChevronDown}
-                        className="navigationButtonIconTrailer"
-                      />
                     </button>
 
-                    {openDropdown === "sat" && openSubDropdown === "sat-simulators" && (
-                      <>
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/simulator")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faMobilePhone} className="navigationButtonIcon" />
-                            Simulator
-                          </div>
-                        </button>
-                      </>
-                    )}
+                    <button
+                      className="navigationButtonWrapper"
+                      onClick={() => navigate("/comet-tracker")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                    >
+                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                        <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
+                        Comet Tracker
+                      </div>
+                    </button>
                     
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => toggleSubDropdown("sat-monitoring")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faGauge} className="navigationButtonIcon" />
-                        Monitoring
-                      </div>
-                      <FontAwesomeIcon
-                        icon={openSubDropdown === "sat-monitoring" ? faChevronUp : faChevronDown}
-                        className="navigationButtonIconTrailer"
-                      />
-                    </button>
-
-                    {openDropdown === "sat" && openSubDropdown === "sat-monitoring" && (
-                      <>
-                        <button
-                          className="navigationButtonWrapper"
-                          onClick={() => navigate("/earth-conditions")}
-                          style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                        >
-                          <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                            <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
-                            Earth Conditions Monitor
-                          </div>
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/celestial-catalog")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faBook} className="navigationButtonIcon" />
-                        Astronomical Reference
-                      </div>
-                    </button>
                     
                   </>
                 )}
+
+                <button
+                  className="navigationButtonWrapper"
+                  onClick={() => toggleSubDropdown("sat-simulators")}
+                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                >
+                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                    <FontAwesomeIcon icon={faComputer} className="navigationButtonIcon" />
+                    Simulators
+                  </div>
+                  <FontAwesomeIcon
+                    icon={openSubDropdown === "sat-simulators" ? faChevronUp : faChevronDown}
+                    className="navigationButtonIconTrailer"
+                  />
+                </button>
+
+                {openSubDropdown === "sat-simulators" && (
+                  <>
+                    <button
+                      className="navigationButtonWrapper"
+                      onClick={() => navigate("/simulator")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                    >
+                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                        <FontAwesomeIcon icon={faMobilePhone} className="navigationButtonIcon" />
+                        N-Body Simulator
+                      </div>
+                    </button>
+                  </>
+                )}
+                
+                <button
+                  className="navigationButtonWrapper"
+                  onClick={() => toggleSubDropdown("sat-monitoring")}
+                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                >
+                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                    <FontAwesomeIcon icon={faGauge} className="navigationButtonIcon" />
+                    Monitoring
+                  </div>
+                  <FontAwesomeIcon
+                    icon={openSubDropdown === "sat-monitoring" ? faChevronUp : faChevronDown}
+                    className="navigationButtonIconTrailer"
+                  />
+                </button>
+
+                {openSubDropdown === "sat-monitoring" && (
+                  <>
+                    <button
+                      className="navigationButtonWrapper"
+                      onClick={() => navigate("/earth-conditions")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                    >
+                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                        <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
+                        Earth Conditions Monitor
+                      </div>
+                    </button>
+
+                    <button
+                      className="navigationButtonWrapper"
+                      onClick={() => navigate("/satellite-feeds")}
+                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                    >
+                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                        <FontAwesomeIcon icon={faVideoCamera} className="navigationButtonIcon" />
+                        Live Satellite Feeds
+                      </div>
+                    </button>
+                  </>
+                )}
+
+                <button
+                  className="navigationButtonWrapper"
+                  onClick={() => navigate("/celestial-catalog")}
+                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                >
+                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                    <FontAwesomeIcon icon={faBook} className="navigationButtonIcon" />
+                    Astronomical Reference
+                  </div>
+                </button>
+                    
               </>
             )}
 
             {token && !isTokenExpired && (
-              <>
                 <button
                   className="navigationButtonWrapper"
-                  onClick={() => toggleDropdown("geode")}
+                  onClick={() => navigate("/account")}
                   style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
                 >
                   <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faMountain} className="navigationButtonIcon" />
-                    Dino Geode
+                    <FontAwesomeIcon icon={faUserCog} className="navigationButtonIcon" />
+                    My Account
                   </div>
-                  <FontAwesomeIcon
-                    icon={openDropdown === "geode" ? faChevronUp : faChevronDown}
-                    className="navigationButtonIconTrailer"
+                  <div
+                    className="navigationButtonDivider"
+                    style={{ backgroundColor: "#94a3b8" }}
                   />
                 </button>
-                
-                {openDropdown === "geode" && (
-                  <>
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/geode-browse-specimen")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faList} className="navigationButtonIcon" />
-                        Browse Specimens
-                      </div>
-                    </button>
+              )}
 
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/geode-add-specimen")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faPlusSquare} className="navigationButtonIcon" />
-                        Add Specimen
-                      </div>
-                    </button>
-
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/geode-mineral-catalog")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faDatabase} className="navigationButtonIcon" />
-                        Mineral Catalog
-                      </div>
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-
-            {token && !isTokenExpired && (
-              <>
+              {token && !isTokenExpired && organizationID && (
                 <button
                   className="navigationButtonWrapper"
-                  onClick={() => toggleDropdown("sprout")}
+                  onClick={() => navigate("/team")}
                   style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
                 >
                   <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faSeedling} className="navigationButtonIcon" />
-                    Dino Sprout
+                    <FontAwesomeIcon icon={faUsersCog} className="navigationButtonIcon" />
+                    My Team
                   </div>
-                  <FontAwesomeIcon
-                    icon={openDropdown === "sprout" ? faChevronUp : faChevronDown}
-                    className="navigationButtonIconTrailer"
+                  <div
+                    className="navigationButtonDivider"
+                    style={{ backgroundColor: "#94a3b8" }}
                   />
                 </button>
-                
-                {openDropdown === "sprout" && (
-                  <>
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/sprout-botanical-catalog")}
-                      style={{ background: "linear-gradient(135deg, #161920 0%, #222832 50%, #2e3642 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faDatabase} className="navigationButtonIcon" />
-                        Botanical Catalog
-                      </div>
-                    </button>
-                  </>
-                )}
-              </>
-            )}
+              )}
+
 
             {!token && (
               <button

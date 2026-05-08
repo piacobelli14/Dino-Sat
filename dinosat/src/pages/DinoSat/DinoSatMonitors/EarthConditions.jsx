@@ -213,7 +213,7 @@ export default function EarthConditions() {
 
   const fetchLaunchSites = useCallback(async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/launch-sites`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/launch-sites`);
       if (response.ok) {
         const data = await response.json();
         const rawSites = data.sites || {};
@@ -291,7 +291,7 @@ export default function EarthConditions() {
         requestBody.tvcCapability = parseFloat(tvcCapability);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/consolidated-evaluation`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/consolidated-evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)

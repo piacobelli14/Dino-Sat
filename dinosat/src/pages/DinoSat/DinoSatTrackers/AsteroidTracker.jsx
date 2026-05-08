@@ -99,7 +99,9 @@ const SPEED_OPTIONS = [
 
 const FPS_OPTIONS = [30, 60, 120, 144];
 
-const dateToJulianDate = (date) => date.getTime() / 86400000.0 + 2440587.5;
+const dateToJulianDate = (date) => {
+  return date.getTime() / 86400000.0 + 2440587.5;
+};
 
 const formatChartTime = (iso) => {
   if (!iso) return "";
@@ -311,8 +313,8 @@ const propagateEarth = (date) => {
   const lambda = L + (1.914602 - 0.004817 * T) * Math.sin(g) * ORBITAL_CONSTANTS.DEG_TO_RAD
     + (0.019993 - 0.000101 * T) * Math.sin(2 * g) * ORBITAL_CONSTANTS.DEG_TO_RAD;
   const r = 1.00014 - 0.01671 * Math.cos(g) - 0.00014 * Math.cos(2 * g);
-  const x = r * Math.cos(lambda);
-  const y = r * Math.sin(lambda);
+  const x = -r * Math.cos(lambda);
+  const y = -r * Math.sin(lambda);
   return new THREE.Vector3(
     x * ORBITAL_CONSTANTS.SCALE_FACTOR,
     0,
@@ -736,6 +738,19 @@ const useDraggable = (panelRef, clampFn) => {
   return { position, setPosition, isDragging, handleMouseDown };
 };
 
+const StatTile = ({ label, value, unit, sub, color, accent, large }) => {
+  return (
+    <div className={`dinoSatStatTile ${large ? "dinoSatStatTileLarge" : ""}`} style={{ borderLeftColor: accent || "var(--st-accent-primary)" }}>
+      <div className="dinoSatStatTileLabel">{label}</div>
+      <div className="dinoSatStatTileValue" style={color ? { color } : undefined}>
+        {value}
+        {unit && <span className="dinoSatStatTileUnit">{unit}</span>}
+      </div>
+      {sub && <div className="dinoSatStatTileSub">{sub}</div>}
+    </div>
+  );
+};
+
 const ChartCanvas = ({ values, height = 140, colorFn, accent, label, unit, valueFormatter, timeKey, valueKey, mode, yMin, yMax, threshold, thresholdLabel }) => {
   const canvasRef = useRef(null);
   const wrapperRef = useRef(null);
@@ -1075,19 +1090,6 @@ const ChartCanvas = ({ values, height = 140, colorFn, accent, label, unit, value
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-const StatTile = ({ label, value, unit, sub, color, accent, large }) => {
-  return (
-    <div className={`dinoSatStatTile ${large ? "dinoSatStatTileLarge" : ""}`} style={{ borderLeftColor: accent || "var(--st-accent-primary)" }}>
-      <div className="dinoSatStatTileLabel">{label}</div>
-      <div className="dinoSatStatTileValue" style={color ? { color } : undefined}>
-        {value}
-        {unit && <span className="dinoSatStatTileUnit">{unit}</span>}
-      </div>
-      {sub && <div className="dinoSatStatTileSub">{sub}</div>}
     </div>
   );
 };
@@ -2399,7 +2401,11 @@ const ObservationsTab = ({ asteroid, observation, loading, onRefresh }) => {
   };
 
   const hostnameOf = (url) => {
-    try { return new URL(url).hostname.replace("www.", ""); } catch (error) { return url; }
+    try {
+      return new URL(url).hostname.replace("www.", "");
+    } catch (error) {
+      return url;
+    }
   };
 
   const renderOverview = () => (
@@ -2782,7 +2788,9 @@ export default function AsteroidCatalog() {
       asteroidInstanceRef.current.setMatrixAt(idx, tempMatrix.current);
       glowInstanceRef.current.setMatrixAt(idx, tempMatrix.current);
       let baseColor = asteroid.color;
-      if (colorByObservationArcRef.current) { baseColor = orbitArcAgeColor(asteroid.observationArcDays); }
+      if (colorByObservationArcRef.current) {
+        baseColor = orbitArcAgeColor(asteroid.observationArcDays);
+      }
       tempColor.current.set(baseColor);
       asteroidInstanceRef.current.setColorAt(idx, tempColor.current);
       data.instanceIndex = idx;
@@ -2792,7 +2800,9 @@ export default function AsteroidCatalog() {
     glowInstanceRef.current.count = idx;
     asteroidInstanceRef.current.instanceMatrix.needsUpdate = true;
     glowInstanceRef.current.instanceMatrix.needsUpdate = true;
-    if (asteroidInstanceRef.current.instanceColor) { asteroidInstanceRef.current.instanceColor.needsUpdate = true; }
+    if (asteroidInstanceRef.current.instanceColor) {
+      asteroidInstanceRef.current.instanceColor.needsUpdate = true;
+    }
   }, []);
 
   const createLabel = useCallback((text, color) => {
@@ -3054,7 +3064,7 @@ export default function AsteroidCatalog() {
     let activeCount = 0;
     let interactive = false;
     const startTime = performance.now();
-    const url = `${import.meta.env.VITE_API_AUTH_URL}/asteroid-stream`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/asteroid-stream`;
 
     let eventSource;
     try {
@@ -3071,7 +3081,9 @@ export default function AsteroidCatalog() {
       if (!helloReceived && eventSource.readyState !== EventSource.OPEN) {
         setErrors(prev => [...prev, "Stream connection timeout — server did not respond."]);
         setLoading(false);
-        try { eventSource.close(); } catch (error) {}
+        try {
+          eventSource.close();
+        } catch (error) {}
         if (eventSourceRef.current === eventSource) {
           eventSourceRef.current = null;
         }
@@ -3083,7 +3095,9 @@ export default function AsteroidCatalog() {
       if (eventSourceRef.current === eventSource) {
         eventSourceRef.current = null;
       }
-      try { eventSource.close(); } catch (error) {}
+      try {
+        eventSource.close();
+      } catch (error) {}
     };
 
     eventSource.addEventListener("hello", () => {
@@ -3172,10 +3186,11 @@ export default function AsteroidCatalog() {
   const fetchNEOWatchData = useCallback(async () => {
     setNEOWatchLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/neo-watch`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/neo-watch`);
       const j = await r.json();
       if (j.success) setNEOWatch(j.data);
-    } catch (error) {} finally {
+    } catch (error) {
+    } finally {
       setNEOWatchLoading(false);
     }
   }, []);
@@ -3185,7 +3200,7 @@ export default function AsteroidCatalog() {
     if (!force && neoWatchAI) return;
     setNEOWatchAILoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/neo-watch-ai`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/neo-watch-ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ neoWatch })
@@ -3208,14 +3223,16 @@ export default function AsteroidCatalog() {
     if (!force && missionIntelMap.has(asteroid.designation)) return;
 
     if (intelAbortRef.current) {
-      try { intelAbortRef.current.abort(); } catch (error) {}
+      try {
+        intelAbortRef.current.abort();
+      } catch (error) {}
     }
     const controller = new AbortController();
     intelAbortRef.current = controller;
 
     setMissionIntelLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/asteroid-intelligence`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/asteroid-intelligence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ asteroid: enrichAsteroid(asteroid) }),
@@ -3250,14 +3267,16 @@ export default function AsteroidCatalog() {
     if (!force && observationMap.has(asteroid.designation)) return;
 
     if (observationAbortRef.current) {
-      try { observationAbortRef.current.abort(); } catch (error) {}
+      try {
+        observationAbortRef.current.abort();
+      } catch (error) {}
     }
     const controller = new AbortController();
     observationAbortRef.current = controller;
 
     setObservationLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/asteroid-observation`, {
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/asteroid-observation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ asteroid: enrichAsteroid(asteroid) }),
@@ -3284,10 +3303,11 @@ export default function AsteroidCatalog() {
   const fetchPHACatalog = useCallback(async () => {
     setPHALoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/asteroid-population-census`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/asteroid-population-census`);
       const j = await r.json();
       if (j.success) setPHACatalog(j.populations);
-    } catch (error) {} finally {
+    } catch (error) {
+    } finally {
       setPHALoading(false);
     }
   }, []);
@@ -3295,13 +3315,14 @@ export default function AsteroidCatalog() {
   const fetchSentryWatch = useCallback(async () => {
     setSentryLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_AUTH_URL}/sentry-watch`);
+      const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/sentry-watch`);
       const j = await r.json();
       if (j.success) {
         setSentryCandidates(j.candidates || []);
         setSentryMethodology(j.methodology || null);
       }
-    } catch (error) {} finally {
+    } catch (error) {
+    } finally {
       setSentryLoading(false);
     }
   }, []);
@@ -3548,7 +3569,9 @@ export default function AsteroidCatalog() {
 
   const stopActiveTweens = useCallback(() => {
     for (const t of activeTweensRef.current) {
-      try { t.stop(); } catch (error) {}
+      try {
+        t.stop();
+      } catch (error) {}
     }
     activeTweensRef.current = [];
   }, []);
@@ -3607,15 +3630,21 @@ export default function AsteroidCatalog() {
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
-        try { eventSourceRef.current.close(); } catch (error) {}
+        try {
+          eventSourceRef.current.close();
+        } catch (error) {}
         eventSourceRef.current = null;
       }
       if (intelAbortRef.current) {
-        try { intelAbortRef.current.abort(); } catch (error) {}
+        try {
+          intelAbortRef.current.abort();
+        } catch (error) {}
         intelAbortRef.current = null;
       }
       if (observationAbortRef.current) {
-        try { observationAbortRef.current.abort(); } catch (error) {}
+        try {
+          observationAbortRef.current.abort();
+        } catch (error) {}
         observationAbortRef.current = null;
       }
       stopActiveTweens();
@@ -3625,11 +3654,15 @@ export default function AsteroidCatalog() {
   useEffect(() => {
     if (!detailedAsteroid) {
       if (intelAbortRef.current) {
-        try { intelAbortRef.current.abort(); } catch (error) {}
+        try {
+          intelAbortRef.current.abort();
+        } catch (error) {}
         intelAbortRef.current = null;
       }
       if (observationAbortRef.current) {
-        try { observationAbortRef.current.abort(); } catch (error) {}
+        try {
+          observationAbortRef.current.abort();
+        } catch (error) {}
         observationAbortRef.current = null;
       }
     }
@@ -3891,10 +3924,16 @@ export default function AsteroidCatalog() {
         }
       });
       Object.values(orbitLinesRef.current).forEach(line => {
-        if (line) { line.geometry.dispose(); line.material.dispose(); }
+        if (line) {
+          line.geometry.dispose();
+          line.material.dispose();
+        }
       });
       Object.values(trailLinesRef.current).forEach(line => {
-        if (line) { line.geometry.dispose(); line.material.dispose(); }
+        if (line) {
+          line.geometry.dispose();
+          line.material.dispose();
+        }
       });
       composer.dispose();
       window.removeEventListener("resize", handleResize);
@@ -3903,8 +3942,11 @@ export default function AsteroidCatalog() {
         if (child instanceof THREE.Mesh || child instanceof THREE.InstancedMesh) {
           if (child.geometry) child.geometry.dispose();
           if (child.material) {
-            if (Array.isArray(child.material)) { child.material.forEach(mat => mat.dispose()); }
-            else { child.material.dispose(); }
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => mat.dispose());
+            } else {
+              child.material.dispose();
+            }
           }
         }
         if (child instanceof THREE.Line || child instanceof THREE.Points) {
