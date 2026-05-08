@@ -50,41 +50,6 @@ app.get("/", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "catchall.html"));
 });
 
-app.get("/verify", async (req, res) => {
-  const { token, software } = req.query;
-
-  if (!token) {
-    return res.sendFile(path.resolve(__dirname, "public", "verify.html"));
-  }
-
-  try {
-    const updateResult = await pool.query(
-      `
-          UPDATE users
-          SET verified = TRUE,
-             verification_token = NULL
-          WHERE verification_token = $1
-          RETURNING username
-      `,
-      [token]
-    );
-
-    if (updateResult.rowCount === 0) {
-      return res.sendFile(path.resolve(__dirname, "public", "verify.html"));
-    }
-
-    const redirectUrl = REDIRECT_MAP[software];
-
-    if (!redirectUrl) {
-      return res.status(400).send("<html><body><h1>The provided software parameter is not recognized.</h1></body></html>");
-    }
-
-    res.redirect(redirectUrl);
-  } catch (error) {
-    res.status(500).send("<html><body><h1>An error occurred during verification. Please try again later.</h1></body></html>");
-  }
-});
-
 app.get("/health/connections", async (req, res) => {
   try {
     const stats = connectionManager.getStats();
