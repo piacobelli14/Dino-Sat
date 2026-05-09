@@ -332,7 +332,7 @@ What this means in practice:
 
 ## Hosted version
 
-The intended way to use DinoSat is the hosted version at **[dinosat.app](https://dinosat.app)**. It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas), and accounts are free.
+The intended way to use DinoSat is the hosted version at **[dino-sat.vercel.app](https://dino-sat.vercel.app/login)**. It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas), and accounts are free.
 
 This repository exists primarily as a reference and as the development home of the project. Self-hosting is possible but is not the supported path.
 
