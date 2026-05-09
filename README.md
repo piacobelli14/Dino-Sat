@@ -2,7 +2,7 @@
 
 A space situational awareness platform. DinoSat is a single web app for tracking the things that move through near-Earth space and the inner solar system: active satellites, asteroids, comets, launch weather, live spacecraft telemetry, arbitrary n-body systems, and an astronomical reference database. Seven pages, three product categories, one heliocentric worldview, a lot of orbital mechanics happening under the hood.
 
-Hosted at **[DinoSat](https://dinosat.app)**. Account creation, sessions, and team management are handled through Dino Auth (see below).
+Hosted at **[DinoSat](https://dino-sat.vercel.app/login)**. Account creation, sessions, and team management are handled through Dino Auth (see below).
 
 **Stack:** React + Vite + Three.js on the frontend, Node.js + Express + PostgreSQL on the backend.
 
