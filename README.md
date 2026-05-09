@@ -14,11 +14,11 @@ This is a personal-scale platform built because the existing tools for this stuf
 
 | Asteroid Tracker | Comet Tracker | Satellite Tracker |
 |:---:|:---:|:---:|
-| ![Asteroid Tracker](Screenshots/AsteroidTracker.png) | ![Comet Tracker](Screenshots/CometTracker.png) | ![Satellite Tracker](Screenshots/SatelliteTracker.png) |
+| ![Asteroid Tracker](screenshots/asteroidtracker.png) | ![Comet Tracker](screenshots/comettracker.png) | ![Satellite Tracker](screenshots/satellitetracker.png) |
 
-| Earth Conditions | Satellite Feeds | Simulator | Celestial Reference |
+| Earth Conditions | Satellite Feeds | N-Body Simulator |
 |:---:|:---:|:---:|:---:|
-| ![Earth Conditions](Screenshots/EarthConditions.png) | ![Satellite Feeds](Screenshots/SatelliteFeeds.png) | ![Simulator](Screenshots/Simulator.png) | ![Celestial Reference](Screenshots/CelestialReference.png) |
+| ![Earth Conditions](screenshots/earthconditions.png) | ![Satellite Feeds](screenshots/satellitefeeds.png) | ![Simulator](screenshots/nbodysimulator.png) |
 
 ---
 
