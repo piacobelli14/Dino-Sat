@@ -135,21 +135,11 @@ const DinoLabsNav = ({ activePage }) => {
           <div className="homeSkipToContent">
             <img
               className="homeLogo"
-              src={
-                activePage === "sat"
-                  ? "./DinoSatLogo.png"
-                  : activePage === "geode"
-                  ? "./DinoGeodeLogo.png"
-                  : "./DinoSproutLogo.png"
-              }
+              src={"./DinoSatLogo.png"}
               alt="Logo"
             />
             <label className="homeHeader" style={{ color: "#f1f5f9" }}>
-              {activePage === "sat"
-                ? "Dino Sat"
-                : activePage === "geode"
-                ? "Dino Geode"
-                : "Dino Sprout"}
+              Dino Sat
             </label>
           </div>
 
