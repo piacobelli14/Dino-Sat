@@ -18,7 +18,7 @@ This is a personal-scale platform built because the existing tools for this stuf
 
 | Earth Conditions | Satellite Feeds | N-Body Simulator |
 |:---:|:---:|:---:|:---:|
-| ![Earth Conditions](screenshots/earthconditions.png) | ![Satellite Feeds](screenshots/satellitefeeds.png) | ![Simulator](screenshots/nbodysimulator.png) |
+| ![Earth Conditions](screenshots/earthconditions.png) | ![Satellite Feeds](screenshots/satellitefeeds.png) | ![N-Body Simulator](screenshots/nbodysimulator.png) |
 
 ---
 
