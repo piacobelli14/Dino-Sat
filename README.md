@@ -17,7 +17,7 @@ This is a personal-scale platform built because the existing tools for this stuf
 | ![Asteroid Tracker](screenshots/asteroidtracker.png) | ![Comet Tracker](screenshots/comettracker.png) | ![Satellite Tracker](screenshots/satellitetracker.png) |
 
 | Earth Conditions | Satellite Feeds | N-Body Simulator |
-|:---:|:---:|:---:|:---:|
+|:---:|:---:|:---:|
 | ![Earth Conditions](screenshots/earthconditions.png) | ![Satellite Feeds](screenshots/satellitefeeds.png) | ![N-Body Simulator](screenshots/nbodysimulator.png) |
 
 ---
