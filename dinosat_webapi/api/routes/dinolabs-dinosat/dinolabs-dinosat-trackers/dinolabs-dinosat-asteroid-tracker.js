@@ -1,6 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const v8 = require("v8");
+const fs = require("fs");
+const os = require("os");
 const router = express.Router();
 
 const AU_KM = 149597870.7;
@@ -182,92 +184,169 @@ const SBDB_QUERIES = [
   }
 ];
 
+const detectContainerMemoryLimit = () => {
+  const candidates = [];
+  let totalMem = 0;
+  try {
+    totalMem = os.totalmem();
+  } catch (error) {}
+  const sanityCeiling = totalMem > 0 ? totalMem * 4 : Number.MAX_SAFE_INTEGER;
+  const tryRead = (filePath) => {
+    try {
+      const content = fs.readFileSync(filePath, "utf8").trim();
+      if (!content || content === "max") return null;
+      const n = parseInt(content);
+      if (!Number.isFinite(n) || n <= 0 || n > sanityCeiling) return null;
+      return n;
+    } catch (error) {
+      return null;
+    }
+  };
+  const v2 = tryRead("/sys/fs/cgroup/memory.max");
+  if (v2 !== null) candidates.push({ source: "cgroup_v2", bytes: v2 });
+  const v1 = tryRead("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+  if (v1 !== null) candidates.push({ source: "cgroup_v1", bytes: v1 });
+  const envBytes = process.env.MEMORY_LIMIT_BYTES;
+  if (envBytes) {
+    const n = parseInt(String(envBytes).trim());
+    if (Number.isFinite(n) && n > 0 && n <= sanityCeiling) {
+      candidates.push({ source: "env:MEMORY_LIMIT_BYTES", bytes: n });
+    }
+  }
+  const envMB = process.env.MEMORY_LIMIT_MB;
+  if (envMB) {
+    const n = parseFloat(String(envMB).trim()) * 1024 * 1024;
+    if (Number.isFinite(n) && n > 0 && n <= sanityCeiling) {
+      candidates.push({ source: "env:MEMORY_LIMIT_MB", bytes: n });
+    }
+  }
+  if (totalMem > 0) {
+    candidates.push({ source: "os_totalmem", bytes: totalMem });
+  }
+  try {
+    const v8limit = v8.getHeapStatistics().heap_size_limit;
+    if (Number.isFinite(v8limit) && v8limit > 0) {
+      candidates.push({ source: "v8_heap_limit", bytes: v8limit });
+    }
+  } catch (error) {}
+  if (candidates.length === 0) {
+    return { bytes: null, sources: [], chosen: null };
+  }
+  candidates.sort((a, b) => a.bytes - b.bytes);
+  return { bytes: candidates[0].bytes, sources: candidates, chosen: candidates[0].source };
+};
+
+const containerMemoryDetection = detectContainerMemoryLimit();
+
 class AdaptiveMemoryGuard {
   constructor() {
-    this.deltaSamples = [];
+    const mem = process.memoryUsage();
+    this.rssDeltaSamples = [];
+    this.heapDeltaSamples = [];
     this.maxSamples = MEMORY_SAMPLE_WINDOW;
-    this.beginMark = process.memoryUsage().heapUsed;
+    this.beginRssMark = mem.rss;
+    this.beginHeapMark = mem.heapUsed;
     this.haltedQueries = [];
     this.haltedRowsTotal = 0;
     this.gcTriggeredCount = 0;
     this.lastGCBytesFreed = 0;
-    this.peakHeapUsedBytes = this.beginMark;
+    this.peakRssBytes = mem.rss;
+    this.peakHeapUsedBytes = mem.heapUsed;
     this.createdAt = Date.now();
+    this.detection = containerMemoryDetection;
+    this.effectiveLimit = containerMemoryDetection.bytes;
   }
 
   beginBatch() {
-    this.beginMark = process.memoryUsage().heapUsed;
+    const mem = process.memoryUsage();
+    this.beginRssMark = mem.rss;
+    this.beginHeapMark = mem.heapUsed;
   }
 
   endBatch() {
-    const now = process.memoryUsage().heapUsed;
-    if (now > this.peakHeapUsedBytes) {
-      this.peakHeapUsedBytes = now;
+    const mem = process.memoryUsage();
+    if (mem.rss > this.peakRssBytes) {
+      this.peakRssBytes = mem.rss;
     }
-    const delta = now - this.beginMark;
-    if (delta > 0) {
-      this.deltaSamples.push(delta);
-      if (this.deltaSamples.length > this.maxSamples) {
-        this.deltaSamples.shift();
+    if (mem.heapUsed > this.peakHeapUsedBytes) {
+      this.peakHeapUsedBytes = mem.heapUsed;
+    }
+    const rssDelta = mem.rss - this.beginRssMark;
+    const heapDelta = mem.heapUsed - this.beginHeapMark;
+    if (rssDelta > 0) {
+      this.rssDeltaSamples.push(rssDelta);
+      if (this.rssDeltaSamples.length > this.maxSamples) {
+        this.rssDeltaSamples.shift();
       }
     }
-    this.beginMark = now;
+    if (heapDelta > 0) {
+      this.heapDeltaSamples.push(heapDelta);
+      if (this.heapDeltaSamples.length > this.maxSamples) {
+        this.heapDeltaSamples.shift();
+      }
+    }
+    this.beginRssMark = mem.rss;
+    this.beginHeapMark = mem.heapUsed;
   }
 
   tryGC() {
     if (typeof global.gc !== "function") {
       return 0;
     }
-    const before = process.memoryUsage().heapUsed;
+    const before = process.memoryUsage().rss;
     try {
       global.gc();
     } catch (error) {
       return 0;
     }
-    const after = process.memoryUsage().heapUsed;
-    const freed = Math.max(0, before - after);
+    const after = process.memoryUsage();
+    const freed = Math.max(0, before - after.rss);
     this.lastGCBytesFreed = freed;
     this.gcTriggeredCount++;
-    this.beginMark = after;
+    this.beginRssMark = after.rss;
+    this.beginHeapMark = after.heapUsed;
     return freed;
   }
 
   projectedNextBatch() {
-    if (this.deltaSamples.length === 0) {
+    if (this.rssDeltaSamples.length === 0) {
       return 0;
     }
-    const sum = this.deltaSamples.reduce((a, b) => a + b, 0);
-    const mean = sum / this.deltaSamples.length;
-    const variance = this.deltaSamples.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / this.deltaSamples.length;
+    const sum = this.rssDeltaSamples.reduce((a, b) => a + b, 0);
+    const mean = sum / this.rssDeltaSamples.length;
+    const variance = this.rssDeltaSamples.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / this.rssDeltaSamples.length;
     const stdDev = Math.sqrt(variance);
-    const peak = Math.max(...this.deltaSamples);
+    const peak = Math.max(...this.rssDeltaSamples);
     return Math.max(peak, mean + MEMORY_PROJECTION_SIGMA * stdDev);
   }
 
   canIngestMore() {
     const mem = process.memoryUsage();
-    const heap = v8.getHeapStatistics();
-    const limit = heap.heap_size_limit;
-    const external = mem.external || 0;
+    const limit = this.effectiveLimit;
+    if (!limit || !Number.isFinite(limit) || limit <= 0) {
+      return true;
+    }
     const projected = this.projectedNextBatch();
     if (projected === 0) {
-      const reserveForGrowth = Math.max(mem.heapTotal - mem.heapUsed, external);
-      return (mem.heapUsed + reserveForGrowth) < limit;
+      const external = mem.external || 0;
+      const arrayBuffers = mem.arrayBuffers || 0;
+      const inFlightAtRisk = Math.max(external + arrayBuffers, mem.heapTotal - mem.heapUsed);
+      return (mem.rss + inFlightAtRisk) < limit;
     }
-    const safetyMargin = projected + external;
-    return (mem.heapUsed + safetyMargin) < limit;
+    return (mem.rss + projected) < limit;
   }
 
   recordHaltedQuery(queryName, rowsAccepted, rowsRemaining) {
     const mem = process.memoryUsage();
-    const heap = v8.getHeapStatistics();
     this.haltedQueries.push({
       query: queryName,
       rowsAccepted: rowsAccepted,
       rowsRemaining: rowsRemaining,
+      rssAtHaltBytes: mem.rss,
       heapUsedAtHaltBytes: mem.heapUsed,
-      heapLimitBytes: heap.heap_size_limit,
-      atFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0
+      externalAtHaltBytes: mem.external || 0,
+      effectiveLimitBytes: this.effectiveLimit,
+      atFraction: this.effectiveLimit && this.effectiveLimit > 0 ? mem.rss / this.effectiveLimit : 0
     });
     if (rowsRemaining > 0) {
       this.haltedRowsTotal += rowsRemaining;
@@ -277,19 +356,27 @@ class AdaptiveMemoryGuard {
   snapshot() {
     const mem = process.memoryUsage();
     const heap = v8.getHeapStatistics();
-    const limit = heap.heap_size_limit;
+    const limit = this.effectiveLimit;
+    const projected = this.projectedNextBatch();
     return {
+      rssBytes: mem.rss,
       heapUsedBytes: mem.heapUsed,
       heapTotalBytes: mem.heapTotal,
-      heapLimitBytes: limit,
+      heapLimitBytes: heap.heap_size_limit,
       externalBytes: mem.external || 0,
-      rssBytes: mem.rss,
-      usedFraction: limit > 0 ? mem.heapUsed / limit : 0,
-      availableBytes: Math.max(0, limit - mem.heapUsed),
-      projectedNextBatchBytes: this.projectedNextBatch(),
-      sampleCount: this.deltaSamples.length,
+      arrayBuffersBytes: mem.arrayBuffers || 0,
+      effectiveLimitBytes: limit,
+      effectiveLimitSource: this.detection.chosen,
+      effectiveLimitCandidates: this.detection.sources,
+      usedFractionOfLimit: limit && limit > 0 ? mem.rss / limit : 0,
+      usedFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0,
+      availableBytes: limit ? Math.max(0, limit - mem.rss) : Math.max(0, heap.heap_size_limit - mem.heapUsed),
+      projectedNextBatchBytes: projected,
+      sampleCount: this.rssDeltaSamples.length,
+      heapSampleCount: this.heapDeltaSamples.length,
       haltedQueries: this.haltedQueries.slice(),
       haltedRowsTotal: this.haltedRowsTotal,
+      peakRssBytes: this.peakRssBytes,
       peakHeapUsedBytes: this.peakHeapUsedBytes,
       gcTriggeredCount: this.gcTriggeredCount,
       lastGCBytesFreedBytes: this.lastGCBytesFreed,
@@ -1545,13 +1632,19 @@ router.get("/health", async (req, res) => {
       },
       memory: {
         live: {
+          rssBytes: mem.rss,
           heapUsedBytes: mem.heapUsed,
           heapTotalBytes: mem.heapTotal,
           heapLimitBytes: heap.heap_size_limit,
           externalBytes: mem.external || 0,
-          rssBytes: mem.rss,
+          arrayBuffersBytes: mem.arrayBuffers || 0,
+          effectiveLimitBytes: containerMemoryDetection.bytes,
+          effectiveLimitSource: containerMemoryDetection.chosen,
+          effectiveLimitCandidates: containerMemoryDetection.sources,
           usedFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0,
+          usedFractionOfLimit: containerMemoryDetection.bytes ? mem.rss / containerMemoryDetection.bytes : null,
           availableBytes: Math.max(0, heap.heap_size_limit - mem.heapUsed),
+          availableUnderLimitBytes: containerMemoryDetection.bytes ? Math.max(0, containerMemoryDetection.bytes - mem.rss) : null,
           gcAvailable: typeof global.gc === "function"
         },
         lastFetch: lastMemorySnapshot
@@ -1633,6 +1726,12 @@ router.get("/metrics", async (req, res) => {
     lines.push(`# HELP asteroid_external_bytes Process external memory in bytes`);
     lines.push(`# TYPE asteroid_external_bytes gauge`);
     lines.push(`asteroid_external_bytes ${mem.external || 0}`);
+    lines.push(`# HELP asteroid_effective_memory_limit_bytes Detected container memory limit in bytes`);
+    lines.push(`# TYPE asteroid_effective_memory_limit_bytes gauge`);
+    lines.push(`asteroid_effective_memory_limit_bytes ${containerMemoryDetection.bytes || 0}`);
+    lines.push(`# HELP asteroid_rss_under_limit_fraction RSS divided by effective container memory limit`);
+    lines.push(`# TYPE asteroid_rss_under_limit_fraction gauge`);
+    lines.push(`asteroid_rss_under_limit_fraction ${containerMemoryDetection.bytes ? mem.rss / containerMemoryDetection.bytes : 0}`);
     if (lastMemorySnapshot) {
       lines.push(`# HELP asteroid_last_fetch_memory_halted_sources Number of sources halted by memory guard in the last fetch`);
       lines.push(`# TYPE asteroid_last_fetch_memory_halted_sources gauge`);
