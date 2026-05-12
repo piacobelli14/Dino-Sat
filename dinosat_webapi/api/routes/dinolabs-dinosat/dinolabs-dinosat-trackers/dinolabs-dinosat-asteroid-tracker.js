@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const v8 = require("v8");
 const router = express.Router();
 
 const AU_KM = 149597870.7;
@@ -16,7 +17,7 @@ const SENTRY_BASE = "https://ssd-api.jpl.nasa.gov/sentry.api";
 const CAD_BASE = "https://ssd-api.jpl.nasa.gov/cad.api";
 
 const AXIOS_CONFIG = {
-  timeout: 300000,
+  timeout: 240000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
   headers: {
@@ -39,10 +40,14 @@ const GEMINI_CACHE_MAX_ENTRIES = 500;
 const OBSERVATION_CACHE_MAX_ENTRIES = 500;
 const GEMINI_STAGE_TIMEOUT_MS = 25000;
 
-const FETCH_CONCURRENCY = 4;
+const FETCH_CONCURRENCY = 2;
 const FETCH_MAX_RETRIES = 4;
 const FETCH_RETRY_BASE_MS = 750;
 const FETCH_RETRY_CAP_MS = 8000;
+
+const MEMORY_SAMPLE_WINDOW = 64;
+const MEMORY_ROW_CHECK_STRIDE = 500;
+const MEMORY_PROJECTION_SIGMA = 2;
 
 const SENTRY_HIGH_CONFIDENCE_DIAMETER_KM = 0.14;
 
@@ -176,6 +181,125 @@ const SBDB_QUERIES = [
     label: "TNO"
   }
 ];
+
+class AdaptiveMemoryGuard {
+  constructor() {
+    this.deltaSamples = [];
+    this.maxSamples = MEMORY_SAMPLE_WINDOW;
+    this.beginMark = process.memoryUsage().heapUsed;
+    this.haltedQueries = [];
+    this.haltedRowsTotal = 0;
+    this.gcTriggeredCount = 0;
+    this.lastGCBytesFreed = 0;
+    this.peakHeapUsedBytes = this.beginMark;
+    this.createdAt = Date.now();
+  }
+
+  beginBatch() {
+    this.beginMark = process.memoryUsage().heapUsed;
+  }
+
+  endBatch() {
+    const now = process.memoryUsage().heapUsed;
+    if (now > this.peakHeapUsedBytes) {
+      this.peakHeapUsedBytes = now;
+    }
+    const delta = now - this.beginMark;
+    if (delta > 0) {
+      this.deltaSamples.push(delta);
+      if (this.deltaSamples.length > this.maxSamples) {
+        this.deltaSamples.shift();
+      }
+    }
+    this.beginMark = now;
+  }
+
+  tryGC() {
+    if (typeof global.gc !== "function") {
+      return 0;
+    }
+    const before = process.memoryUsage().heapUsed;
+    try {
+      global.gc();
+    } catch (error) {
+      return 0;
+    }
+    const after = process.memoryUsage().heapUsed;
+    const freed = Math.max(0, before - after);
+    this.lastGCBytesFreed = freed;
+    this.gcTriggeredCount++;
+    this.beginMark = after;
+    return freed;
+  }
+
+  projectedNextBatch() {
+    if (this.deltaSamples.length === 0) {
+      return 0;
+    }
+    const sum = this.deltaSamples.reduce((a, b) => a + b, 0);
+    const mean = sum / this.deltaSamples.length;
+    const variance = this.deltaSamples.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / this.deltaSamples.length;
+    const stdDev = Math.sqrt(variance);
+    const peak = Math.max(...this.deltaSamples);
+    return Math.max(peak, mean + MEMORY_PROJECTION_SIGMA * stdDev);
+  }
+
+  canIngestMore() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    const external = mem.external || 0;
+    const projected = this.projectedNextBatch();
+    if (projected === 0) {
+      const reserveForGrowth = Math.max(mem.heapTotal - mem.heapUsed, external);
+      return (mem.heapUsed + reserveForGrowth) < limit;
+    }
+    const safetyMargin = projected + external;
+    return (mem.heapUsed + safetyMargin) < limit;
+  }
+
+  recordHaltedQuery(queryName, rowsAccepted, rowsRemaining) {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    this.haltedQueries.push({
+      query: queryName,
+      rowsAccepted: rowsAccepted,
+      rowsRemaining: rowsRemaining,
+      heapUsedAtHaltBytes: mem.heapUsed,
+      heapLimitBytes: heap.heap_size_limit,
+      atFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0
+    });
+    if (rowsRemaining > 0) {
+      this.haltedRowsTotal += rowsRemaining;
+    }
+  }
+
+  snapshot() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    return {
+      heapUsedBytes: mem.heapUsed,
+      heapTotalBytes: mem.heapTotal,
+      heapLimitBytes: limit,
+      externalBytes: mem.external || 0,
+      rssBytes: mem.rss,
+      usedFraction: limit > 0 ? mem.heapUsed / limit : 0,
+      availableBytes: Math.max(0, limit - mem.heapUsed),
+      projectedNextBatchBytes: this.projectedNextBatch(),
+      sampleCount: this.deltaSamples.length,
+      haltedQueries: this.haltedQueries.slice(),
+      haltedRowsTotal: this.haltedRowsTotal,
+      peakHeapUsedBytes: this.peakHeapUsedBytes,
+      gcTriggeredCount: this.gcTriggeredCount,
+      lastGCBytesFreedBytes: this.lastGCBytesFreed,
+      gcAvailable: typeof global.gc === "function",
+      ageMs: Date.now() - this.createdAt
+    };
+  }
+}
+
+let lastMemorySnapshot = null;
 
 let asteroidCache = null;
 let cacheTimestamp = null;
@@ -536,29 +660,92 @@ const doFetchAllAsteroids = async (callbacks = {}) => {
   const seenIds = new Set();
   let successfulSources = 0;
   let completed = 0;
+  let memoryHaltedSources = 0;
   const overallStart = Date.now();
+  const memoryGuard = new AdaptiveMemoryGuard();
 
   const tasks = SBDB_QUERIES.map(query => async () => {
-    if (isCancelled && isCancelled()) return;
+    if (isCancelled && isCancelled()) {
+      return;
+    }
+    if (!memoryGuard.canIngestMore()) {
+      memoryGuard.tryGC();
+      if (!memoryGuard.canIngestMore()) {
+        const msg = `Skipped ${query.name} because the memory budget was exhausted before the query started.`;
+        errors.push(msg);
+        memoryGuard.recordHaltedQuery(query.name, 0, -1);
+        memoryHaltedSources++;
+        if (onError) {
+          try {
+            onError(query.name, "Memory budget exhausted before query.");
+          } catch (error) {}
+        }
+        completed++;
+        if (onProgress) {
+          try {
+            onProgress({
+              completed,
+              total: SBDB_QUERIES.length,
+              successful: successfulSources,
+              memoryHaltedSources,
+              memory: memoryGuard.snapshot()
+            });
+          } catch (error) {}
+        }
+        return;
+      }
+    }
     try {
-      const data = await fetchSBDBQuery(query);
+      let data = await fetchSBDBQuery(query);
       if (!data || !data.fields || !data.data) {
         throw new Error("Malformed SBDB response.");
       }
       const fields = data.fields;
+      const rows = data.data;
+      const totalRows = rows.length;
       const newOnes = [];
-      for (const row of data.data) {
-        const asteroid = buildAsteroidFromSBDB(fields, row, query.name);
+      let processed = 0;
+      let halted = false;
+
+      memoryGuard.beginBatch();
+      for (let r = 0; r < totalRows; r++) {
+        if (r > 0 && (r % MEMORY_ROW_CHECK_STRIDE) === 0) {
+          memoryGuard.endBatch();
+          if (!memoryGuard.canIngestMore()) {
+            memoryGuard.tryGC();
+            if (!memoryGuard.canIngestMore()) {
+              memoryGuard.recordHaltedQuery(query.name, processed, totalRows - processed);
+              memoryHaltedSources++;
+              halted = true;
+              break;
+            }
+          }
+          memoryGuard.beginBatch();
+        }
+        const asteroid = buildAsteroidFromSBDB(fields, rows[r], query.name);
+        processed++;
         if (!asteroid) continue;
         if (seenIds.has(asteroid.id)) continue;
         seenIds.add(asteroid.id);
         allAsteroids.push(asteroid);
         newOnes.push(asteroid);
       }
-      successfulSources++;
+      memoryGuard.endBatch();
+
+      data.data = null;
+      data = null;
+
+      if (!halted) {
+        successfulSources++;
+      }
       if (newOnes.length > 0 && onBatch) {
         try {
           onBatch(newOnes, query.name);
+        } catch (error) {}
+      }
+      if (halted && onError) {
+        try {
+          onError(query.name, `Memory halt at row ${processed} of ${totalRows}.`);
         } catch (error) {}
       }
     } catch (error) {
@@ -571,9 +758,16 @@ const doFetchAllAsteroids = async (callbacks = {}) => {
       }
     } finally {
       completed++;
+      memoryGuard.tryGC();
       if (onProgress) {
         try {
-          onProgress({ completed, total: SBDB_QUERIES.length, successful: successfulSources });
+          onProgress({
+            completed,
+            total: SBDB_QUERIES.length,
+            successful: successfulSources,
+            memoryHaltedSources,
+            memory: memoryGuard.snapshot()
+          });
         } catch (error) {}
       }
     }
@@ -587,6 +781,8 @@ const doFetchAllAsteroids = async (callbacks = {}) => {
     return a.name.localeCompare(b.name);
   });
 
+  lastMemorySnapshot = memoryGuard.snapshot();
+
   return {
     success: allAsteroids.length > 0,
     asteroids: allAsteroids,
@@ -594,9 +790,13 @@ const doFetchAllAsteroids = async (callbacks = {}) => {
     metadata: {
       totalSources: SBDB_QUERIES.length,
       successfulSources: successfulSources,
+      memoryHaltedSources: memoryHaltedSources,
       totalAsteroids: allAsteroids.length,
       cached: false,
       memoryOptimized: true,
+      memoryAware: true,
+      memory: lastMemorySnapshot,
+      activeRenderingLimit: 100,
       provider: "JPL SBDB",
       loadTimeMs: Date.now() - overallStart
     }
@@ -825,7 +1025,7 @@ const fetchNEOWatch = async () => {
       data.next7Days = ca7.length;
       data.next30Days = ca30.length;
       data.next365Days = ca365.length;
-      data.upcomingPasses = ca7;
+      data.upcomingPasses = ca7.slice(0, 50);
 
       if (ca7.length > 0) {
         const closest = ca7.reduce((min, p) => p.distAU < min.distAU ? p : min, ca7[0]);
@@ -839,7 +1039,7 @@ const fetchNEOWatch = async () => {
       const sentry = await fetchSentryWatch();
       data.sources.push("Sentry");
       data.sentryRiskCount = sentry.length;
-      data.sentryObjects = sentry;
+      data.sentryObjects = sentry.slice(0, 30);
     } catch (error) {
       data.errors.push(`Sentry: ${error.message}.`);
     }
@@ -857,6 +1057,7 @@ const fetchNEOWatch = async () => {
               return false;
             }
           })
+          .slice(0, 30)
           .map(a => ({
             designation: a.designation,
             name: a.name,
@@ -1288,7 +1489,7 @@ const fetchObservationData = async (asteroid) => {
       if (Object.keys(props).length > 0) result.physicalProperties = props;
     }
     if (sbdbData.ca_data && Array.isArray(sbdbData.ca_data)) {
-      result.closeApproaches = sbdbData.ca_data.map(ca => ({
+      result.closeApproaches = sbdbData.ca_data.slice(0, 30).map(ca => ({
         date: ca.cd,
         body: ca.body || "Earth",
         distAU: parseFloat(ca.dist),
@@ -1328,6 +1529,8 @@ const fetchObservationData = async (asteroid) => {
 router.get("/health", async (req, res) => {
   try {
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
@@ -1339,6 +1542,19 @@ router.get("/health", async (req, res) => {
         partialAccumulationLength: partialAccumulation.length,
         activeSubscribers: fetchSubscribers.size,
         provider: "JPL SBDB"
+      },
+      memory: {
+        live: {
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          heapLimitBytes: heap.heap_size_limit,
+          externalBytes: mem.external || 0,
+          rssBytes: mem.rss,
+          usedFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0,
+          availableBytes: Math.max(0, heap.heap_size_limit - mem.heapUsed),
+          gcAvailable: typeof global.gc === "function"
+        },
+        lastFetch: lastMemorySnapshot
       },
       neoWatch: {
         cached: !!neoWatchCache,
@@ -1376,6 +1592,8 @@ router.get("/metrics", async (req, res) => {
   try {
     const lines = [];
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     lines.push(`# HELP asteroid_catalog_size Cached asteroid count`);
     lines.push(`# TYPE asteroid_catalog_size gauge`);
     lines.push(`asteroid_catalog_size ${asteroidCache ? asteroidCache.asteroids.length : 0}`);
@@ -1397,6 +1615,41 @@ router.get("/metrics", async (req, res) => {
     lines.push(`# HELP asteroid_observation_cache_entries`);
     lines.push(`# TYPE asteroid_observation_cache_entries gauge`);
     lines.push(`asteroid_observation_cache_entries ${observationCache.size}`);
+    lines.push(`# HELP asteroid_heap_used_bytes Live V8 heap used in bytes`);
+    lines.push(`# TYPE asteroid_heap_used_bytes gauge`);
+    lines.push(`asteroid_heap_used_bytes ${mem.heapUsed}`);
+    lines.push(`# HELP asteroid_heap_total_bytes Live V8 heap total in bytes`);
+    lines.push(`# TYPE asteroid_heap_total_bytes gauge`);
+    lines.push(`asteroid_heap_total_bytes ${mem.heapTotal}`);
+    lines.push(`# HELP asteroid_heap_limit_bytes V8 heap_size_limit in bytes`);
+    lines.push(`# TYPE asteroid_heap_limit_bytes gauge`);
+    lines.push(`asteroid_heap_limit_bytes ${heap.heap_size_limit}`);
+    lines.push(`# HELP asteroid_heap_used_fraction heapUsed / heap_size_limit`);
+    lines.push(`# TYPE asteroid_heap_used_fraction gauge`);
+    lines.push(`asteroid_heap_used_fraction ${heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0}`);
+    lines.push(`# HELP asteroid_rss_bytes Process RSS in bytes`);
+    lines.push(`# TYPE asteroid_rss_bytes gauge`);
+    lines.push(`asteroid_rss_bytes ${mem.rss}`);
+    lines.push(`# HELP asteroid_external_bytes Process external memory in bytes`);
+    lines.push(`# TYPE asteroid_external_bytes gauge`);
+    lines.push(`asteroid_external_bytes ${mem.external || 0}`);
+    if (lastMemorySnapshot) {
+      lines.push(`# HELP asteroid_last_fetch_memory_halted_sources Number of sources halted by memory guard in the last fetch`);
+      lines.push(`# TYPE asteroid_last_fetch_memory_halted_sources gauge`);
+      lines.push(`asteroid_last_fetch_memory_halted_sources ${lastMemorySnapshot.haltedQueries.length}`);
+      lines.push(`# HELP asteroid_last_fetch_halted_rows_total Total rows skipped due to memory halt in the last fetch`);
+      lines.push(`# TYPE asteroid_last_fetch_halted_rows_total gauge`);
+      lines.push(`asteroid_last_fetch_halted_rows_total ${lastMemorySnapshot.haltedRowsTotal}`);
+      lines.push(`# HELP asteroid_last_fetch_peak_heap_bytes Peak heap used during last fetch`);
+      lines.push(`# TYPE asteroid_last_fetch_peak_heap_bytes gauge`);
+      lines.push(`asteroid_last_fetch_peak_heap_bytes ${lastMemorySnapshot.peakHeapUsedBytes}`);
+      lines.push(`# HELP asteroid_last_fetch_projected_batch_bytes Projected next batch heap delta at end of last fetch`);
+      lines.push(`# TYPE asteroid_last_fetch_projected_batch_bytes gauge`);
+      lines.push(`asteroid_last_fetch_projected_batch_bytes ${lastMemorySnapshot.projectedNextBatchBytes}`);
+      lines.push(`# HELP asteroid_last_fetch_gc_triggered Total GC triggers in the last fetch`);
+      lines.push(`# TYPE asteroid_last_fetch_gc_triggered counter`);
+      lines.push(`asteroid_last_fetch_gc_triggered ${lastMemorySnapshot.gcTriggeredCount}`);
+    }
     Object.entries(apiBreakers).forEach(([name, breaker]) => {
       const state = breaker.state === "closed" ? 0 : breaker.state === "half-open" ? 1 : 2;
       lines.push(`# HELP asteroid_breaker_${name}_state 0=closed,1=half-open,2=open`);
@@ -1463,7 +1716,8 @@ router.get("/asteroid-stream", async (req, res) => {
     sendEvent("progress", {
       completed: asteroidCache.metadata.totalSources,
       total: asteroidCache.metadata.totalSources,
-      successful: asteroidCache.metadata.successfulSources
+      successful: asteroidCache.metadata.successfulSources,
+      memory: lastMemorySnapshot
     });
     if (!closed) {
       sendEvent("done", {
@@ -1536,7 +1790,10 @@ router.get("/all-asteroid-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["JPL SBDB"],
-          memoryOptimized: true
+          memoryOptimized: true,
+          memoryAware: true,
+          memory: lastMemorySnapshot,
+          activeRenderingLimit: 100
         }
       });
     }
@@ -1553,12 +1810,16 @@ router.get("/all-asteroid-data", async (req, res) => {
       metadata: {
         totalSources: result.metadata.totalSources,
         successfulSources: result.metadata.successfulSources,
+        memoryHaltedSources: result.metadata.memoryHaltedSources,
         loadTime: loadTime,
         dataQuality: result.errors.length === 0 ? "High" : result.errors.length < 3 ? "Medium" : "Low",
         queryTime: new Date().toISOString(),
         categoryCounts: categoryCounts,
         realSources: ["JPL SBDB", "NeoWs", "MPC"],
         memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata.memory,
+        activeRenderingLimit: 100,
         totalAsteroids: result.metadata.totalAsteroids,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -1574,7 +1835,10 @@ router.get("/all-asteroid-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: lastMemorySnapshot,
+        activeRenderingLimit: 100
       }
     });
   }
@@ -1593,7 +1857,9 @@ router.get("/neo-asteroids", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: neo.length,
         method: "JPL SBDB - Near-Earth Objects",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1619,7 +1885,9 @@ router.get("/pha-asteroids", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: pha.length,
         method: "JPL SBDB - Potentially Hazardous Asteroids",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1645,7 +1913,9 @@ router.get("/main-belt-asteroids", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: mb.length,
         method: "JPL SBDB - Main Belt asteroids (a between 2.06 and 3.27 AU)",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1880,7 +2150,7 @@ router.get("/asteroid-population-census", async (req, res) => {
         averageE: Math.round(avgE * 1000000) / 1000000,
         averageI: Math.round(avgI * 100) / 100,
         status: tracked >= expected[group].estimatedTotal * 0.5 ? "Nominal" : tracked >= expected[group].estimatedTotal * 0.1 ? "Degraded" : tracked > 0 ? "Partial" : "Unavailable",
-        ids: objs.map(a => ({
+        ids: objs.slice(0, 100).map(a => ({
           designation: a.designation,
           spkid: a.spkid,
           name: a.name,

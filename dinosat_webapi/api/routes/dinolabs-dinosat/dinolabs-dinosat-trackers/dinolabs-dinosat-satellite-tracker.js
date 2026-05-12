@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const v8 = require("v8");
 const router = express.Router();
 
 const EARTH_RADIUS_KM = 6371;
@@ -36,6 +37,10 @@ const FETCH_CONCURRENCY = 8;
 const FETCH_MAX_RETRIES = 2;
 const FETCH_RETRY_BASE_MS = 500;
 const FETCH_RETRY_CAP_MS = 3000;
+
+const MEMORY_SAMPLE_WINDOW = 64;
+const MEMORY_ROW_CHECK_STRIDE = 500;
+const MEMORY_PROJECTION_SIGMA = 2;
 
 const DECAY_WATCH_ALTITUDE_CEILING_KM = 800;
 const DECAY_WATCH_HIGH_CONFIDENCE_CEILING_KM = 450;
@@ -121,6 +126,125 @@ const GROUND_TRACK_CITIES = [
   { name: "Vancouver", lat: 49.28, lon: -123.12 },
   { name: "Toronto", lat: 43.65, lon: -79.38 }
 ];
+
+class AdaptiveMemoryGuard {
+  constructor() {
+    this.deltaSamples = [];
+    this.maxSamples = MEMORY_SAMPLE_WINDOW;
+    this.beginMark = process.memoryUsage().heapUsed;
+    this.haltedQueries = [];
+    this.haltedRowsTotal = 0;
+    this.gcTriggeredCount = 0;
+    this.lastGCBytesFreed = 0;
+    this.peakHeapUsedBytes = this.beginMark;
+    this.createdAt = Date.now();
+  }
+
+  beginBatch() {
+    this.beginMark = process.memoryUsage().heapUsed;
+  }
+
+  endBatch() {
+    const now = process.memoryUsage().heapUsed;
+    if (now > this.peakHeapUsedBytes) {
+      this.peakHeapUsedBytes = now;
+    }
+    const delta = now - this.beginMark;
+    if (delta > 0) {
+      this.deltaSamples.push(delta);
+      if (this.deltaSamples.length > this.maxSamples) {
+        this.deltaSamples.shift();
+      }
+    }
+    this.beginMark = now;
+  }
+
+  tryGC() {
+    if (typeof global.gc !== "function") {
+      return 0;
+    }
+    const before = process.memoryUsage().heapUsed;
+    try {
+      global.gc();
+    } catch (error) {
+      return 0;
+    }
+    const after = process.memoryUsage().heapUsed;
+    const freed = Math.max(0, before - after);
+    this.lastGCBytesFreed = freed;
+    this.gcTriggeredCount++;
+    this.beginMark = after;
+    return freed;
+  }
+
+  projectedNextBatch() {
+    if (this.deltaSamples.length === 0) {
+      return 0;
+    }
+    const sum = this.deltaSamples.reduce((a, b) => a + b, 0);
+    const mean = sum / this.deltaSamples.length;
+    const variance = this.deltaSamples.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / this.deltaSamples.length;
+    const stdDev = Math.sqrt(variance);
+    const peak = Math.max(...this.deltaSamples);
+    return Math.max(peak, mean + MEMORY_PROJECTION_SIGMA * stdDev);
+  }
+
+  canIngestMore() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    const external = mem.external || 0;
+    const projected = this.projectedNextBatch();
+    if (projected === 0) {
+      const reserveForGrowth = Math.max(mem.heapTotal - mem.heapUsed, external);
+      return (mem.heapUsed + reserveForGrowth) < limit;
+    }
+    const safetyMargin = projected + external;
+    return (mem.heapUsed + safetyMargin) < limit;
+  }
+
+  recordHaltedQuery(queryName, rowsAccepted, rowsRemaining) {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    this.haltedQueries.push({
+      query: queryName,
+      rowsAccepted: rowsAccepted,
+      rowsRemaining: rowsRemaining,
+      heapUsedAtHaltBytes: mem.heapUsed,
+      heapLimitBytes: heap.heap_size_limit,
+      atFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0
+    });
+    if (rowsRemaining > 0) {
+      this.haltedRowsTotal += rowsRemaining;
+    }
+  }
+
+  snapshot() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    return {
+      heapUsedBytes: mem.heapUsed,
+      heapTotalBytes: mem.heapTotal,
+      heapLimitBytes: limit,
+      externalBytes: mem.external || 0,
+      rssBytes: mem.rss,
+      usedFraction: limit > 0 ? mem.heapUsed / limit : 0,
+      availableBytes: Math.max(0, limit - mem.heapUsed),
+      projectedNextBatchBytes: this.projectedNextBatch(),
+      sampleCount: this.deltaSamples.length,
+      haltedQueries: this.haltedQueries.slice(),
+      haltedRowsTotal: this.haltedRowsTotal,
+      peakHeapUsedBytes: this.peakHeapUsedBytes,
+      gcTriggeredCount: this.gcTriggeredCount,
+      lastGCBytesFreedBytes: this.lastGCBytesFreed,
+      gcAvailable: typeof global.gc === "function",
+      ageMs: Date.now() - this.createdAt
+    };
+  }
+}
+
+let lastMemorySnapshot = null;
 
 let satelliteCache = null;
 let cacheTimestamp = null;
@@ -536,13 +660,27 @@ const computeEquationOfEquinoxesDeg = (jd) => {
   return (deltaPsiArcsec * Math.cos(obliquityRad)) / 3600.0;
 };
 
-const parseTLEDataFull = (tleText, source) => {
+const parseTLEDataFull = (tleText, source, memoryGuard) => {
   const lines = tleText.split("\n").filter(line => line.trim());
   const satellites = [];
+  const totalTriplets = Math.floor(lines.length / 3);
 
   for (let i = 0; i < lines.length; i += 3) {
     if (i + 2 >= lines.length) {
       break;
+    }
+
+    if (memoryGuard && (satellites.length % MEMORY_ROW_CHECK_STRIDE) === 0 && satellites.length > 0) {
+      memoryGuard.endBatch();
+      if (!memoryGuard.canIngestMore()) {
+        memoryGuard.tryGC();
+        if (!memoryGuard.canIngestMore()) {
+          const remaining = totalTriplets - Math.floor(i / 3);
+          memoryGuard.recordHaltedQuery(source, satellites.length, remaining);
+          break;
+        }
+      }
+      memoryGuard.beginBatch();
     }
 
     try {
@@ -666,7 +804,7 @@ const spacetrackLogin = async () => {
         "Content-Type": "application/x-www-form-urlencoded"
       },
       maxRedirects: 0,
-        validateStatus: (s) => s === 200 || s === 302
+      validateStatus: (s) => s === 200 || s === 302
     }
   );
   const setCookie = r.headers["set-cookie"];
@@ -693,6 +831,7 @@ const fetchSpacetrackCatalog = async () => {
 const doFetchSpacetrack = async (callbacks = {}) => {
   const { onBatch, onProgress, onError } = callbacks;
   const overallStart = Date.now();
+  const memoryGuard = new AdaptiveMemoryGuard();
 
   spacetrackBreaker.totalRequests++;
 
@@ -728,15 +867,18 @@ const doFetchSpacetrack = async (callbacks = {}) => {
 
   try {
     const tleText = await fetchSpacetrackCatalog();
-    const satellites = parseTLEDataFull(tleText, "Space-Track GP");
+    memoryGuard.beginBatch();
+    const satellites = parseTLEDataFull(tleText, "Space-Track GP", memoryGuard);
+    memoryGuard.endBatch();
     satellites.sort((a, b) => a.name.localeCompare(b.name));
     if (satellites.length > 0 && onBatch) {
       try { onBatch(satellites, "Space-Track GP"); } catch (error) {}
     }
     if (onProgress) {
-      try { onProgress({ completed: 1, total: 1, successful: 1 }); } catch (error) {}
+      try { onProgress({ completed: 1, total: 1, successful: 1, memory: memoryGuard.snapshot() }); } catch (error) {}
     }
     breakerOnSuccess(spacetrackBreaker);
+    lastMemorySnapshot = memoryGuard.snapshot();
     return {
       success: satellites.length > 0,
       satellites,
@@ -747,6 +889,8 @@ const doFetchSpacetrack = async (callbacks = {}) => {
         totalSatellites: satellites.length,
         cached: false,
         memoryOptimized: true,
+        memoryAware: true,
+        memory: lastMemorySnapshot,
         provider: "Space-Track",
         loadTimeMs: Date.now() - overallStart
       }
@@ -760,6 +904,7 @@ const doFetchSpacetrack = async (callbacks = {}) => {
       spacetrackCookie = null;
       spacetrackCookieExpiresMs = 0;
     }
+    lastMemorySnapshot = memoryGuard.snapshot();
     return {
       success: false,
       satellites: [],
@@ -769,6 +914,8 @@ const doFetchSpacetrack = async (callbacks = {}) => {
         successfulSources: 0,
         totalSatellites: 0,
         cached: false,
+        memoryAware: true,
+        memory: lastMemorySnapshot,
         provider: "Space-Track",
         loadTimeMs: Date.now() - overallStart
       }
@@ -784,16 +931,37 @@ const doFetchAllSatellites = async (callbacks = {}) => {
   const seenNoradIds = new Set();
   let successfulSources = 0;
   let completed = 0;
+  let memoryHaltedSources = 0;
   const overallStart = Date.now();
+  const memoryGuard = new AdaptiveMemoryGuard();
 
   const tasks = ENDPOINTS.map(endpoint => async () => {
     if (isCancelled && isCancelled()) {
       return;
     }
+    if (!memoryGuard.canIngestMore()) {
+      memoryGuard.tryGC();
+      if (!memoryGuard.canIngestMore()) {
+        const msg = `Skipped ${endpoint.name} because the memory budget was exhausted before the fetch started.`;
+        errors.push(msg);
+        memoryGuard.recordHaltedQuery(endpoint.name, 0, -1);
+        memoryHaltedSources++;
+        if (onError) {
+          try { onError(endpoint.name, "Memory budget exhausted before fetch."); } catch (error) {}
+        }
+        completed++;
+        if (onProgress) {
+          try { onProgress({ completed, total: ENDPOINTS.length, successful: successfulSources, memoryHaltedSources, memory: memoryGuard.snapshot() }); } catch (error) {}
+        }
+        return;
+      }
+    }
     try {
       const response = await fetchWithRetry(endpoint.url, AXIOS_CONFIG, endpoint.name);
       if (response.data && typeof response.data === "string") {
-        const satellites = parseTLEDataFull(response.data, endpoint.name);
+        memoryGuard.beginBatch();
+        const satellites = parseTLEDataFull(response.data, endpoint.name, memoryGuard);
+        memoryGuard.endBatch();
         const newOnes = [];
         for (const satellite of satellites) {
           if (!seenNoradIds.has(satellite.noradId)) {
@@ -815,8 +983,9 @@ const doFetchAllSatellites = async (callbacks = {}) => {
       }
     } finally {
       completed++;
+      memoryGuard.tryGC();
       if (onProgress) {
-        try { onProgress({ completed, total: ENDPOINTS.length, successful: successfulSources }); } catch (error) {}
+        try { onProgress({ completed, total: ENDPOINTS.length, successful: successfulSources, memoryHaltedSources, memory: memoryGuard.snapshot() }); } catch (error) {}
       }
     }
   });
@@ -825,6 +994,8 @@ const doFetchAllSatellites = async (callbacks = {}) => {
 
   allSatellites.sort((a, b) => a.name.localeCompare(b.name));
 
+  lastMemorySnapshot = memoryGuard.snapshot();
+
   return {
     success: allSatellites.length > 0,
     satellites: allSatellites,
@@ -832,9 +1003,12 @@ const doFetchAllSatellites = async (callbacks = {}) => {
     metadata: {
       totalSources: ENDPOINTS.length,
       successfulSources: successfulSources,
+      memoryHaltedSources: memoryHaltedSources,
       totalSatellites: allSatellites.length,
       cached: false,
       memoryOptimized: true,
+      memoryAware: true,
+      memory: lastMemorySnapshot,
       loadTimeMs: Date.now() - overallStart
     }
   };
@@ -1744,6 +1918,8 @@ const fetchObservationData = async (satellite) => {
 router.get("/health", async (req, res) => {
   try {
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
@@ -1755,6 +1931,19 @@ router.get("/health", async (req, res) => {
         partialAccumulationLength: partialAccumulation.length,
         activeSubscribers: fetchSubscribers.size,
         provider: SPACETRACK_ENABLED ? "Space-Track" : "CelesTrak"
+      },
+      memory: {
+        live: {
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          heapLimitBytes: heap.heap_size_limit,
+          externalBytes: mem.external || 0,
+          rssBytes: mem.rss,
+          usedFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0,
+          availableBytes: Math.max(0, heap.heap_size_limit - mem.heapUsed),
+          gcAvailable: typeof global.gc === "function"
+        },
+        lastFetch: lastMemorySnapshot
       },
       spaceWeather: {
         cached: !!spaceWeatherCache,
@@ -1787,6 +1976,8 @@ router.get("/metrics", async (req, res) => {
   try {
     const lines = [];
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     lines.push(`# HELP satellite_catalog_size Cached satellite count`);
     lines.push(`# TYPE satellite_catalog_size gauge`);
     lines.push(`satellite_catalog_size ${satelliteCache ? satelliteCache.satellites.length : 0}`);
@@ -1808,6 +1999,38 @@ router.get("/metrics", async (req, res) => {
     lines.push(`# HELP satellite_observation_cache_entries`);
     lines.push(`# TYPE satellite_observation_cache_entries gauge`);
     lines.push(`satellite_observation_cache_entries ${observationCache.size}`);
+    lines.push(`# HELP satellite_heap_used_bytes Live V8 heap used in bytes`);
+    lines.push(`# TYPE satellite_heap_used_bytes gauge`);
+    lines.push(`satellite_heap_used_bytes ${mem.heapUsed}`);
+    lines.push(`# HELP satellite_heap_total_bytes Live V8 heap total in bytes`);
+    lines.push(`# TYPE satellite_heap_total_bytes gauge`);
+    lines.push(`satellite_heap_total_bytes ${mem.heapTotal}`);
+    lines.push(`# HELP satellite_heap_limit_bytes V8 heap_size_limit in bytes`);
+    lines.push(`# TYPE satellite_heap_limit_bytes gauge`);
+    lines.push(`satellite_heap_limit_bytes ${heap.heap_size_limit}`);
+    lines.push(`# HELP satellite_heap_used_fraction heapUsed / heap_size_limit`);
+    lines.push(`# TYPE satellite_heap_used_fraction gauge`);
+    lines.push(`satellite_heap_used_fraction ${heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0}`);
+    lines.push(`# HELP satellite_rss_bytes Process RSS in bytes`);
+    lines.push(`# TYPE satellite_rss_bytes gauge`);
+    lines.push(`satellite_rss_bytes ${mem.rss}`);
+    lines.push(`# HELP satellite_external_bytes Process external memory in bytes`);
+    lines.push(`# TYPE satellite_external_bytes gauge`);
+    lines.push(`satellite_external_bytes ${mem.external || 0}`);
+    if (lastMemorySnapshot) {
+      lines.push(`# HELP satellite_last_fetch_memory_halted_sources Number of sources halted by memory guard in the last fetch`);
+      lines.push(`# TYPE satellite_last_fetch_memory_halted_sources gauge`);
+      lines.push(`satellite_last_fetch_memory_halted_sources ${lastMemorySnapshot.haltedQueries.length}`);
+      lines.push(`# HELP satellite_last_fetch_halted_rows_total Total rows skipped due to memory halt in the last fetch`);
+      lines.push(`# TYPE satellite_last_fetch_halted_rows_total gauge`);
+      lines.push(`satellite_last_fetch_halted_rows_total ${lastMemorySnapshot.haltedRowsTotal}`);
+      lines.push(`# HELP satellite_last_fetch_peak_heap_bytes Peak heap used during last fetch`);
+      lines.push(`# TYPE satellite_last_fetch_peak_heap_bytes gauge`);
+      lines.push(`satellite_last_fetch_peak_heap_bytes ${lastMemorySnapshot.peakHeapUsedBytes}`);
+      lines.push(`# HELP satellite_last_fetch_gc_triggered Total GC triggers in the last fetch`);
+      lines.push(`# TYPE satellite_last_fetch_gc_triggered counter`);
+      lines.push(`satellite_last_fetch_gc_triggered ${lastMemorySnapshot.gcTriggeredCount}`);
+    }
     if (SPACETRACK_ENABLED) {
       const breakerState = spacetrackBreaker.state === "closed" ? 0 : spacetrackBreaker.state === "half-open" ? 1 : 2;
       lines.push(`# HELP satellite_spacetrack_breaker_state 0=closed,1=half-open,2=open`);
@@ -1889,7 +2112,8 @@ router.get("/satellite-stream", async (req, res) => {
     sendEvent("progress", {
       completed: satelliteCache.metadata.totalSources,
       total: satelliteCache.metadata.totalSources,
-      successful: satelliteCache.metadata.successfulSources
+      successful: satelliteCache.metadata.successfulSources,
+      memory: lastMemorySnapshot
     });
     if (!closed) {
       sendEvent("done", {
@@ -1968,7 +2192,9 @@ router.get("/all-satellite-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["CelesTrak", "IERS"],
-          memoryOptimized: true
+          memoryOptimized: true,
+          memoryAware: true,
+          memory: lastMemorySnapshot
         }
       });
     }
@@ -1991,12 +2217,15 @@ router.get("/all-satellite-data", async (req, res) => {
       metadata: {
         totalSources: satelliteResult.metadata.totalSources + 1,
         successfulSources: satelliteResult.metadata.successfulSources + (earthRotationResult.success ? 1 : 0),
+        memoryHaltedSources: satelliteResult.metadata.memoryHaltedSources || 0,
         loadTime: loadTime,
         dataQuality: allErrors.length === 0 ? "High" : allErrors.length < 5 ? "Medium" : "Low",
         queryTime: new Date().toISOString(),
         categoryCounts: categoryCounts,
         realSources: ["CelesTrak TLE Feeds", "IERS Earth Orientation Centre"],
         memoryOptimized: true,
+        memoryAware: true,
+        memory: satelliteResult.metadata.memory || lastMemorySnapshot,
         totalSatellites: satelliteResult.metadata.totalSatellites,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -2013,7 +2242,9 @@ router.get("/all-satellite-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: lastMemorySnapshot
       }
     });
   }
@@ -2033,7 +2264,9 @@ router.get("/leo-satellites", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: leo.length,
         method: "CelesTrak TLE Data - Low Earth Orbit Satellites",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -2060,7 +2293,9 @@ router.get("/geo-satellites", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: geo.length,
         method: "CelesTrak TLE Data - Geostationary Satellites",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -2087,7 +2322,9 @@ router.get("/starlink-satellites", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: starlink.length,
         method: "CelesTrak TLE Data - Starlink Constellation",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {

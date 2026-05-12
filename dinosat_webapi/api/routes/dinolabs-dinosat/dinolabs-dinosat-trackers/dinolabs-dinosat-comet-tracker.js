@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const v8 = require("v8");
 const router = express.Router();
 
 const AU_KM = 149597870.7;
@@ -32,10 +33,14 @@ const POPULATION_TTL = 6 * 60 * 60 * 1000;
 const GEMINI_CACHE_MAX_ENTRIES = 500;
 const OBSERVATION_CACHE_MAX_ENTRIES = 500;
 
-const FETCH_CONCURRENCY = 4;
+const FETCH_CONCURRENCY = 2;
 const FETCH_MAX_RETRIES = 4;
 const FETCH_RETRY_BASE_MS = 750;
 const FETCH_RETRY_CAP_MS = 8000;
+
+const MEMORY_SAMPLE_WINDOW = 64;
+const MEMORY_ROW_CHECK_STRIDE = 500;
+const MEMORY_PROJECTION_SIGMA = 2;
 
 const APPARITION_HIGH_CONFIDENCE_APPARITIONS = 2;
 
@@ -146,6 +151,125 @@ const SBDB_QUERIES = [
     label: "ACT"
   }
 ];
+
+class AdaptiveMemoryGuard {
+  constructor() {
+    this.deltaSamples = [];
+    this.maxSamples = MEMORY_SAMPLE_WINDOW;
+    this.beginMark = process.memoryUsage().heapUsed;
+    this.haltedQueries = [];
+    this.haltedRowsTotal = 0;
+    this.gcTriggeredCount = 0;
+    this.lastGCBytesFreed = 0;
+    this.peakHeapUsedBytes = this.beginMark;
+    this.createdAt = Date.now();
+  }
+
+  beginBatch() {
+    this.beginMark = process.memoryUsage().heapUsed;
+  }
+
+  endBatch() {
+    const now = process.memoryUsage().heapUsed;
+    if (now > this.peakHeapUsedBytes) {
+      this.peakHeapUsedBytes = now;
+    }
+    const delta = now - this.beginMark;
+    if (delta > 0) {
+      this.deltaSamples.push(delta);
+      if (this.deltaSamples.length > this.maxSamples) {
+        this.deltaSamples.shift();
+      }
+    }
+    this.beginMark = now;
+  }
+
+  tryGC() {
+    if (typeof global.gc !== "function") {
+      return 0;
+    }
+    const before = process.memoryUsage().heapUsed;
+    try {
+      global.gc();
+    } catch (error) {
+      return 0;
+    }
+    const after = process.memoryUsage().heapUsed;
+    const freed = Math.max(0, before - after);
+    this.lastGCBytesFreed = freed;
+    this.gcTriggeredCount++;
+    this.beginMark = after;
+    return freed;
+  }
+
+  projectedNextBatch() {
+    if (this.deltaSamples.length === 0) {
+      return 0;
+    }
+    const sum = this.deltaSamples.reduce((a, b) => a + b, 0);
+    const mean = sum / this.deltaSamples.length;
+    const variance = this.deltaSamples.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / this.deltaSamples.length;
+    const stdDev = Math.sqrt(variance);
+    const peak = Math.max(...this.deltaSamples);
+    return Math.max(peak, mean + MEMORY_PROJECTION_SIGMA * stdDev);
+  }
+
+  canIngestMore() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    const external = mem.external || 0;
+    const projected = this.projectedNextBatch();
+    if (projected === 0) {
+      const reserveForGrowth = Math.max(mem.heapTotal - mem.heapUsed, external);
+      return (mem.heapUsed + reserveForGrowth) < limit;
+    }
+    const safetyMargin = projected + external;
+    return (mem.heapUsed + safetyMargin) < limit;
+  }
+
+  recordHaltedQuery(queryName, rowsAccepted, rowsRemaining) {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    this.haltedQueries.push({
+      query: queryName,
+      rowsAccepted: rowsAccepted,
+      rowsRemaining: rowsRemaining,
+      heapUsedAtHaltBytes: mem.heapUsed,
+      heapLimitBytes: heap.heap_size_limit,
+      atFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0
+    });
+    if (rowsRemaining > 0) {
+      this.haltedRowsTotal += rowsRemaining;
+    }
+  }
+
+  snapshot() {
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
+    const limit = heap.heap_size_limit;
+    return {
+      heapUsedBytes: mem.heapUsed,
+      heapTotalBytes: mem.heapTotal,
+      heapLimitBytes: limit,
+      externalBytes: mem.external || 0,
+      rssBytes: mem.rss,
+      usedFraction: limit > 0 ? mem.heapUsed / limit : 0,
+      availableBytes: Math.max(0, limit - mem.heapUsed),
+      projectedNextBatchBytes: this.projectedNextBatch(),
+      sampleCount: this.deltaSamples.length,
+      haltedQueries: this.haltedQueries.slice(),
+      haltedRowsTotal: this.haltedRowsTotal,
+      peakHeapUsedBytes: this.peakHeapUsedBytes,
+      gcTriggeredCount: this.gcTriggeredCount,
+      lastGCBytesFreedBytes: this.lastGCBytesFreed,
+      gcAvailable: typeof global.gc === "function",
+      ageMs: Date.now() - this.createdAt
+    };
+  }
+}
+
+let lastMemorySnapshot = null;
 
 let cometCache = null;
 let cacheTimestamp = null;
@@ -550,39 +674,115 @@ const doFetchAllComets = async (callbacks = {}) => {
   const seenIds = new Set();
   let successfulSources = 0;
   let completed = 0;
+  let memoryHaltedSources = 0;
   const overallStart = Date.now();
+  const memoryGuard = new AdaptiveMemoryGuard();
 
   const tasks = SBDB_QUERIES.map(query => async () => {
-    if (isCancelled && isCancelled()) return;
+    if (isCancelled && isCancelled()) {
+      return;
+    }
+    if (!memoryGuard.canIngestMore()) {
+      memoryGuard.tryGC();
+      if (!memoryGuard.canIngestMore()) {
+        const msg = `Skipped ${query.name} because the memory budget was exhausted before the query started.`;
+        errors.push(msg);
+        memoryGuard.recordHaltedQuery(query.name, 0, -1);
+        memoryHaltedSources++;
+        if (onError) {
+          try {
+            onError(query.name, "Memory budget exhausted before query.");
+          } catch (error) {}
+        }
+        completed++;
+        if (onProgress) {
+          try {
+            onProgress({
+              completed,
+              total: SBDB_QUERIES.length,
+              successful: successfulSources,
+              memoryHaltedSources,
+              memory: memoryGuard.snapshot()
+            });
+          } catch (error) {}
+        }
+        return;
+      }
+    }
     try {
-      const data = await fetchSBDBQuery(query);
+      let data = await fetchSBDBQuery(query);
       if (!data || !data.fields || !data.data) {
         throw new Error("Malformed SBDB response.");
       }
       const fields = data.fields;
+      const rows = data.data;
+      const totalRows = rows.length;
       const newOnes = [];
-      for (const row of data.data) {
-        const comet = buildCometFromSBDB(fields, row, query.name);
+      let processed = 0;
+      let halted = false;
+
+      memoryGuard.beginBatch();
+      for (let r = 0; r < totalRows; r++) {
+        if (r > 0 && (r % MEMORY_ROW_CHECK_STRIDE) === 0) {
+          memoryGuard.endBatch();
+          if (!memoryGuard.canIngestMore()) {
+            memoryGuard.tryGC();
+            if (!memoryGuard.canIngestMore()) {
+              memoryGuard.recordHaltedQuery(query.name, processed, totalRows - processed);
+              memoryHaltedSources++;
+              halted = true;
+              break;
+            }
+          }
+          memoryGuard.beginBatch();
+        }
+        const comet = buildCometFromSBDB(fields, rows[r], query.name);
+        processed++;
         if (!comet) continue;
         if (seenIds.has(comet.id)) continue;
         seenIds.add(comet.id);
         allComets.push(comet);
         newOnes.push(comet);
       }
-      successfulSources++;
+      memoryGuard.endBatch();
+
+      data.data = null;
+      data = null;
+
+      if (!halted) {
+        successfulSources++;
+      }
       if (newOnes.length > 0 && onBatch) {
-        try { onBatch(newOnes, query.name); } catch (error) {}
+        try {
+          onBatch(newOnes, query.name);
+        } catch (error) {}
+      }
+      if (halted && onError) {
+        try {
+          onError(query.name, `Memory halt at row ${processed} of ${totalRows}.`);
+        } catch (error) {}
       }
     } catch (error) {
       const msg = `Failed to fetch ${query.name}: ${error.message}.`;
       errors.push(msg);
       if (onError) {
-        try { onError(query.name, error.message); } catch (error) {}
+        try {
+          onError(query.name, error.message);
+        } catch (error) {}
       }
     } finally {
       completed++;
+      memoryGuard.tryGC();
       if (onProgress) {
-        try { onProgress({ completed, total: SBDB_QUERIES.length, successful: successfulSources }); } catch (error) {}
+        try {
+          onProgress({
+            completed,
+            total: SBDB_QUERIES.length,
+            successful: successfulSources,
+            memoryHaltedSources,
+            memory: memoryGuard.snapshot()
+          });
+        } catch (error) {}
       }
     }
   });
@@ -598,6 +798,8 @@ const doFetchAllComets = async (callbacks = {}) => {
     return a.name.localeCompare(b.name);
   });
 
+  lastMemorySnapshot = memoryGuard.snapshot();
+
   return {
     success: allComets.length > 0,
     comets: allComets,
@@ -605,9 +807,12 @@ const doFetchAllComets = async (callbacks = {}) => {
     metadata: {
       totalSources: SBDB_QUERIES.length,
       successfulSources: successfulSources,
+      memoryHaltedSources: memoryHaltedSources,
       totalComets: allComets.length,
       cached: false,
       memoryOptimized: true,
+      memoryAware: true,
+      memory: lastMemorySnapshot,
       provider: "JPL SBDB",
       loadTimeMs: Date.now() - overallStart
     }
@@ -623,17 +828,23 @@ const startSharedFetch = () => {
       onBatch: (newOnes, source) => {
         partialAccumulation.push(...newOnes);
         for (const sub of fetchSubscribers) {
-          try { if (sub.onBatch) sub.onBatch(newOnes, source); } catch (error) {}
+          try {
+            if (sub.onBatch) sub.onBatch(newOnes, source);
+          } catch (error) {}
         }
       },
       onProgress: (info) => {
         for (const sub of fetchSubscribers) {
-          try { if (sub.onProgress) sub.onProgress(info); } catch (error) {}
+          try {
+            if (sub.onProgress) sub.onProgress(info);
+          } catch (error) {}
         }
       },
       onError: (source, error) => {
         for (const sub of fetchSubscribers) {
-          try { if (sub.onError) sub.onError(source, error); } catch (error) {}
+          try {
+            if (sub.onError) sub.onError(source, error);
+          } catch (error) {}
         }
       },
       isCancelled: () => false
@@ -831,7 +1042,11 @@ const fetchCometWatch = async () => {
 
       const cutoff30Ms = date30.getTime();
       const within = (p, ms) => {
-        try { return new Date(p.cdDate).getTime() <= ms; } catch (error) { return false; }
+        try {
+          return new Date(p.cdDate).getTime() <= ms;
+        } catch (error) {
+          return false;
+        }
       };
 
       const ca30 = ca365.filter(p => within(p, cutoff30Ms));
@@ -1369,6 +1584,8 @@ const fetchObservationData = async (comet) => {
 router.get("/health", async (req, res) => {
   try {
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
@@ -1380,6 +1597,19 @@ router.get("/health", async (req, res) => {
         partialAccumulationLength: partialAccumulation.length,
         activeSubscribers: fetchSubscribers.size,
         provider: "JPL SBDB"
+      },
+      memory: {
+        live: {
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          heapLimitBytes: heap.heap_size_limit,
+          externalBytes: mem.external || 0,
+          rssBytes: mem.rss,
+          usedFraction: heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0,
+          availableBytes: Math.max(0, heap.heap_size_limit - mem.heapUsed),
+          gcAvailable: typeof global.gc === "function"
+        },
+        lastFetch: lastMemorySnapshot
       },
       cometWatch: {
         cached: !!cometWatchCache,
@@ -1417,6 +1647,8 @@ router.get("/metrics", async (req, res) => {
   try {
     const lines = [];
     const now = Date.now();
+    const mem = process.memoryUsage();
+    const heap = v8.getHeapStatistics();
     lines.push(`# HELP comet_catalog_size Cached comet count`);
     lines.push(`# TYPE comet_catalog_size gauge`);
     lines.push(`comet_catalog_size ${cometCache ? cometCache.comets.length : 0}`);
@@ -1438,6 +1670,41 @@ router.get("/metrics", async (req, res) => {
     lines.push(`# HELP comet_observation_cache_entries`);
     lines.push(`# TYPE comet_observation_cache_entries gauge`);
     lines.push(`comet_observation_cache_entries ${observationCache.size}`);
+    lines.push(`# HELP comet_heap_used_bytes Live V8 heap used in bytes`);
+    lines.push(`# TYPE comet_heap_used_bytes gauge`);
+    lines.push(`comet_heap_used_bytes ${mem.heapUsed}`);
+    lines.push(`# HELP comet_heap_total_bytes Live V8 heap total in bytes`);
+    lines.push(`# TYPE comet_heap_total_bytes gauge`);
+    lines.push(`comet_heap_total_bytes ${mem.heapTotal}`);
+    lines.push(`# HELP comet_heap_limit_bytes V8 heap_size_limit in bytes`);
+    lines.push(`# TYPE comet_heap_limit_bytes gauge`);
+    lines.push(`comet_heap_limit_bytes ${heap.heap_size_limit}`);
+    lines.push(`# HELP comet_heap_used_fraction heapUsed / heap_size_limit`);
+    lines.push(`# TYPE comet_heap_used_fraction gauge`);
+    lines.push(`comet_heap_used_fraction ${heap.heap_size_limit > 0 ? mem.heapUsed / heap.heap_size_limit : 0}`);
+    lines.push(`# HELP comet_rss_bytes Process RSS in bytes`);
+    lines.push(`# TYPE comet_rss_bytes gauge`);
+    lines.push(`comet_rss_bytes ${mem.rss}`);
+    lines.push(`# HELP comet_external_bytes Process external memory in bytes`);
+    lines.push(`# TYPE comet_external_bytes gauge`);
+    lines.push(`comet_external_bytes ${mem.external || 0}`);
+    if (lastMemorySnapshot) {
+      lines.push(`# HELP comet_last_fetch_memory_halted_sources Number of sources halted by memory guard in the last fetch`);
+      lines.push(`# TYPE comet_last_fetch_memory_halted_sources gauge`);
+      lines.push(`comet_last_fetch_memory_halted_sources ${lastMemorySnapshot.haltedQueries.length}`);
+      lines.push(`# HELP comet_last_fetch_halted_rows_total Total rows skipped due to memory halt in the last fetch`);
+      lines.push(`# TYPE comet_last_fetch_halted_rows_total gauge`);
+      lines.push(`comet_last_fetch_halted_rows_total ${lastMemorySnapshot.haltedRowsTotal}`);
+      lines.push(`# HELP comet_last_fetch_peak_heap_bytes Peak heap used during last fetch`);
+      lines.push(`# TYPE comet_last_fetch_peak_heap_bytes gauge`);
+      lines.push(`comet_last_fetch_peak_heap_bytes ${lastMemorySnapshot.peakHeapUsedBytes}`);
+      lines.push(`# HELP comet_last_fetch_projected_batch_bytes Projected next batch heap delta at end of last fetch`);
+      lines.push(`# TYPE comet_last_fetch_projected_batch_bytes gauge`);
+      lines.push(`comet_last_fetch_projected_batch_bytes ${lastMemorySnapshot.projectedNextBatchBytes}`);
+      lines.push(`# HELP comet_last_fetch_gc_triggered Total GC triggers in the last fetch`);
+      lines.push(`# TYPE comet_last_fetch_gc_triggered counter`);
+      lines.push(`comet_last_fetch_gc_triggered ${lastMemorySnapshot.gcTriggeredCount}`);
+    }
     Object.entries(apiBreakers).forEach(([name, breaker]) => {
       const state = breaker.state === "closed" ? 0 : breaker.state === "half-open" ? 1 : 2;
       lines.push(`# HELP comet_breaker_${name}_state 0=closed,1=half-open,2=open`);
@@ -1504,7 +1771,8 @@ router.get("/comet-stream", async (req, res) => {
     sendEvent("progress", {
       completed: cometCache.metadata.totalSources,
       total: cometCache.metadata.totalSources,
-      successful: cometCache.metadata.successfulSources
+      successful: cometCache.metadata.successfulSources,
+      memory: lastMemorySnapshot
     });
     if (!closed) {
       sendEvent("done", {
@@ -1577,7 +1845,9 @@ router.get("/all-comet-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["JPL SBDB"],
-          memoryOptimized: true
+          memoryOptimized: true,
+          memoryAware: true,
+          memory: lastMemorySnapshot
         }
       });
     }
@@ -1594,12 +1864,15 @@ router.get("/all-comet-data", async (req, res) => {
       metadata: {
         totalSources: result.metadata.totalSources,
         successfulSources: result.metadata.successfulSources,
+        memoryHaltedSources: result.metadata.memoryHaltedSources,
         loadTime: loadTime,
         dataQuality: result.errors.length === 0 ? "High" : result.errors.length < 3 ? "Medium" : "Low",
         queryTime: new Date().toISOString(),
         categoryCounts: categoryCounts,
         realSources: ["JPL SBDB", "MPC", "CNEOS"],
         memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata.memory,
         totalComets: result.metadata.totalComets,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -1615,7 +1888,9 @@ router.get("/all-comet-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: lastMemorySnapshot
       }
     });
   }
@@ -1634,7 +1909,9 @@ router.get("/jfc-comets", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: jfc.length,
         method: "JPL SBDB - Jupiter-Family Comets (2 < T_J < 3, P < 20 yr)",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1660,7 +1937,9 @@ router.get("/long-period-comets", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: lp.length,
         method: "JPL SBDB - Long-Period and Halley-Type Comets (P > 20 yr)",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1686,7 +1965,9 @@ router.get("/sungrazer-comets", async (req, res) => {
         queryTime: new Date().toISOString(),
         dataPoints: sg.length,
         method: "JPL SBDB - Sungrazing Comets (q < 0.01 AU)",
-        memoryOptimized: true
+        memoryOptimized: true,
+        memoryAware: true,
+        memory: result.metadata?.memory || lastMemorySnapshot
       }
     });
   } catch (error) {
@@ -1729,7 +2010,10 @@ router.post("/comet-watch-ai", async (req, res) => {
       try {
         const r = await callGeminiAPIWithTimeout(prompt, true, maxTokens, temperature, GEMINI_STAGE_TIMEOUT_MS);
         for (const s of r.sources) {
-          if (s.url && !seen.has(s.url)) { seen.add(s.url); allSources.push(s); }
+          if (s.url && !seen.has(s.url)) {
+            seen.add(s.url);
+            allSources.push(s);
+          }
         }
         if (r.tokenUsage) {
           if (Number.isFinite(r.tokenUsage.total)) totalTokens += r.tokenUsage.total;
