@@ -734,6 +734,31 @@ const runWithConcurrency = async (tasks, limit) => {
   return results;
 };
 
+let observedBytesPerRow = 0;
+let observedSampleQueries = 0;
+
+const updateBytesPerRowObservation = (rssBefore, rssAfter, rowCount) => {
+  if (rowCount <= 0) return;
+  const delta = rssAfter - rssBefore;
+  if (delta <= 0) return;
+  const bytesPerRow = delta / rowCount;
+  observedSampleQueries++;
+  if (bytesPerRow > observedBytesPerRow) {
+    observedBytesPerRow = bytesPerRow;
+  }
+};
+
+const computeAdaptiveQueryLimit = () => {
+  const detectedLimit = containerMemoryDetection.bytes;
+  if (!detectedLimit) return null;
+  if (observedBytesPerRow <= 0 || observedSampleQueries < 2) return null;
+  const mem = process.memoryUsage();
+  const conservativePerRow = observedBytesPerRow * 3;
+  const availableForResponse = Math.max(0, detectedLimit - mem.rss - mem.heapTotal);
+  if (availableForResponse <= 0) return 1;
+  return Math.max(1, Math.floor(availableForResponse / conservativePerRow));
+};
+
 const fetchSBDBQuery = async (query) => {
   if (!breakerCanCall(apiBreakers.jplSBDB)) {
     throw new Error(`JPL SBDB circuit breaker is open with ${apiBreakers.jplSBDB.consecutiveFailures} prior failures.`);
@@ -741,6 +766,10 @@ const fetchSBDBQuery = async (query) => {
   apiBreakers.jplSBDB.totalRequests++;
 
   const params = new URLSearchParams(query.params);
+  const adaptiveLimit = computeAdaptiveQueryLimit();
+  if (adaptiveLimit !== null) {
+    params.set("limit", String(adaptiveLimit));
+  }
   const url = `${SBDB_QUERY_BASE}?${params.toString()}`;
 
   try {
@@ -797,6 +826,7 @@ const doFetchAllComets = async (callbacks = {}) => {
       }
     }
     try {
+      const rssBeforeQuery = process.memoryUsage().rss;
       let data = await fetchSBDBQuery(query);
       if (!data || !data.fields || !data.data) {
         throw new Error("Malformed SBDB response.");
@@ -835,6 +865,8 @@ const doFetchAllComets = async (callbacks = {}) => {
 
       data.data = null;
       data = null;
+
+      updateBytesPerRowObservation(rssBeforeQuery, process.memoryUsage().rss, processed);
 
       if (!halted) {
         successfulSources++;
