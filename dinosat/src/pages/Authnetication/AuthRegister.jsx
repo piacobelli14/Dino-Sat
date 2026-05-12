@@ -324,7 +324,7 @@ const Register = () => {
                                 />
                                 <div className="unverifiedEmailText">
                                     Please verify your email address. 
-                                    Once verified, <span className="loginLink" style={{ "color": "#4C3B7E" }} onClick={() => navigate("/login")}>click here to login.</span>
+                                    Once verified, <span className="loginLink" style={{ "color": "#7860C9" }} onClick={() => navigate("/login")}>click here to login.</span>
                                 </div>
                                 <div className="unverifiedEmailButtons">
                                     {!resendStatus ? (

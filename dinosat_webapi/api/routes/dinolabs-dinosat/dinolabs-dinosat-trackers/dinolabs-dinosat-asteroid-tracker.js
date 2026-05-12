@@ -16,7 +16,7 @@ const SENTRY_BASE = "https://ssd-api.jpl.nasa.gov/sentry.api";
 const CAD_BASE = "https://ssd-api.jpl.nasa.gov/cad.api";
 
 const AXIOS_CONFIG = {
-  timeout: 90000,
+  timeout: 300000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
   headers: {
@@ -72,7 +72,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_FULL,
       "sb-group": "pha",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "PHA"
@@ -82,7 +81,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "IEO",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "ATI"
@@ -92,7 +90,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "ATE",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "ATE"
@@ -102,7 +99,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "APO",
-      "limit": "30000",
       "full-prec": "true"
     },
     label: "APO"
@@ -112,62 +108,51 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "AMO",
-      "limit": "20000",
       "full-prec": "true"
     },
     label: "AMO"
   },
   {
-    name: "Mars-Crossing (H<15)",
+    name: "Mars-Crossing",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "MCA",
-      "sb-cdata": "{\"AND\":[\"H|LT|15\"]}",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "MCA"
   },
   {
-    name: "Inner Main Belt (H<14)",
+    name: "Inner Main Belt",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "IMB",
-      "sb-cdata": "{\"AND\":[\"H|LT|14\"]}",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "IMB"
   },
   {
-    name: "Main Belt (H<13)",
+    name: "Main Belt",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "MBA",
-      "sb-cdata": "{\"AND\":[\"H|LT|13\"]}",
-      "limit": "20000",
       "full-prec": "true"
     },
     label: "MBA"
   },
   {
-    name: "Outer Main Belt (H<13)",
+    name: "Outer Main Belt",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "OMB",
-      "sb-cdata": "{\"AND\":[\"H|LT|13\"]}",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "OMB"
   },
   {
-    name: "Jupiter Trojans (H<13)",
+    name: "Jupiter Trojans",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "TJN",
-      "sb-cdata": "{\"AND\":[\"H|LT|13\"]}",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "TJN"
@@ -177,18 +162,15 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "CEN",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "CEN"
   },
   {
-    name: "Trans-Neptunian (H<8)",
+    name: "Trans-Neptunian",
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "TNO",
-      "sb-cdata": "{\"AND\":[\"H|LT|8\"]}",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "TNO"
@@ -615,7 +597,6 @@ const doFetchAllAsteroids = async (callbacks = {}) => {
       totalAsteroids: allAsteroids.length,
       cached: false,
       memoryOptimized: true,
-      activeRenderingLimit: 100,
       provider: "JPL SBDB",
       loadTimeMs: Date.now() - overallStart
     }
@@ -844,7 +825,7 @@ const fetchNEOWatch = async () => {
       data.next7Days = ca7.length;
       data.next30Days = ca30.length;
       data.next365Days = ca365.length;
-      data.upcomingPasses = ca7.slice(0, 50);
+      data.upcomingPasses = ca7;
 
       if (ca7.length > 0) {
         const closest = ca7.reduce((min, p) => p.distAU < min.distAU ? p : min, ca7[0]);
@@ -858,7 +839,7 @@ const fetchNEOWatch = async () => {
       const sentry = await fetchSentryWatch();
       data.sources.push("Sentry");
       data.sentryRiskCount = sentry.length;
-      data.sentryObjects = sentry.slice(0, 30);
+      data.sentryObjects = sentry;
     } catch (error) {
       data.errors.push(`Sentry: ${error.message}.`);
     }
@@ -876,7 +857,6 @@ const fetchNEOWatch = async () => {
               return false;
             }
           })
-          .slice(0, 30)
           .map(a => ({
             designation: a.designation,
             name: a.name,
@@ -1308,7 +1288,7 @@ const fetchObservationData = async (asteroid) => {
       if (Object.keys(props).length > 0) result.physicalProperties = props;
     }
     if (sbdbData.ca_data && Array.isArray(sbdbData.ca_data)) {
-      result.closeApproaches = sbdbData.ca_data.slice(0, 30).map(ca => ({
+      result.closeApproaches = sbdbData.ca_data.map(ca => ({
         date: ca.cd,
         body: ca.body || "Earth",
         distAU: parseFloat(ca.dist),
@@ -1556,8 +1536,7 @@ router.get("/all-asteroid-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["JPL SBDB"],
-          memoryOptimized: true,
-          activeRenderingLimit: 100
+          memoryOptimized: true
         }
       });
     }
@@ -1580,7 +1559,6 @@ router.get("/all-asteroid-data", async (req, res) => {
         categoryCounts: categoryCounts,
         realSources: ["JPL SBDB", "NeoWs", "MPC"],
         memoryOptimized: true,
-        activeRenderingLimit: 100,
         totalAsteroids: result.metadata.totalAsteroids,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -1596,8 +1574,7 @@ router.get("/all-asteroid-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true,
-        activeRenderingLimit: 100
+        memoryOptimized: true
       }
     });
   }
@@ -1903,7 +1880,7 @@ router.get("/asteroid-population-census", async (req, res) => {
         averageE: Math.round(avgE * 1000000) / 1000000,
         averageI: Math.round(avgI * 100) / 100,
         status: tracked >= expected[group].estimatedTotal * 0.5 ? "Nominal" : tracked >= expected[group].estimatedTotal * 0.1 ? "Degraded" : tracked > 0 ? "Partial" : "Unavailable",
-        ids: objs.slice(0, 100).map(a => ({
+        ids: objs.map(a => ({
           designation: a.designation,
           spkid: a.spkid,
           name: a.name,

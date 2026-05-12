@@ -747,7 +747,6 @@ const doFetchSpacetrack = async (callbacks = {}) => {
         totalSatellites: satellites.length,
         cached: false,
         memoryOptimized: true,
-        activeRenderingLimit: 100,
         provider: "Space-Track",
         loadTimeMs: Date.now() - overallStart
       }
@@ -836,7 +835,6 @@ const doFetchAllSatellites = async (callbacks = {}) => {
       totalSatellites: allSatellites.length,
       cached: false,
       memoryOptimized: true,
-      activeRenderingLimit: 100,
       loadTimeMs: Date.now() - overallStart
     }
   };
@@ -904,8 +902,7 @@ const fetchAllActiveSatellites = async () => {
         successfulSources: 0,
         totalSatellites: 0,
         cached: false,
-        memoryOptimized: true,
-        activeRenderingLimit: 100
+        memoryOptimized: true
       }
     };
   }
@@ -1026,14 +1023,13 @@ const fetchSpaceWeather = async () => {
     ]);
 
     if (Array.isArray(kpData) && kpData.length > 0) {
-      const recent = kpData.slice(-24);
-      const latest = recent[recent.length - 1];
+      const latest = kpData[kpData.length - 1];
       const kpValue = parseFloat(latest.kp_index || latest.estimated_kp || 0);
       data.kpIndex = {
         current: Math.round(kpValue * 10) / 10,
         timestamp: latest.time_tag,
         classification: classifyKpIndex(kpValue),
-        history: recent.map(r => ({
+        history: kpData.map(r => ({
           time: r.time_tag,
           value: parseFloat(r.kp_index || r.estimated_kp || 0)
         }))
@@ -1048,7 +1044,7 @@ const fetchSpaceWeather = async () => {
         timestamp: latest.time_tag,
         classification: classifyF107(fluxValue),
         adjusted: parseFloat(latest.adjusted_flux || fluxValue),
-        history: f107Data.slice(-30).map(r => ({
+        history: f107Data.map(r => ({
           time: r.time_tag,
           value: parseFloat(r.flux || r.observed_flux || 0)
         }))
@@ -1071,7 +1067,7 @@ const fetchSpaceWeather = async () => {
           temperature: Number.isFinite(parseFloat(last[tempIdx])) ? Math.round(parseFloat(last[tempIdx])) : null,
           timestamp: last[0],
           classification: Number.isFinite(speed) ? classifySolarWind(speed) : null,
-          history: rows.slice(-60).map(r => ({
+          history: rows.map(r => ({
             time: r[0],
             speed: parseFloat(r[speedIdx]),
             density: parseFloat(r[densityIdx])
@@ -1094,7 +1090,7 @@ const fetchSpaceWeather = async () => {
           bt: Number.isFinite(bt) ? Math.round(bt * 100) / 100 : null,
           timestamp: last[0],
           orientation: bz < -5 ? "Strongly southward (geoeffective)" : bz < 0 ? "Southward" : "Northward",
-          history: rows.slice(-60).map(r => ({
+          history: rows.map(r => ({
             time: r[0],
             bz: parseFloat(r[bzIdx]),
             bt: parseFloat(r[btIdx])
@@ -1104,7 +1100,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(alertsData)) {
-      data.alerts = alertsData.slice(0, 20).map(a => ({
+      data.alerts = alertsData.map(a => ({
         productId: a.product_id,
         issueDateTime: a.issue_datetime,
         message: a.message
@@ -1121,7 +1117,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(xrayData) && xrayData.length > 0) {
-      const recent = xrayData.filter(x => x.energy === "0.1-0.8nm").slice(-60);
+      const recent = xrayData.filter(x => x.energy === "0.1-0.8nm");
       const latest = recent[recent.length - 1];
       if (latest) {
         const flux = parseFloat(latest.flux);
@@ -1140,7 +1136,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(protonData) && protonData.length > 0) {
-      const recent = protonData.filter(p => p.energy === ">=10 MeV").slice(-30);
+      const recent = protonData.filter(p => p.energy === ">=10 MeV");
       const latest = recent[recent.length - 1];
       if (latest) {
         const flux = parseFloat(latest.flux);
@@ -1154,7 +1150,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(electronData) && electronData.length > 0) {
-      const recent = electronData.filter(e => e.energy === ">=2 MeV").slice(-30);
+      const recent = electronData.filter(e => e.energy === ">=2 MeV");
       const latest = recent[recent.length - 1];
       if (latest) {
         data.electrons = {
@@ -1166,7 +1162,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(regionsData)) {
-      data.solarRegions = regionsData.slice(0, 20).map(r => ({
+      data.solarRegions = regionsData.map(r => ({
         region: r.region,
         location: r.location,
         spotClass: r.spotclass,
@@ -1177,7 +1173,7 @@ const fetchSpaceWeather = async () => {
     }
 
     if (Array.isArray(cmeData)) {
-      data.cmes = cmeData.slice(0, 5).map(c => ({
+      data.cmes = cmeData.map(c => ({
         time: c.time21_5,
         speed: c.speed,
         type: c.type,
@@ -1553,7 +1549,7 @@ const fetchWikipediaSummary = async (title) => {
 
 const fetchEONETEvents = async () => {
   try {
-    const url = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=20";
+    const url = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open";
     const r = await axios.get(url, { ...AXIOS_CONFIG, timeout: OBSERVATION_AXIOS_TIMEOUT_MS });
     return (r.data?.events || []).map(e => ({
       id: e.id,
@@ -1972,8 +1968,7 @@ router.get("/all-satellite-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["CelesTrak", "IERS"],
-          memoryOptimized: true,
-          activeRenderingLimit: 50
+          memoryOptimized: true
         }
       });
     }
@@ -2002,7 +1997,6 @@ router.get("/all-satellite-data", async (req, res) => {
         categoryCounts: categoryCounts,
         realSources: ["CelesTrak TLE Feeds", "IERS Earth Orientation Centre"],
         memoryOptimized: true,
-        activeRenderingLimit: 50,
         totalSatellites: satelliteResult.metadata.totalSatellites,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -2019,8 +2013,7 @@ router.get("/all-satellite-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true,
-        activeRenderingLimit: 50
+        memoryOptimized: true
       }
     });
   }
@@ -2309,7 +2302,7 @@ router.get("/constellation-health", async (req, res) => {
         averageAltitude: Math.round(avgAlt),
         averageInclination: Math.round(avgInc * 10) / 10,
         status: tracked >= nominal * 0.95 ? "Nominal" : tracked >= nominal * 0.8 ? "Degraded" : tracked > 0 ? "Partial" : "Unavailable",
-        ids: sats.slice(0, 100).map(s => ({ noradId: s.noradId, name: s.name, altitude: s.altitude, tleAgeDays: s.tleAgeDays }))
+        ids: sats.map(s => ({ noradId: s.noradId, name: s.name, altitude: s.altitude, tleAgeDays: s.tleAgeDays }))
       };
     });
 
@@ -2356,8 +2349,7 @@ router.get("/decay-watch", async (req, res) => {
         };
       })
       .filter(s => s.estimatedDaysToReentry < 90)
-      .sort((a, b) => a.estimatedDaysToReentry - b.estimatedDaysToReentry)
-      .slice(0, 100);
+      .sort((a, b) => a.estimatedDaysToReentry - b.estimatedDaysToReentry);
 
     res.json({
       success: true,

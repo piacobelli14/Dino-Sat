@@ -9,7 +9,7 @@ const NASA_API_KEY = process.env.NASA_API_KEY || "DEMO_KEY";
 const CONTACT_EMAIL = process.env.COMET_CONTACT_EMAIL || "set-COMET_CONTACT_EMAIL-env-var";
 
 const AXIOS_CONFIG = {
-  timeout: 90000,
+  timeout: 300000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
   headers: {
@@ -69,7 +69,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_FULL,
       "sb-kind": "c",
-      "limit": "10000",
       "full-prec": "true"
     },
     label: "COM"
@@ -79,7 +78,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "JFc",
-      "limit": "5000",
       "full-prec": "true"
     },
     label: "JFC"
@@ -89,7 +87,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "JFC",
-      "limit": "5000",
       "full-prec": "true"
     },
     label: "JFCN"
@@ -99,7 +96,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "HTC",
-      "limit": "2000",
       "full-prec": "true"
     },
     label: "HTC"
@@ -109,7 +105,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "ETc",
-      "limit": "2000",
       "full-prec": "true"
     },
     label: "ETC"
@@ -119,7 +114,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "CTc",
-      "limit": "2000",
       "full-prec": "true"
     },
     label: "CTC"
@@ -129,7 +123,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "HYP",
-      "limit": "5000",
       "full-prec": "true"
     },
     label: "HYP"
@@ -139,7 +132,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-class": "PAR",
-      "limit": "5000",
       "full-prec": "true"
     },
     label: "PAR"
@@ -149,8 +141,6 @@ const SBDB_QUERIES = [
     params: {
       "fields": SBDB_FIELDS_BASIC,
       "sb-kind": "c",
-      "sb-cdata": "{\"AND\":[\"q|GT|3\"]}",
-      "limit": "3000",
       "full-prec": "true"
     },
     label: "ACT"
@@ -618,7 +608,6 @@ const doFetchAllComets = async (callbacks = {}) => {
       totalComets: allComets.length,
       cached: false,
       memoryOptimized: true,
-      activeRenderingLimit: 80,
       provider: "JPL SBDB",
       loadTimeMs: Date.now() - overallStart
     }
@@ -849,7 +838,7 @@ const fetchCometWatch = async () => {
 
       data.next30Days = ca30.length;
       data.next365Days = ca365.length;
-      data.upcomingPasses = ca365.slice(0, 50);
+      data.upcomingPasses = ca365;
 
       if (ca30.length > 0) {
         const closest = ca30.reduce((min, p) => p.distAU < min.distAU ? p : min, ca30[0]);
@@ -912,7 +901,6 @@ const fetchCometWatch = async () => {
               return false;
             }
           })
-          .slice(0, 30)
           .map(c => ({
             designation: c.designation,
             name: c.name,
@@ -1343,7 +1331,7 @@ const fetchObservationData = async (comet) => {
       if (Object.keys(props).length > 0) result.physicalProperties = props;
     }
     if (sbdbData.ca_data && Array.isArray(sbdbData.ca_data)) {
-      result.closeApproaches = sbdbData.ca_data.slice(0, 30).map(ca => ({
+      result.closeApproaches = sbdbData.ca_data.map(ca => ({
         date: ca.cd,
         body: ca.body || "Earth",
         distAU: parseFloat(ca.dist),
@@ -1589,8 +1577,7 @@ router.get("/all-comet-data", async (req, res) => {
           dataQuality: "No Data",
           queryTime: new Date().toISOString(),
           realSources: ["JPL SBDB"],
-          memoryOptimized: true,
-          activeRenderingLimit: 80
+          memoryOptimized: true
         }
       });
     }
@@ -1613,7 +1600,6 @@ router.get("/all-comet-data", async (req, res) => {
         categoryCounts: categoryCounts,
         realSources: ["JPL SBDB", "MPC", "CNEOS"],
         memoryOptimized: true,
-        activeRenderingLimit: 80,
         totalComets: result.metadata.totalComets,
         cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
       }
@@ -1629,8 +1615,7 @@ router.get("/all-comet-data", async (req, res) => {
         loadTime: 0,
         dataQuality: "No Data",
         queryTime: new Date().toISOString(),
-        memoryOptimized: true,
-        activeRenderingLimit: 80
+        memoryOptimized: true
       }
     });
   }
@@ -1897,7 +1882,7 @@ router.get("/comet-population-census", async (req, res) => {
         averageE: Math.round(avgE * 1000000) / 1000000,
         averageI: Math.round(avgI * 100) / 100,
         status: tracked >= expected[group].estimatedTotal * 0.5 ? "Nominal" : tracked >= expected[group].estimatedTotal * 0.1 ? "Degraded" : tracked > 0 ? "Partial" : "Unavailable",
-        ids: objs.slice(0, 100).map(c => ({
+        ids: objs.map(c => ({
           designation: c.designation,
           spkid: c.spkid,
           name: c.name,
