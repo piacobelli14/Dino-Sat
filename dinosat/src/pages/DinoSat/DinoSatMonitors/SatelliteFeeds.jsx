@@ -5,7 +5,7 @@ import {
   faChevronDown, faChevronUp, faXmark, faSquareCheck, faClone,
   faSun, faTriangleExclamation, faGlobe, faEye,
   faTowerBroadcast, faVideo, faImage, faCircleNodes, faSatelliteDish,
-  faMapLocation, faRoute, faSpinner, faCheckCircle, faXmarkCircle,
+  faRoute, faSpinner, faCheckCircle, faXmarkCircle,
   faMagnifyingGlass, faFilter, faSort, faGauge, faShieldHalved,
   faTemperatureHigh, faAtom, faChartArea, faChartColumn, faTable, faList,
   faFlask, faBookOpen, faMicroscope, faLayerGroup, faClock, faBolt,
@@ -30,7 +30,6 @@ const FEED_TYPE_COLORS = {
   "video": "#ef4444",
   "image": "#42a5f5",
   "image-sequence": "#4ade80",
-  "tiled-imagery": "#a78bfa",
   "telemetry": "#fb923c"
 };
 
@@ -38,7 +37,6 @@ const FEED_TYPE_ICONS = {
   "video": faVideo,
   "image": faImage,
   "image-sequence": faLayerGroup,
-  "tiled-imagery": faMapLocation,
   "telemetry": faTowerBroadcast
 };
 
@@ -1094,7 +1092,7 @@ const FeedDossier = ({ feed, onClose }) => {
       refCards.push({
         key: "direct",
         href: directUrl,
-        name: feed.feedType === "video" ? "Direct Video URL" : feed.feedType === "tiled-imagery" ? "Direct Tile URL" : "Direct Image URL",
+        name: feed.feedType === "video" ? "Direct Video URL" : "Direct Image URL",
         desc: "Open the underlying source URL in a new tab. This is the exact endpoint the page is rendering.",
         host
       });
