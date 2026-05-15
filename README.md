@@ -191,7 +191,7 @@ This page is simply a serach engine, specifically tuned to astronomical objects 
 
 ## Architecture
 
-DinoSat is a two-repo project: a React frontend (`dinosat/`) and a Node.js/Express backend (`dinosat_webapi/`). The backend serves all page-specific data routes plus the auth integration with Dino Auth. The frontend handles all rendering, propagation, and user interaction.
+DinoSat is a two-repo project: a React frontend (`dinosat/`) and a Node.js/Express backend (`dinosat_webapi/`). The backend serves all page-specific data routes plus the auth integration with Dino Auth.The frontend handles all rendering, visualization, propagation, and user interaction.
 
 ### Frontend (`dinosat/`)
 
@@ -262,9 +262,9 @@ dinosat_webapi/
 └── vercel.json
 ```
 
-The route namespace mirrors the frontend page categories. Every backend route lives under `dinolabs-dinosat/` and splits into `monitors/` and `trackers/`, matching the page groupings. The Simulator and Celestial Reference do not need backend routes: the simulator is pure client-side physics, and the reference page talks directly to Wikipedia and Wikidata from the browser.
+The backend route structure mirrors the frontend page structure, and each route file handles all fo the backend functionality that drives each individual page. Every backend route lives under `dinolabs-dinosat/` and splits into `monitors/` and `trackers/`, matching the page groupings. The Simulator and Celestial Reference do not need backend routes: the simulator is pure client-side physics, and the reference page talks directly to Wikipedia and Wikidata from the browser.
 
-### Data sources
+### Primary Data Sources
 - **JPL SBDB.** Asteroid and comet ephemerides. Cached aggressively because the upstream is rate-limited.
 - **CelesTrak / Space-Track.** TLEs for the satellite tracker, refreshed on a cron.
 - **Open-Meteo + NOAA.** Weather inputs for Earth Conditions.
@@ -273,32 +273,32 @@ The route namespace mirrors the frontend page categories. Every backend route li
 - **Gemini API.** AI dossier generation, gated server-side.
 
 ### Streaming
-SSE everywhere it makes sense. The satellite tracker, feed registry, and asteroid catalog ingest all use server-sent events over plain HTTP rather than WebSockets. The data flow is one-way, SSE survives proxies better, and reconnection is built in.
+SSE everywhere it makes sense. The trackers, feed registry, all use server-sent events over plain HTTP rather than WebSockets. The data flow is one-way, SSE survives proxies better, and reconnection is built in.
 
 ### Three.js
-The tracker pages share a heliocentric scene builder, bloom pipeline, and trail buffer implementation. The catalogs and the simulator extend it with their own physics layers; the satellite tracker swaps in a geocentric frame. Frustum culling and instanced meshes do most of the work keeping framerate up with 30,000+ orbits on screen.
+The tracker pages share a scene builder implementation, bloom pipeline, and trail buffer implementation. There are also tracker-specific 3D elements. Frustim culling and instanced meshes do most of teh work keeping the framerate up with thousands of objects on screen
 
 ---
 
-## Authentication and accounts
+## Authentication and Accounts
 
-Account creation, login, sessions, password resets, email verification, organization management, and role-based access are **all handled through Dino Auth**, a separate private API internal to the broader DinoLabs architecture. Dino Auth is **not part of this repository**, is not open-sourced, and is not available for self-hosting. DinoSat is simply integrated with it: the platform does not implement its own auth, does not store passwords, and does not roll its own session management.
+All of your account information, settings, and profile and team management are handled through my secure internal platform Dino Auth. Dino Auth is not part of this repository, is not open-sourced, and is not available for self-hosting. DinoSat is simply integrated with it: the platform does not implement its own auth, does not store passwords, and does not roll its own session management.
 
 What this means in practice:
 
-- Sign-up, login, reset, and verification flows all proxy through Dino Auth.
-- Sessions come back as bearer tokens with embedded user ID and optional org ID.
-- Team management (inviting members, role assignment, org-level settings) lives in the `Team.jsx` page on the DinoSat frontend but proxies all writes through Dino Auth.
-- Every protected route on the DinoSat backend validates tokens against Dino Auth.
-- The `ProtectedRoute.jsx` component on the frontend handles redirects and token refresh transparently.
+- For the sake of this platform's simplicity and overall security, all sign-up, login, reset, and verification all flows through Dino Auth. 
+- Sessions come back as bearer tokens that have the user ID embedded in them, along with an optional org ID.
+- All account management happens on the `Account.jsx` page in the frontend, and all backend calls are proxied through DinoAuth.
+- All team management happens on the `Team.jsx` page in the frontend, and all backend calls are proxied through DinoAuth. 
 
-**Existing DinoLabs accounts work here.** If you already have an account from one of our other open-source DinoLabs platforms, those credentials sign you straight into DinoSat. One account, every product. Forks intending to run standalone will need to swap in their own auth provider.
+**Existing DinoLabs accounts work here.** If you already have an account from one of my other open-source DinoLabs platforms (DinoLabs, etc.), those credentials sign you straight into DinoLabs. One account, every product. Forks intending to run standalone will need to swap in their own auth provider.
+
 
 ---
 
 ## Hosted version
 
-The intended way to use DinoSat is the hosted version at **[dino-sat.vercel.app](https://dino-sat.vercel.app/login)**. It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas), and accounts are free.
+The intended way to use DinoSat is at my hosted version available at [DinoSat](https://dino-sat.vercel.app/login). It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas). Account creation, usage, storage, and everything else is completely free, barring an unforeseen increase in traffic. 
 
 This repository exists primarily as a reference and as the development home of the project. Self-hosting is possible but is not the supported path.
 
@@ -337,27 +337,6 @@ No `.env.example` is shipped with this repo. The ones you cannot skip on the bac
 - `GEMINI_API_KEY`
 - `AUTH_PROVIDER_URL`
 - `AUTH_JWT_PUBLIC_KEY`
-
----
-
-## Design notes
-
-- **Heliocentric, not geocentric.** Most space visualization tools default to Earth at the center because most users care about Earth orbits. DinoSat defaults to the sun for the tracker pages because asteroids and comets do not orbit Earth. The satellite tracker switches frames.
-- **Real propagation, not interpolation.** Asteroid and comet positions are computed from Keplerian elements using a proper solver (Newton-Raphson on the eccentric anomaly for elliptical, Barker's equation for parabolic, hyperbolic Kepler for hyperbolic). Satellites use SGP4. The simulator uses real integrators. No precomputed paths, no spline tricks.
-- **The conjunction engine is the spicy part.** Naive pairwise close-approach detection on tens of thousands of satellites is not free. The implementation uses a coarse spatial hash to prune candidate pairs, then refines survivors with adaptive timestepping. Eclipse geometry uses cone-cone intersection in the Earth-Sun frame.
-- **Dossier generation is gated server-side.** Gemini calls go through a backend route that enforces per-user rate limits and caches results. The frontend never sees an API key.
-- **Celestial Reference is intentionally frontend-only.** It hits Wikipedia and Wikidata directly from the browser because there is no value-add in proxying that traffic through the backend, and CORS is already permissive on those endpoints.
-- **The Simulator is a sandbox, not a research tool.** Long-time symplectic stability is a known weak point of RK4; use Yoshida or Verlet for energy-conserving runs and RKF45 with embedded error control for accuracy-targeted runs. The 2.5PN radiation-reaction implementation, retarded-gravity propagation, and J2-coupled rigid-body dynamics are real, but the simulator is built for intuition and visualization, not for publication-grade orbit determination.
-- **Desktop only, by design.** Three.js scenes with thousands of objects on a phone is a bad time. `TouchDevice.jsx` shows a desktop-only message on touch devices instead of trying to gracefully degrade.
-
----
-
-## Limitations and known issues
-
-- TLEs go stale. Anything older than a few days will visibly drift from reality. The tracker shows TLE epoch on hover so you can see this.
-- The asteroid tracker excludes objects with bad orbital fits (high uncertainty parameter). This is on purpose, but it means some recently discovered NEOs will not appear until JPL updates the fit.
-- Earth Conditions weather data is only as good as the upstream forecast model. It is not a substitute for an actual range safety officer.
-- Celestial Reference is bottlenecked on Wikipedia's API. Bulk lookups will get rate-limited.
 
 ---
 
