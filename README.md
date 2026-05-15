@@ -291,7 +291,7 @@ What this means in practice:
 - All account management happens on the `Account.jsx` page in the frontend, and all backend calls are proxied through DinoAuth.
 - All team management happens on the `Team.jsx` page in the frontend, and all backend calls are proxied through DinoAuth. 
 
-**Existing DinoLabs accounts work here.** If you already have an account from one of my other open-source DinoLabs platforms (DinoLabs, etc.), those credentials sign you straight into DinoLabs. One account, every product. Forks intending to run standalone will need to swap in their own auth provider.
+**Existing DinoLabs accounts work here.** If you already have an account from one of my other open-source DinoLabs platforms (DinoLabs, etc.), those credentials sign you straight into DinoSat. One account, every product. Forks intending to run standalone will need to swap in their own auth provider.
 
 
 ---
