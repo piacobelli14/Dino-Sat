@@ -6,7 +6,7 @@ As a disclaimer, I am not a physicist. Much like my other open source platforms,
 
 This is a personal-scale platform built because the existing tools for this stuff are either Cold War era government dashboards, paywalled aerospace software, or toy demos. DinoSat sits somewhere in the middle: real propagators, real ephemerides, real conjunction math, wrapped in a UI that is fun to use and pretty to look at.
 
-Hosted at **[DinoSat](https://dino-sat.vercel.app/login)**. Account creation, sessions, and team management are handled through Dino Auth (see below).
+Hosted at **[DinoSat](https://dino-sat.vercel.app/login)**. Account creation, sessions, and team management are handled through DinoAuth (see below).
 
 **Stack:** React + Vite + Three.js on the frontend, Node.js + Express + PostgreSQL on the backend.
 
@@ -191,7 +191,7 @@ This page is simply a search engine, specifically tuned to astronomical objects 
 
 ## Architecture
 
-DinoSat is a two-repo project: a React frontend (`dinosat/`) and a Node.js/Express backend (`dinosat_webapi/`). The backend serves all page-specific data routes plus the auth integration with Dino Auth. The frontend handles all rendering, visualization, propagation, and user interaction.
+DinoSat is a two-repo project: a React frontend (`dinosat/`) and a Node.js/Express backend (`dinosat_webapi/`). The backend serves all page-specific data routes plus the auth integration with DinoAuth. The frontend handles all rendering, visualization, propagation, and user interaction.
 
 ## Frontend (`dinosat/`)
 
@@ -228,9 +228,9 @@ dinosat/
 │   ├── styles/                 # Page-scoped CSS
 │   ├── App.jsx
 │   ├── ErrorBoundary.jsx
-│   ├── ProtectedRoute.jsx      # Token gate, redirects to Dino Auth
+│   ├── ProtectedRoute.jsx      # Token gate, redirects to DinoAuth
 │   ├── TouchDevice.jsx         # Mobile-block screen
-│   └── UseAuth.jsx             # Dino Auth hook
+│   └── UseAuth.jsx             # DinoAuth hook
 ├── satellites.json             # Bootstrap satellite catalog
 ├── vite.config.js
 └── vercel.json
@@ -282,17 +282,16 @@ The tracker pages share a scene builder implementation, bloom pipeline, and trai
 
 ## Authentication and Accounts
 
-All of your account information, settings, and profile and team management are handled through my secure internal platform Dino Auth. Dino Auth is not part of this repository, is not open-sourced, and is not available for self-hosting. DinoSat is simply integrated with it: the platform does not implement its own auth, does not store passwords, and does not roll its own session management.
+All of your account information, settings, and profile and team management are handled through my secure internal platform DinoAuth. DinoAuth is not part of this repository, is not open-sourced, and is not available for self-hosting. DinoSat is simply integrated with it: the platform does not implement its own auth, does not store passwords, and does not roll its own session management.
 
 What this means in practice:
 
-- For the sake of this platform's simplicity and overall security, all sign-up, login, reset, and verification all flows through Dino Auth.
+- For the sake of this platform's simplicity and overall security, all sign-up, login, reset, and verification all flows through DinoAuth.
 - Sessions come back as bearer tokens that have the user ID embedded in them, along with an optional org ID.
 - All account management happens on the `Account.jsx` page in the frontend, and all backend calls are proxied through DinoAuth.
 - All team management happens on the `Team.jsx` page in the frontend, and all backend calls are proxied through DinoAuth.
 
 **Existing DinoLabs accounts work here.** If you already have an account from one of my other open-source DinoLabs platforms (DinoLabs, etc.), those credentials sign you straight into DinoSat. One account, every product. Forks intending to run standalone will need to swap in their own auth provider.
-
 
 ---
 
