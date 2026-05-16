@@ -193,19 +193,19 @@ This page is simply a serach engine, specifically tuned to astronomical objects 
 
 DinoSat is a two-repo project: a React frontend (`dinosat/`) and a Node.js/Express backend (`dinosat_webapi/`). The backend serves all page-specific data routes plus the auth integration with Dino Auth.The frontend handles all rendering, visualization, propagation, and user interaction.
 
-### Frontend (`dinosat/`)
+## Frontend (`dinosat/`)
 
 ```
 dinosat/
 ├── public/
-│   ├── DinoSatLogo*.png         Brand assets
-│   ├── MoonBackground.mp4       Hero/landing video
-│   └── placeholder.stl          3D model placeholder
+│   ├── DinoSatLogo*.png        # Brand assets
+│   ├── MoonBackground.mp4      # Hero/landing video
+│   └── placeholder.stl         # 3D model placeholder
 ├── src/
 │   ├── pages/
 │   │   ├── Account/
-│   │   │   ├── Account.jsx       Personal account settings
-│   │   │   └── Team.jsx          Org/team management
+│   │   │   ├── Account.jsx     # Personal account settings
+│   │   │   └── Team.jsx        # Org/team management
 │   │   ├── Authentication/
 │   │   │   ├── AuthLogin.jsx
 │   │   │   ├── AuthRegister.jsx
@@ -222,30 +222,30 @@ dinosat/
 │   │       ├── DinoSatSimulators/
 │   │       │   └── Simulator.jsx
 │   │       └── CelestialReference.jsx
-│   ├── helpers/                  Shared UI utilities (Nav, Alert, etc.)
-│   ├── lib/                      Three.js, SGP4, Kepler, n-body
-│   ├── configs/                  Runtime config
-│   ├── styles/                   Page-scoped CSS
+│   ├── helpers/                # Shared UI utilities (Nav, Alert, etc.)
+│   ├── lib/                    # Three.js, SGP4, Kepler, n-body
+│   ├── configs/                # Runtime config
+│   ├── styles/                 # Page-scoped CSS
 │   ├── App.jsx
 │   ├── ErrorBoundary.jsx
-│   ├── ProtectedRoute.jsx        Token gate, redirects to Dino Auth
-│   ├── TouchDevice.jsx           Mobile-block screen
-│   └── UseAuth.jsx               Dino Auth hook
-├── satellites.json               Bootstrap satellite catalog
+│   ├── ProtectedRoute.jsx      # Token gate, redirects to Dino Auth
+│   ├── TouchDevice.jsx         # Mobile-block screen
+│   └── UseAuth.jsx             # Dino Auth hook
+├── satellites.json             # Bootstrap satellite catalog
 ├── vite.config.js
 └── vercel.json
 ```
 
-### Backend (`dinosat_webapi/`)
+## Backend (`dinosat_webapi/`)
 
 ```
 dinosat_webapi/
 ├── api/
 │   ├── config/
-│   │   ├── db.js                 PostgreSQL pool
-│   │   ├── s3.js                 Object storage client
-│   │   └── smtp.js               Transactional mail
-│   ├── middleware/               Auth, validation, rate limiting
+│   │   ├── db.js               # PostgreSQL pool
+│   │   ├── s3.js               # Object storage client
+│   │   └── smtp.js             # Transactional mail
+│   ├── middleware/             # Auth, validation, rate limiting
 │   ├── routes/
 │   │   └── dinolabs-dinosat/
 │   │       ├── dinolabs-dinosat-monitors/
@@ -255,8 +255,8 @@ dinosat_webapi/
 │   │           ├── dinolabs-dinosat-asteroid-tracker.js
 │   │           ├── dinolabs-dinosat-comet-tracker.js
 │   │           └── dinolabs-dinosat-satellite-tracker.js
-│   ├── workers/                  Connection manager worker
-│   ├── public/                   Catchall and static
+│   ├── workers/                # Connection manager worker
+│   ├── public/                 # Catchall and static
 │   ├── docs/
 │   └── index.js
 └── vercel.json
