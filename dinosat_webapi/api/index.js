@@ -20,6 +20,7 @@ require("dotenv").config();
 
 const ALLOWED_ORIGINS = [
   "https://ut-health-parallax-web-hub.vercel.app",
+  "https://dino-sat.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
