@@ -319,7 +319,7 @@ const Nav = ({ activePage }) => {
               alt="Logo"
             />
             <label className="homeHeader" style={{ color: "#ebf0f8" }}>
-              DinoSat
+              Dino Sat
             </label>
           </div>
 
