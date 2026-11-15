@@ -34,7 +34,7 @@ class ConnectionManager extends EventEmitter {
     this._idleThresholdMs = options.idleThresholdMs || 15000;
     this._healthCheckIntervalMs = options.healthCheckIntervalMs || 15000;
     this._burstThreshold = options.burstThreshold || 10;
-    this._applicationName = options.applicationName || "parallax_api";
+    this._applicationName = options.applicationName || "dinosat_api";
     this._cleanupTimer = null;
     this._healthCheckTimer = null;
     this._isRunning = false;

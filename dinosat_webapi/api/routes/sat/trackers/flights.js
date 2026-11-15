@@ -147,7 +147,7 @@ const SOURCES = {
     groundAltitudeFt: 500,
     unsweptStaleSeconds: 1500,
     pruneIntervalMs: 5000,
-    statePath: process.env.FLIGHTS_STATE_PATH || path.join(os.tmpdir(), "parallax-flights-state.json"),
+    statePath: process.env.FLIGHTS_STATE_PATH || path.join(os.tmpdir(), "dinosat-flights-state.json"),
     stateSaveSeconds: 15,
     tombstoneMinutes: 15,
     trailPoints: 60,

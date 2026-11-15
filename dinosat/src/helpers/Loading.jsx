@@ -1,7 +1,7 @@
 import React from "react";
 import "../styles/helperStyles/LoadingSpinner.css";
 
-const ParallaxLoading = () => {
+const DinoSatLoading = () => {
     return (
         <div className="loading-container">
             <div className="loading-wrapper">
@@ -12,4 +12,4 @@ const ParallaxLoading = () => {
     );
 }; 
 
-export default ParallaxLoading; 
+export default DinoSatLoading; 

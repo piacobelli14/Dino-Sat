@@ -11,15 +11,15 @@ const Unavailable = ({ screenSize }) => {
         <div className="unavailableUnavailableContent">
           <img
             className="unavailableUnavailableImage"
-            src="./parallaxlogo.png"
-            alt="Parallax Logo"
+            src="./sinosatlogo.png"
+            alt="Dino Sat Logo"
             onError={(e) => {
               e.target.src = "/fallback-logo.png"; 
             }}
           />
           <div className="unavailableUnavailableTextStack">
             <h1 className="unavailableUnavailableTitle">
-              Parallax Unavailable
+              Dino Sat Unavailable
             </h1>
             <p className="unavailableUnavailableMessage">
               The platform is currently unavailable at this screen size.

@@ -1362,7 +1362,7 @@ const Account = () => {
                                                         <div className="profileLeadingCellStack" style={{ width: "100%" }}>
                                                             <h3>2-Factor Authentication</h3>
                                                             <p style={{ width: "100%" }}>
-                                                                Set up two factor authentication when signing into your Parallax account. When enabled, Parallax will send a code to your phone that you can use to login.
+                                                                Set up two factor authentication when signing into your Dino Sat account. When enabled, Dino Sat will send a code to your phone that you can use to login.
                                                             </p>
                                                             <button className="profileDeleteButton" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "0.2vh solid #c1c1c1" }} onClick={handleToggleTwoFA}>
                                                                 Enable 2-Factor Authentication
@@ -1398,7 +1398,7 @@ const Account = () => {
                                                         <div className="profileLeadingCellStack" style={{ width: "100%" }}>
                                                             <h3>Login Notifications</h3>
                                                             <p style={{ width: "100%" }}>
-                                                                Set up login notifications when signing into your Parallax account. When enabled, Parallax will monitor the location of signins to your account and notify you of suspicious login attempts.
+                                                                Set up login notifications when signing into your Dino Sat account. When enabled, Dino Sat will monitor the location of signins to your account and notify you of suspicious login attempts.
                                                             </p>
                                                             <button className="profileDeleteButton" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "0.2vh solid #c1c1c1" }} onClick={handleToggleLoginNotifs}>
                                                                 Enable Login Notifications
@@ -1435,7 +1435,7 @@ const Account = () => {
                                                             <div className="profileLeadingCellStack" style={{ width: "100%" }}>
                                                                 <h3>Export Notifications</h3>
                                                                 <p style={{ width: "100%" }}>
-                                                                    Set up export notifications to be alerted whenever one of your team members exports any of your data from the Parallax platform.
+                                                                    Set up export notifications to be alerted whenever one of your team members exports any of your data from the Dino Sat platform.
                                                                 </p>
                                                                 <button className="profileDeleteButton" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "0.2vh solid #c1c1c1" }} onClick={handleToggleExportNotifs}>
                                                                     Enable Export Notifications
@@ -1476,7 +1476,7 @@ const Account = () => {
                                                         <div className="profileLeadingCellStack" style={{ width: "100%" }}>
                                                             <h3>Data Sharing</h3>
                                                             <p style={{ width: "100%" }}>
-                                                                Allow the Parallax team to use aggregated, anonymized data about your organization's usage and projects to help us improve features, optimize performance, and deliver a better overall experience.
+                                                                Allow the Dino Sat team to use aggregated, anonymized data about your organization's usage and projects to help us improve features, optimize performance, and deliver a better overall experience.
                                                             </p>
                                                             <button className="profileDeleteButton" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "0.2vh solid #c1c1c1" }} onClick={handleToggleDataShare}>
                                                                 Enable Data Sharing
@@ -1585,7 +1585,7 @@ const Account = () => {
                                                         <div className="profileLeadingCellStack" style={{ width: "100%" }}>
                                                             <h3>Disconnect GitHub Account</h3>
                                                             <p style={{ width: "100%" }}>
-                                                                Disconnect your personal or team GitHub account from the Parallax web platform. This may interrupt or break your current deployments.
+                                                                Disconnect your personal or team GitHub account from the Dino Sat web platform. This may interrupt or break your current deployments.
                                                             </p>
                                                             <button className="profileDeleteButton" onClick={handleGithubDisconnect}>
                                                                 Disconnect GitHub Account
