@@ -12,6 +12,7 @@
     align-items: center;
     width: 100vw;
     height: 100vh;
+    padding-bottom: 2vh; 
 }
 
 
@@ -45,13 +46,13 @@
 .verifyBackgroundBlur1 {
     top: -10rem;
     right: -10rem;
-    background: rgba(22, 24, 29, 0.6);
+    background: rgba(127, 233, 225, 0.05);
 }
 
 .verifyBackgroundBlur2 {
     bottom: -10rem;
     left: -10rem;
-    background: rgba(19, 21, 26, 0.6);
+    background: rgba(165, 240, 234, 0.035);
     animation-delay: 0.1s;
 }
 
@@ -61,7 +62,7 @@
     transform: translate(-50%, -50%);
     width: 24rem;
     height: 24rem;
-    background: rgba(16, 18, 22, 0.4);
+    background: rgba(127, 233, 225, 0.03);
     animation-delay: 0.1s;
 }
 
@@ -74,8 +75,8 @@
     position: absolute;
     inset: 0;
     background-image: 
-        linear-gradient(rgba(50, 55, 70, 0.45) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(50, 55, 70, 0.45) 1px, transparent 1px);
+        linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
     background-size: 60px 60px;
     opacity: 0.2;
 }
@@ -95,14 +96,14 @@
 
 .unverifiedEmailIcon {
     font-size: 1.6rem; 
-    color: rgba(205, 212, 228, 0.82); 
+    color: #ebf0f8; 
     margin-bottom: 1rem; 
 }
 
 .unverifiedEmailText {
     font-size: 0.8rem; 
     font-weight: 600; 
-    color: rgba(205, 212, 228, 0.82); 
+    color: #ebf0f8; 
     font-style: italic; 
     margin-bottom: 1rem;
     width: 80%; 
@@ -113,7 +114,7 @@
     font-weight: 900; 
     font-style: italic;
     text-decoration: underline;
-    color: #6a7a8a; 
+    color: #a5f0ea; 
     cursor: pointer; 
 }
 
@@ -148,33 +149,29 @@
     border: none; 
     border-radius: 6px; 
     cursor: pointer; 
-    box-shadow: none; 
+    box-shadow: 0 0 3px white; 
     margin-bottom: 1rem; 
     z-index: 2;
-    border: 1px solid rgba(50, 55, 70, 0.45); 
-    background: #16181d;
-    color: rgba(235, 240, 248, 0.95);
+    border: 1px solid #5a6274; 
 }
 
 .unverifiedEmailReset:hover, 
 .unverifiedEmailRefresh:hover {
-    opacity: 0.7;
-    border: 1px solid rgba(60, 68, 85, 0.5); 
+    opacity: 0.6;
+    border: 1px solid #5a6274; 
     outline: none;
-    background: #13151a;
 }
 
 .unverifiedEmailReset:focus, 
 .unverifiedEmailRefreshfocus {
-    border: 1px solid #6a7a8a; 
+    border: 1px solid #5a6274; 
     outline: none;
 }
 
 .unverifiedEmailCell {
-    background-color: rgba(22, 24, 29, 0.4); 
+    background-color: rgba(255, 255, 255, 0.1); 
     padding: 30px 5px; 
-    box-shadow: none;
-    border: 1px solid rgba(50, 55, 70, 0.45);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
     border-radius: 6px; 
     display: flex; 
     flex-direction: column;
@@ -199,19 +196,15 @@
     padding: 0.8rem 1rem; 
     font-size: 0.7rem ; 
     font-weight: 700; 
-    color: rgba(235, 240, 248, 0.95); 
-    background-color: #13151a;  
-    border: 1px solid rgba(50, 55, 70, 0.45); 
+    color: #aab4c8; 
+    background-color: rgba(255,255,255,0.05);  
+    border: 1px solid #aab4c8; 
     border-radius: 6px; 
     outline: none; 
     margin-bottom: 1.5rem; 
 }
 
-.unverifiedInputWrapper:hover {
-    border: 1px solid rgba(60, 68, 85, 0.5);
-}
-
 .unverifiedInputWrapper:focus {
-    border: 1px solid #6a7a8a;
+    border: 1px solid #aab4c8;
     outline: none;  
 }

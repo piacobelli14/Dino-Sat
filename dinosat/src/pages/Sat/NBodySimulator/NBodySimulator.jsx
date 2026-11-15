@@ -1,0 +1,4217 @@
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPlay, faPause, faRedo, faPlus, faTrash, faChartLine,
+  faXmarkSquare, faCog, faGlobe,
+  faRocket, faCrosshairs, faEdit, faEye,
+  faEyeSlash, faFlask, faSquareCheck, faExclamationTriangle,
+  faInfoCircle, faClock, faMagnet, faBolt, faNetworkWired,
+  faShield, faSatellite, faDatabase, faBroadcastTower,
+  faAtom, faGlobeAmericas, faSliders, faRotate, faSignal
+} from "@fortawesome/free-solid-svg-icons";
+import Nav from "../../../helpers/Nav.jsx";
+import Dropdown from "../../../helpers/Dropdown.jsx";
+import ColorPicker from "../../../helpers/ColorPicker.jsx";
+import useAuth from "../../../UseAuth.jsx";
+import Tippy from "@tippyjs/react";
+import "tippy.js/dist/tippy.css";
+import "../../../styles/helperStyles/Switch.css";
+import "../../../styles/mainStyles/Sat/NBodySimulator/NBodySimulator.css";
+import "../../../styles/helperStyles/LoadingSpinner.css";
+
+const renderDropdown = (options, value, onSelect, placeholder, disabled = false) => {
+  const labelOf = ([, label, unavailable]) => (unavailable ? `${label} - N/A` : label);
+  const current = options.find(([v]) => String(v) === String(value));
+  return (
+    <Dropdown
+      value={current ? labelOf(current) : ""}
+      onChange={(option) => {
+        const match = options.find((entry) => labelOf(entry) === option);
+        if (!match || match[2]) return;
+        onSelect({ target: { value: match[0] } });
+      }}
+      options={options.map(labelOf)}
+      placeholder={placeholder}
+      className={disabled ? "nbodyDropdownDisabled" : ""}
+    />
+  );
+};
+
+const LAYOUT_STORAGE_KEY = "nbodySimulatorLayout";
+
+const DEFAULT_LAYOUT = { nav: true, header: true, sidebar: true, footer: true };
+
+const LAYOUT_TOGGLES = [["nav", "Nav"], ["header", "Header"], ["sidebar", "Sidebar"], ["footer", "Footer"]];
+
+const EXPANDABLE_SELECTOR = ".nbody-subtitle, .nbody-body-name, .nbody-panel-header-with-badge h3, .nbody-detail-item span, .nbody-hud-item span, .nbody-checkbox-label span";
+
+const EXPAND_CONTAINER_PATTERN = /(item|section|panel|group|card|header)(\s|$)/i;
+
+const isInteractiveTarget = (target, root) => {
+  if (target.closest("button, a, input, select, textarea, label, [role='button']")) return true;
+  let node = target;
+  while (node && node !== root && node !== document.body) {
+    if (window.getComputedStyle(node).cursor === "pointer") return true;
+    node = node.parentElement;
+  }
+  return false;
+};
+
+const findExpandContainer = (element, root) => {
+  let node = element.parentElement;
+  for (let depth = 0; node && node !== root && depth < 6; depth++) {
+    if (EXPAND_CONTAINER_PATTERN.test(String(node.className || ""))) return node;
+    node = node.parentElement;
+  }
+  return element.parentElement || element;
+};
+
+const NBodySimulator = () => {
+  const navigate = useNavigate();
+  const { token, loading: authLoading } = useAuth();
+  const SPEED_OF_LIGHT = 299792458.0;
+  const AU = 149597870700.0;
+  const DAY_SECONDS = 86400.0;
+
+  const G_CODATA = 6.67430e-11;
+  const GM_SUN = 1.32712440042e20;
+  const GM_EARTH = 3.986004418e14;
+  const GM_JUPITER = 1.26712764e17;
+
+  const SOLAR_RADIUS = 6.957e8;
+  const EARTH_RADIUS_MEAN = 6.371e6;
+  const EARTH_RADIUS_EQUATORIAL = 6.378137e6;
+
+  const INTEGRATORS = {
+    VELOCITY_VERLET: "verlet",
+    RK4: "rk4",
+    YOSHIDA4: "yoshida4",
+    RK5: "rk5"
+  };
+
+  const SPEED_OPTIONS = [
+    { label: "0.1x", value: 0.1 },
+    { label: "0.5x", value: 0.5 },
+    { label: "1x", value: 1 },
+    { label: "10x", value: 10 },
+    { label: "100x", value: 100 },
+    { label: "1000x", value: 1000 },
+    { label: "10000x", value: 10000 }
+  ];
+
+  useEffect(() => {
+    if (!authLoading && !token) navigate("/login");
+  }, [authLoading, token, navigate]);
+
+  const [bodies, setBodies] = useState([]);
+  const [selectedBody, setSelectedBody] = useState(null);
+  const [focusedBody, setFocusedBody] = useState(null);
+
+  const [isRunning, setIsRunning] = useState(false);
+  const [simulationTime, setSimulationTime] = useState(0);
+  const [timeStep, setTimeStep] = useState(60);
+  const [speedMultiplier, setSpeedMultiplier] = useState(10);
+  const [integrator, setIntegrator] = useState(INTEGRATORS.RK5);
+  const [actualFps, setActualFps] = useState(60);
+
+  const [showTrails, setShowTrails] = useState(true);
+  const [showVectors, setShowVectors] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
+  const [trailLength, setTrailLength] = useState(1000);
+  const [scaleMode, setScaleMode] = useState("log");
+  const [gridWarpStrength, setGridWarpStrength] = useState(50);
+  const [gridWarpSpread, setGridWarpSpread] = useState(90);
+
+  const [hudVisible, setHudVisible] = useState(false);
+  const [layoutVisibility, setLayoutVisibility] = useState(() => {
+    try {
+      return { ...DEFAULT_LAYOUT, ...JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY) || "{}") };
+    } catch (error) {
+      return DEFAULT_LAYOUT;
+    }
+  });
+  const [expandedView, setExpandedView] = useState(null);
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layoutVisibility));
+    } catch (error) {
+      return;
+    }
+  }, [layoutVisibility]);
+  useEffect(() => {
+    if (!expandedView) return undefined;
+    const handleKey = (event) => { if (event.key === "Escape") setExpandedView(null); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [expandedView]);
+  const [addBodyModal, setAddBodyModal] = useState(false);
+  const [editBodyModal, setEditBodyModal] = useState(null);
+  const [addBodyColorPickerOpen, setAddBodyColorPickerOpen] = useState(false);
+  const [editBodyColorPickerOpen, setEditBodyColorPickerOpen] = useState(false);
+
+  const [softeningConfig, setSofteningConfig] = useState({
+    enabled: false,
+    mode: 'plummer',
+    fixedLength: 1e6
+  });
+
+  const [physicsConfig, setPhysicsConfig] = useState({
+    includeGR: false,
+    grMode: '1pn',
+    relativisticMode: false,
+    cReductionFactor: 1000,
+    includeJ2: false,
+    j2BackReaction: true,
+    timestepMethod: 'fixed',
+    timestepEta: 0.02,
+    embeddedTolerance: 1e-9,
+    doublePrecisionWarning: true,
+    softeningWarningShown: false,
+    collisionMode: 'none',
+    collisionThreshold: 1.0,
+    collisionMassLoss: 0.02,
+    barycentricCorrection: true,
+    useNormalizedUnits: true,
+    enableRocheLimit: true,
+    rocheDisruptionMode: 'warning',
+    retardedGravity: true,
+    retardedIterations: 3,
+    positionHistoryLength: 100,
+    historyBufferSize: 128
+  });
+
+  const [pnWarnings, setPnWarnings] = useState([]);
+
+  const [newBody, setNewBody] = useState({
+    name: "",
+    mass: GM_SUN / G_CODATA,
+    radius: SOLAR_RADIUS,
+    x: 0, y: 0, z: 0,
+    vx: 0, vy: 0, vz: 0,
+    color: "#FFD700",
+    j2: 0,
+    j2Radius: null,
+    spinAxisX: 0,
+    spinAxisY: 0,
+    spinAxisZ: 1,
+    spinRate: 0,
+    momentOfInertiaFactor: 0.4
+  });
+
+  const [trajectoryMode, setTrajectoryMode] = useState("orbit");
+
+  const [orbitConfig, setOrbitConfig] = useState({
+    enabled: true,
+    centralBodyId: null,
+    orbitType: "circular",
+    distance: AU,
+    eccentricity: 0,
+    inclination: 0,
+    longitudeOfAscendingNode: 0,
+    argumentOfPeriapsis: 0,
+    trueAnomaly: 0,
+    prograde: true
+  });
+
+  const [flybyConfig, setFlybyConfig] = useState({
+    targetBodyId: null,
+    periapsisDistance: 1.0 * AU,
+    vInfinity: 30000,
+    approachAngle: 0,
+    inclination: 0,
+    inbound: true,
+    startDistance: 10 * AU
+  });
+
+  const [interstellarConfig, setInterstellarConfig] = useState({
+    referenceBodyId: null,
+    periapsisDistance: 0.5 * AU,
+    vInfinity: 26000,
+    approachAngle: 45,
+    inclination: 30,
+    startDistance: 50 * AU
+  });
+
+  const [systemStats, setSystemStats] = useState({
+    totalEnergy: 0,
+    kineticEnergy: 0,
+    potentialEnergy: 0,
+    relativisticEnergy: 0,
+    totalMomentum: { x: 0, y: 0, z: 0 },
+    centerOfMass: { x: 0, y: 0, z: 0 },
+    bodyCount: 0,
+    initialEnergy: null,
+    energyDrift: 0,
+    rocheViolations: [],
+    lastErrorNorm: 0
+  });
+
+  const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingHud, setIsDraggingHud] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const rendererRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const meshesRef = useRef({});
+  const trailsRef = useRef({});
+  const labelsRef = useRef({});
+  const vectorsRef = useRef({});
+  const gridRef = useRef(null);
+  const labelContainerRef = useRef(null);
+  const animationRef = useRef(null);
+  const lastTimeRef = useRef(0);
+  const fpsCounterRef = useRef(0);
+  const lastFpsTimeRef = useRef(0);
+  const hudPanelRef = useRef(null);
+  const initialEnergyRef = useRef(null);
+  const bodiesRef = useRef([]);
+  const simulationTimeRef = useRef(0);
+  const mergedBodyIdsRef = useRef(new Set());
+  const initialBodiesRef = useRef([]);
+  const adaptiveDtRef = useRef(null);
+  const lastErrorNormRef = useRef(0);
+
+  bodiesRef.current = bodies;
+  simulationTimeRef.current = simulationTime;
+
+  const generateId = () => `body_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const formatNumber = (num, decimals = 2) => {
+    if (num === null || num === undefined || isNaN(num)) return "N/A";
+    if (!isFinite(num)) return num > 0 ? "INF" : "-INF";
+    if (Math.abs(num) < 1e-10) return "0";
+    if (Math.abs(num) >= 1e9 || Math.abs(num) < 1e-3) {
+      return num.toExponential(decimals);
+    }
+    return num.toFixed(decimals);
+  };
+
+  const formatTime = (seconds) => {
+    if (!isFinite(seconds)) return "INF";
+    const days = Math.floor(seconds / DAY_SECONDS);
+    const years = Math.floor(days / 365.25);
+    const remainingDays = Math.floor(days % 365.25);
+    if (years > 0) return `${years}y ${remainingDays}d`;
+    if (days > 0) return `${days}d ${Math.floor((seconds % DAY_SECONDS) / 3600)}h`;
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
+  };
+
+  const kahanSum = (current, input, error) => {
+    const y = input - error;
+    const t = current + y;
+    const newError = (t - current) - y;
+    return { value: t, error: newError };
+  };
+
+  const createRingBuffer = useCallback((size) => {
+    return {
+      x: new Float64Array(size),
+      y: new Float64Array(size),
+      z: new Float64Array(size),
+      vx: new Float64Array(size),
+      vy: new Float64Array(size),
+      vz: new Float64Array(size),
+      t: new Float64Array(size),
+      head: 0,
+      count: 0,
+      size: size
+    };
+  }, []);
+
+  const ringBufferPush = useCallback((buffer, x, y, z, vx, vy, vz, t) => {
+    const idx = buffer.head;
+    buffer.x[idx] = x;
+    buffer.y[idx] = y;
+    buffer.z[idx] = z;
+    buffer.vx[idx] = vx;
+    buffer.vy[idx] = vy;
+    buffer.vz[idx] = vz;
+    buffer.t[idx] = t;
+    buffer.head = (buffer.head + 1) % buffer.size;
+    if (buffer.count < buffer.size) buffer.count++;
+  }, []);
+
+  const ringBufferGetIndex = useCallback((buffer, index) => {
+    return (buffer.head - buffer.count + index + buffer.size) % buffer.size;
+  }, []);
+
+  const createTrailBuffer = useCallback((size) => {
+    return {
+      x: new Float64Array(size),
+      y: new Float64Array(size),
+      z: new Float64Array(size),
+      head: 0,
+      count: 0,
+      size: size
+    };
+  }, []);
+
+  const trailBufferPush = useCallback((buffer, x, y, z) => {
+    buffer.x[buffer.head] = x;
+    buffer.y[buffer.head] = y;
+    buffer.z[buffer.head] = z;
+    buffer.head = (buffer.head + 1) % buffer.size;
+    if (buffer.count < buffer.size) buffer.count++;
+  }, []);
+
+  const trailBufferReindex = useCallback((buffer, i) => {
+    return (buffer.head - buffer.count + i + buffer.size) % buffer.size;
+  }, []);
+
+  const trailBufferResize = useCallback((oldBuf, newSize) => {
+    const newBuf = {
+      x: new Float64Array(newSize),
+      y: new Float64Array(newSize),
+      z: new Float64Array(newSize),
+      head: 0,
+      count: 0,
+      size: newSize
+    };
+    if (!oldBuf) return newBuf;
+    const copyCount = Math.min(oldBuf.count, newSize);
+    const startIndex = oldBuf.count - copyCount;
+    for (let k = 0; k < copyCount; k++) {
+      const oldIdx = (oldBuf.head - oldBuf.count + (startIndex + k) + oldBuf.size) % oldBuf.size;
+      newBuf.x[newBuf.head] = oldBuf.x[oldIdx];
+      newBuf.y[newBuf.head] = oldBuf.y[oldIdx];
+      newBuf.z[newBuf.head] = oldBuf.z[oldIdx];
+      newBuf.head = (newBuf.head + 1) % newBuf.size;
+      if (newBuf.count < newBuf.size) newBuf.count++;
+    }
+    return newBuf;
+  }, []);
+
+  const quaternionMultiply = useCallback((q1, q2) => {
+    return {
+      w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
+      x: q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
+      y: q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
+      z: q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
+    };
+  }, []);
+
+  const quaternionNormalize = useCallback((q) => {
+    const mag = Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
+    return { w: q.w / mag, x: q.x / mag, y: q.y / mag, z: q.z / mag };
+  }, []);
+
+  const quaternionConjugate = useCallback((q) => {
+    return { w: q.w, x: -q.x, y: -q.y, z: -q.z };
+  }, []);
+
+  const rotateVectorByQuaternion = useCallback((v, q) => {
+    const qv = { w: 0, x: v.x, y: v.y, z: v.z };
+    const qConj = quaternionConjugate(q);
+    const result = quaternionMultiply(quaternionMultiply(q, qv), qConj);
+    return { x: result.x, y: result.y, z: result.z };
+  }, [quaternionMultiply, quaternionConjugate]);
+
+  const spinAxisToQuaternion = useCallback((spinAxisX, spinAxisY, spinAxisZ) => {
+    const mag = Math.sqrt(spinAxisX * spinAxisX + spinAxisY * spinAxisY + spinAxisZ * spinAxisZ);
+    if (mag < 1e-10) return { w: 1, x: 0, y: 0, z: 0 };
+    const nx = spinAxisX / mag;
+    const ny = spinAxisY / mag;
+    const nz = spinAxisZ / mag;
+    const refZ = { x: 0, y: 0, z: 1 };
+    const dot = nz;
+    if (dot > 0.9999) return { w: 1, x: 0, y: 0, z: 0 };
+    if (dot < -0.9999) return { w: 0, x: 1, y: 0, z: 0 };
+    const crossX = refZ.y * nz - refZ.z * ny;
+    const crossY = refZ.z * nx - refZ.x * nz;
+    const crossZ = refZ.x * ny - refZ.y * nx;
+    const crossMag = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+    const halfAngle = angle / 2;
+    const sinHalf = Math.sin(halfAngle);
+    return quaternionNormalize({
+      w: Math.cos(halfAngle),
+      x: (crossX / crossMag) * sinHalf,
+      y: (crossY / crossMag) * sinHalf,
+      z: (crossZ / crossMag) * sinHalf
+    });
+  }, [quaternionNormalize]);
+
+  const quaternionToSpinAxis = useCallback((q) => {
+    const bodyZ = rotateVectorByQuaternion({ x: 0, y: 0, z: 1 }, q);
+    const mag = Math.sqrt(bodyZ.x * bodyZ.x + bodyZ.y * bodyZ.y + bodyZ.z * bodyZ.z);
+    if (mag < 1e-10) return { x: 0, y: 0, z: 1 };
+    return { x: bodyZ.x / mag, y: bodyZ.y / mag, z: bodyZ.z / mag };
+  }, [rotateVectorByQuaternion]);
+
+  const rotateVector = useCallback((vec, omega, inc, argPeri) => {
+    const cosO = Math.cos(omega);
+    const sinO = Math.sin(omega);
+    const cosI = Math.cos(inc);
+    const sinI = Math.sin(inc);
+    const cosW = Math.cos(argPeri);
+    const sinW = Math.sin(argPeri);
+    const x = vec.x;
+    const y = vec.y;
+    const z = vec.z;
+    const Px = cosW * x - sinW * y;
+    const Py = sinW * x + cosW * y;
+    const Pz = z;
+    const Ix = Px;
+    const Iy = Py * cosI - Pz * sinI;
+    const Iz = Py * sinI + Pz * cosI;
+    return {
+      x: Ix * cosO - Iy * sinO,
+      y: Ix * sinO + Iy * cosO,
+      z: Iz
+    };
+  }, []);
+
+  const solveKeplerEquation = useCallback((M, e, tolerance = 1e-12, maxIter = 50) => {
+    if (e < 1) {
+      let E = M;
+      for (let i = 0; i < maxIter; i++) {
+        const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+        E -= dE;
+        if (Math.abs(dE) < tolerance) break;
+      }
+      return E;
+    } else {
+      let H = M;
+      for (let i = 0; i < maxIter; i++) {
+        const dH = (e * Math.sinh(H) - H - M) / (e * Math.cosh(H) - 1);
+        H -= dH;
+        if (Math.abs(dH) < tolerance) break;
+      }
+      return H;
+    }
+  }, []);
+
+  const stateVectorsToOrbitalElements = useCallback((r_vec, v_vec, mu) => {
+    const r = Math.sqrt(r_vec.x * r_vec.x + r_vec.y * r_vec.y + r_vec.z * r_vec.z);
+    const v = Math.sqrt(v_vec.x * v_vec.x + v_vec.y * v_vec.y + v_vec.z * v_vec.z);
+    const h_vec = {
+      x: r_vec.y * v_vec.z - r_vec.z * v_vec.y,
+      y: r_vec.z * v_vec.x - r_vec.x * v_vec.z,
+      z: r_vec.x * v_vec.y - r_vec.y * v_vec.x
+    };
+    const h = Math.sqrt(h_vec.x * h_vec.x + h_vec.y * h_vec.y + h_vec.z * h_vec.z);
+    const rdotv = r_vec.x * v_vec.x + r_vec.y * v_vec.y + r_vec.z * v_vec.z;
+    const e_vec = {
+      x: (v_vec.y * h_vec.z - v_vec.z * h_vec.y) / mu - r_vec.x / r,
+      y: (v_vec.z * h_vec.x - v_vec.x * h_vec.z) / mu - r_vec.y / r,
+      z: (v_vec.x * h_vec.y - v_vec.y * h_vec.x) / mu - r_vec.z / r
+    };
+    const e = Math.sqrt(e_vec.x * e_vec.x + e_vec.y * e_vec.y + e_vec.z * e_vec.z);
+    const energy = v * v / 2 - mu / r;
+    const a = e < 1 ? -mu / (2 * energy) : mu / (2 * energy);
+    const n_vec = { x: -h_vec.y, y: h_vec.x, z: 0 };
+    const n = Math.sqrt(n_vec.x * n_vec.x + n_vec.y * n_vec.y);
+    const inc = h > 1e-10 ? Math.acos(Math.max(-1, Math.min(1, h_vec.z / h))) : 0;
+    let Omega = 0;
+    if (n > 1e-10) {
+      Omega = Math.acos(Math.max(-1, Math.min(1, n_vec.x / n)));
+      if (n_vec.y < 0) Omega = 2 * Math.PI - Omega;
+    }
+    let omega = 0;
+    if (n > 1e-10 && e > 1e-10) {
+      const ndote = n_vec.x * e_vec.x + n_vec.y * e_vec.y + n_vec.z * e_vec.z;
+      omega = Math.acos(Math.max(-1, Math.min(1, ndote / (n * e))));
+      if (e_vec.z < 0) omega = 2 * Math.PI - omega;
+    } else if (e > 1e-10) {
+      omega = Math.atan2(e_vec.y, e_vec.x);
+      if (omega < 0) omega += 2 * Math.PI;
+    }
+    let nu = 0;
+    if (e > 1e-10) {
+      const edotr = e_vec.x * r_vec.x + e_vec.y * r_vec.y + e_vec.z * r_vec.z;
+      nu = Math.acos(Math.max(-1, Math.min(1, edotr / (e * r))));
+      if (rdotv < 0) nu = 2 * Math.PI - nu;
+    }
+    return { a, e, inc, Omega, omega, nu, h, mu };
+  }, []);
+
+  const orbitalElementsToStateVectors = useCallback((elements, centralPos, centralVel) => {
+    const { a, e, inc, Omega, omega, nu, mu } = elements;
+    const p = e < 1 ? a * (1 - e * e) : Math.abs(a) * (e * e - 1);
+    const r = p / (1 + e * Math.cos(nu));
+    const rPQW = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    const vPQW = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
+    const cosO = Math.cos(Omega), sinO = Math.sin(Omega);
+    const cosI = Math.cos(inc), sinI = Math.sin(inc);
+    const cosW = Math.cos(omega), sinW = Math.sin(omega);
+    const R = [
+      [cosO * cosW - sinO * sinW * cosI, -cosO * sinW - sinO * cosW * cosI, sinO * sinI],
+      [sinO * cosW + cosO * sinW * cosI, -sinO * sinW + cosO * cosW * cosI, -cosO * sinI],
+      [sinW * sinI, cosW * sinI, cosI]
+    ];
+    const rInertial = {
+      x: R[0][0] * rPQW.x + R[0][1] * rPQW.y + R[0][2] * rPQW.z,
+      y: R[1][0] * rPQW.x + R[1][1] * rPQW.y + R[1][2] * rPQW.z,
+      z: R[2][0] * rPQW.x + R[2][1] * rPQW.y + R[2][2] * rPQW.z
+    };
+    const vInertial = {
+      x: R[0][0] * vPQW.x + R[0][1] * vPQW.y + R[0][2] * vPQW.z,
+      y: R[1][0] * vPQW.x + R[1][1] * vPQW.y + R[1][2] * vPQW.z,
+      z: R[2][0] * vPQW.x + R[2][1] * vPQW.y + R[2][2] * vPQW.z
+    };
+    return {
+      x: centralPos.x + rInertial.x,
+      y: centralPos.y + rInertial.y,
+      z: centralPos.z + rInertial.z,
+      vx: centralVel.x + vInertial.x,
+      vy: centralVel.y + vInertial.y,
+      vz: centralVel.z + vInertial.z
+    };
+  }, []);
+
+  const propagateKeplerBackward = useCallback((body, centralBody, dt, mu) => {
+    const r_vec_now = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
+    const v_vec_now = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
+    const elements = stateVectorsToOrbitalElements(r_vec_now, v_vec_now, mu);
+    const { a, e, inc, Omega, omega, nu } = elements;
+    if (e < 1e-10 || Math.abs(a) < 1e-10) {
+      return {
+        x: body.x + body.vx * dt,
+        y: body.y + body.vy * dt,
+        z: body.z + body.vz * dt,
+        vx: body.vx,
+        vy: body.vy,
+        vz: body.vz
+      };
+    }
+    let M0, n;
+    if (e < 1) {
+      const E0 = 2 * Math.atan(Math.sqrt((1 - e) / (1 + e)) * Math.tan(nu / 2));
+      M0 = E0 - e * Math.sin(E0);
+      n = Math.sqrt(mu / (a * a * a));
+    } else {
+      const H0 = 2 * Math.atanh(Math.sqrt((e - 1) / (e + 1)) * Math.tan(nu / 2));
+      M0 = e * Math.sinh(H0) - H0;
+      n = Math.sqrt(mu / (Math.abs(a) * Math.abs(a) * Math.abs(a)));
+    }
+    const M = M0 + n * dt;
+    let nuNew;
+    if (e < 1) {
+      const E = solveKeplerEquation(M, e);
+      nuNew = 2 * Math.atan(Math.sqrt((1 + e) / (1 - e)) * Math.tan(E / 2));
+    } else {
+      const H = solveKeplerEquation(M, e);
+      nuNew = 2 * Math.atan(Math.sqrt((e + 1) / (e - 1)) * Math.tanh(H / 2));
+    }
+    const newElements = { a, e, inc, Omega, omega, nu: nuNew, mu };
+    const centralPosPast = {
+      x: centralBody.x + centralBody.vx * dt,
+      y: centralBody.y + centralBody.vy * dt,
+      z: centralBody.z + centralBody.vz * dt
+    };
+    const centralVelPast = { x: centralBody.vx, y: centralBody.vy, z: centralBody.vz };
+    return orbitalElementsToStateVectors(newElements, centralPosPast, centralVelPast);
+  }, [stateVectorsToOrbitalElements, orbitalElementsToStateVectors, solveKeplerEquation]);
+
+  const initializeHistoryBuffer = useCallback((body, allBodies, currentTime, bufferSize, effectiveC) => {
+    const buffer = createRingBuffer(bufferSize);
+    let maxDist = AU * 50;
+    const maxRetardationTime = maxDist / effectiveC;
+    const dtHistory = maxRetardationTime / bufferSize;
+    let centralBody = null;
+    let maxGM = 0;
+    for (let j = 0; j < allBodies.length; j++) {
+      if (allBodies[j].id !== body.id && allBodies[j].gm > maxGM) {
+        maxGM = allBodies[j].gm;
+        centralBody = allBodies[j];
+      }
+    }
+    for (let i = 0; i < bufferSize; i++) {
+      const tPast = currentTime - (bufferSize - 1 - i) * dtHistory;
+      const dt = tPast - currentTime;
+      let pastState;
+      if (centralBody && maxGM > body.gm * 0.01) {
+        const mu = centralBody.gm + body.gm;
+        pastState = propagateKeplerBackward(body, centralBody, dt, mu);
+      } else {
+        pastState = {
+          x: body.x + body.vx * dt,
+          y: body.y + body.vy * dt,
+          z: body.z + body.vz * dt,
+          vx: body.vx,
+          vy: body.vy,
+          vz: body.vz
+        };
+      }
+      ringBufferPush(buffer, pastState.x, pastState.y, pastState.z, pastState.vx, pastState.vy, pastState.vz, tPast);
+    }
+    return buffer;
+  }, [createRingBuffer, ringBufferPush, propagateKeplerBackward, AU]);
+
+  const calculateOrbitalState = useCallback((centralBody, config) => {
+    if (!centralBody) return null;
+    const { orbitType, distance, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, trueAnomaly, prograde } = config;
+    const mu = centralBody.gm;
+    let e = eccentricity;
+    switch (orbitType) {
+      case "circular": e = 0; break;
+      case "elliptical": e = Math.max(0, Math.min(0.9999, eccentricity)); break;
+      case "parabolic": e = 1.0; break;
+      case "hyperbolic": e = Math.max(1.0001, eccentricity); break;
+      default: e = 0;
+    }
+    let p;
+    if (orbitType === "parabolic") {
+      p = 2 * distance;
+    } else if (orbitType === "hyperbolic") {
+      const a = distance / (1 - e);
+      p = Math.abs(a) * (e * e - 1);
+    } else {
+      const a = distance / (1 - e);
+      p = a * (1 - e * e);
+    }
+    const nuRad = (trueAnomaly * Math.PI) / 180;
+    const cosNu = Math.cos(nuRad);
+    const sinNu = Math.sin(nuRad);
+    const r = p / (1 + e * cosNu);
+    const rPQw = { x: r * cosNu, y: r * sinNu, z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    let vPQw = {
+      x: -sqrtMuP * sinNu,
+      y: sqrtMuP * (e + cosNu),
+      z: 0
+    };
+    if (!prograde) {
+      vPQw.x = -vPQw.x;
+      vPQw.y = -vPQw.y;
+      vPQw.z = -vPQw.z;
+    }
+    const omegaRad = (longitudeOfAscendingNode * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const argPeriRad = (argumentOfPeriapsis * Math.PI) / 180;
+    const rInertial = rotateVector(rPQw, omegaRad, incRad, argPeriRad);
+    const vInertial = rotateVector(vPQw, omegaRad, incRad, argPeriRad);
+    return {
+      x: centralBody.x + rInertial.x,
+      y: centralBody.y + rInertial.y,
+      z: centralBody.z + rInertial.z,
+      vx: centralBody.vx + vInertial.x,
+      vy: centralBody.vy + vInertial.y,
+      vz: centralBody.vz + vInertial.z
+    };
+  }, [rotateVector]);
+
+  const getOrbitalInfo = useCallback((centralBody, config) => {
+    if (!centralBody) return "Select a central body.";
+    const mu = centralBody.gm;
+    const r = config.distance;
+    let e = config.eccentricity;
+    switch (config.orbitType) {
+      case "circular": e = 0; break;
+      case "parabolic": e = 1; break;
+      case "hyperbolic": e = Math.max(1.0001, e); break;
+      default: e = Math.max(0, Math.min(0.9999, e));
+    }
+    let a, p;
+    if (config.orbitType === "parabolic") {
+      p = 2 * r;
+    } else if (config.orbitType === "hyperbolic") {
+      a = r / (1 - e);
+      p = Math.abs(a) * (e * e - 1);
+    } else {
+      a = r / (1 - e);
+      p = a * (1 - e * e);
+    }
+    const nuRad = (config.trueAnomaly * Math.PI) / 180;
+    const dist = p / (1 + e * Math.cos(nuRad));
+    const speed = Math.sqrt(mu * (2 / dist - (Math.abs(1 / a) * (e >= 1 ? -1 : 1))));
+    let period = "infinite";
+    if (config.orbitType === "circular" || config.orbitType === "elliptical") {
+      const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / mu);
+      period = formatTime(T);
+    }
+    return `The orbital speed is ${(speed / 1000).toFixed(2)} km/s and the period is ${period}.`;
+  }, []);
+
+  const calculateFlybyState = useCallback((targetBody, config) => {
+    if (!targetBody) return null;
+    const { periapsisDistance, vInfinity, approachAngle, inclination, inbound, startDistance } = config;
+    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
+    const mu = targetBody.gm;
+    const rp = periapsisDistance;
+    const vinf = vInfinity;
+    const e = 1 + (rp * vinf * vinf) / mu;
+    const a = -mu / (vinf * vinf);
+    const p = rp * (1 + e);
+    const nuInf = Math.acos(-1 / e);
+    const cosNu = (p / startDistance - 1) / e;
+    let nu = Math.acos(Math.max(-1, Math.min(1, cosNu)));
+    if (inbound) nu = -nu;
+    const r = p / (1 + e * Math.cos(nu));
+    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
+    const deflection = 2 * Math.asin(1 / e);
+    const approachRad = (approachAngle * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const omega = inbound ? (approachRad + nuInf) : (approachRad - nuInf);
+    const rInertial = rotateVector(rPQw, omega, incRad, 0);
+    const vInertial = rotateVector(vPQw, omega, incRad, 0);
+    const b = -a * Math.sqrt(e * e - 1);
+    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
+    return {
+      x: targetBody.x + rInertial.x,
+      y: targetBody.y + rInertial.y,
+      z: targetBody.z + rInertial.z,
+      vx: targetBody.vx + vInertial.x,
+      vy: targetBody.vy + vInertial.y,
+      vz: targetBody.vz + vInertial.z,
+      eccentricity: e,
+      deflectionAngle: deflection * 180 / Math.PI,
+      periapsisVelocity: vPeriapsis,
+      impactParameter: b,
+      trueAnomaly: nu * 180 / Math.PI
+    };
+  }, [rotateVector]);
+
+  const calculateInterstellarState = useCallback((referenceBody, config) => {
+    if (!referenceBody) return null;
+    const { periapsisDistance, vInfinity, approachAngle, inclination, startDistance } = config;
+    if (vInfinity <= 0 || periapsisDistance <= 0 || startDistance <= periapsisDistance) return null;
+    const mu = referenceBody.gm;
+    const rp = periapsisDistance;
+    const vinf = vInfinity;
+    const e = 1 + (rp * vinf * vinf) / mu;
+    const a = -mu / (vinf * vinf);
+    const p = rp * (1 + e);
+    const nuInf = Math.acos(-1 / e);
+    const cosNu = (p / startDistance - 1) / e;
+    let nu = -Math.acos(Math.max(-1, Math.min(1, cosNu)));
+    const r = p / (1 + e * Math.cos(nu));
+    const rPQw = { x: r * Math.cos(nu), y: r * Math.sin(nu), z: 0 };
+    const sqrtMuP = Math.sqrt(mu / p);
+    const vPQw = { x: -sqrtMuP * Math.sin(nu), y: sqrtMuP * (e + Math.cos(nu)), z: 0 };
+    const approachRad = (approachAngle * Math.PI) / 180;
+    const incRad = (inclination * Math.PI) / 180;
+    const omega = approachRad + nuInf;
+    const rInertial = rotateVector(rPQw, omega, incRad, 0);
+    const vInertial = rotateVector(vPQw, omega, incRad, 0);
+    const b = -a * Math.sqrt(e * e - 1);
+    const vPeriapsis = Math.sqrt(vinf * vinf + 2 * mu / rp);
+    return {
+      x: referenceBody.x + rInertial.x,
+      y: referenceBody.y + rInertial.y,
+      z: referenceBody.z + rInertial.z,
+      vx: referenceBody.vx + vInertial.x,
+      vy: referenceBody.vy + vInertial.y,
+      vz: referenceBody.vz + vInertial.z,
+      eccentricity: e,
+      periapsisVelocity: vPeriapsis,
+      impactParameter: b
+    };
+  }, [rotateVector]);
+
+  const computeOrbitalElements = useCallback((body, centralBody) => {
+    if (!centralBody) return null;
+    const r_vec = { x: body.x - centralBody.x, y: body.y - centralBody.y, z: body.z - centralBody.z };
+    const v_vec = { x: body.vx - centralBody.vx, y: body.vy - centralBody.vy, z: body.vz - centralBody.vz };
+    const r = Math.sqrt(r_vec.x ** 2 + r_vec.y ** 2 + r_vec.z ** 2);
+    const v = Math.sqrt(v_vec.x ** 2 + v_vec.y ** 2 + v_vec.z ** 2);
+    const mu = centralBody.gm + body.gm;
+    const h_vec = {
+      x: r_vec.y * v_vec.z - r_vec.z * v_vec.y,
+      y: r_vec.z * v_vec.x - r_vec.x * v_vec.z,
+      z: r_vec.x * v_vec.y - r_vec.y * v_vec.x
+    };
+    const h = Math.sqrt(h_vec.x ** 2 + h_vec.y ** 2 + h_vec.z ** 2);
+    const n_vec = { x: -h_vec.y, y: h_vec.x, z: 0 };
+    const n = Math.sqrt(n_vec.x ** 2 + n_vec.y ** 2);
+    const rdotv = r_vec.x * v_vec.x + r_vec.y * v_vec.y + r_vec.z * v_vec.z;
+    const e_vec = {
+      x: (v_vec.y * h_vec.z - v_vec.z * h_vec.y) / mu - r_vec.x / r,
+      y: (v_vec.z * h_vec.x - v_vec.x * h_vec.z) / mu - r_vec.y / r,
+      z: (v_vec.x * h_vec.y - v_vec.y * h_vec.x) / mu - r_vec.z / r
+    };
+    const e = Math.sqrt(e_vec.x ** 2 + e_vec.y ** 2 + e_vec.z ** 2);
+    const energy = v * v / 2 - mu / r;
+    const a = -mu / (2 * energy);
+    const inc = h > 1e-10 ? Math.acos(Math.max(-1, Math.min(1, h_vec.z / h))) : 0;
+
+    let Omega = 0;
+    if (n > 1e-10) {
+      Omega = Math.atan2(n_vec.y, n_vec.x);
+      if (Omega < 0) Omega += 2 * Math.PI;
+    }
+
+    let omega = 0;
+    if (n > 1e-10 && e > 1e-10) {
+      const ndote = n_vec.x * e_vec.x + n_vec.y * e_vec.y + n_vec.z * e_vec.z;
+      omega = Math.acos(Math.max(-1, Math.min(1, ndote / (n * e))));
+      if (e_vec.z < 0) omega = 2 * Math.PI - omega;
+    } else if (e > 1e-10) {
+      omega = Math.atan2(e_vec.y, e_vec.x);
+    }
+
+    let nu = 0;
+    if (e > 1e-10) {
+      const edotr = e_vec.x * r_vec.x + e_vec.y * r_vec.y + e_vec.z * r_vec.z;
+      nu = Math.acos(Math.max(-1, Math.min(1, edotr / (e * r))));
+      if (rdotv < 0) nu = 2 * Math.PI - nu;
+    } else {
+      const cp = { x: n_vec.y * r_vec.z - n_vec.z * r_vec.y, y: n_vec.z * r_vec.x - n_vec.x * r_vec.z, z: n_vec.x * r_vec.y - n_vec.y * r_vec.x };
+      if (n > 1e-10) {
+        nu = Math.acos(Math.max(-1, Math.min(1, (n_vec.x * r_vec.x + n_vec.y * r_vec.y + n_vec.z * r_vec.z) / (n * r))));
+        if (rdotv < 0) nu = 2 * Math.PI - nu;
+      }
+    }
+
+    const period = e < 1 ? 2 * Math.PI * Math.sqrt(Math.abs(a * a * a) / mu) : Infinity;
+    const periapsis = a * (1 - e);
+    const apoapsis = e < 1 ? a * (1 + e) : Infinity;
+    let orbitType = 'circular';
+    if (e < 1e-4) orbitType = 'circular';
+    else if (e < 0.999) orbitType = 'elliptical';
+    else if (e < 1.001) orbitType = 'parabolic';
+    else orbitType = 'hyperbolic';
+
+    return {
+      semiMajorAxis: a,
+      eccentricity: e,
+      inclination: inc * 180 / Math.PI,
+      longitudeOfAscendingNode: Omega * 180 / Math.PI,
+      argumentOfPeriapsis: omega * 180 / Math.PI,
+      trueAnomaly: nu * 180 / Math.PI,
+      period,
+      periapsis,
+      apoapsis,
+      specificEnergy: energy,
+      orbitType
+    };
+  }, []);
+
+  const getEffectiveSpeedOfLight = useCallback(() => {
+    if (physicsConfig.relativisticMode && physicsConfig.includeGR) {
+      return SPEED_OF_LIGHT / physicsConfig.cReductionFactor;
+    }
+    return SPEED_OF_LIGHT;
+  }, [physicsConfig.relativisticMode, physicsConfig.includeGR, physicsConfig.cReductionFactor, SPEED_OF_LIGHT]);
+
+  const softeningKernels = useMemo(() => ({
+    plummer: {
+      forceMod: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        const denom = r2 + eps2;
+        return (r2 * r) / Math.pow(denom, 1.5);
+      },
+      potentialFactor: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        return 1.0 / Math.sqrt(r2 + eps2);
+      },
+      jerkInvR3: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        const denom = r2 + eps2;
+        return 1.0 / Math.pow(denom, 1.5);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const r2 = r * r;
+        const eps2 = eps * eps;
+        const denom = r2 + eps2;
+        return 3.0 / (denom * Math.sqrt(denom));
+      }
+    },
+    spline: {
+      forceMod: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) {
+          return 1.0;
+        }
+        let W;
+        if (u < 1.0) {
+          W = (4.0 / 3.0) - 1.2 * u * u + 0.5 * u * u * u;
+        } else {
+          W = (8.0 / 3.0) - 3.0 * u + 1.2 * u * u - (1.0 / 6.0) * u * u * u - 1.0 / (15.0 * u * u);
+        }
+        return W;
+      },
+      potentialFactor: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) {
+          return 1.0 / r;
+        }
+        let phi;
+        if (u < 1.0) {
+          phi = (1.0 / h) * ((2.0 / 3.0) * u * u - 0.3 * u * u * u * u + 0.1 * u * u * u * u * u - 7.0 / 5.0);
+        } else {
+          phi = (1.0 / h) * ((4.0 / 3.0) * u * u - u * u * u + 0.3 * u * u * u * u - (1.0 / 30.0) * u * u * u * u * u - 8.0 / 5.0 + 1.0 / (15.0 * u));
+        }
+        return -phi;
+      },
+      jerkInvR3: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) return 1.0 / (r * r * r);
+        if (r <= 1e-30) return 0;
+        let W;
+        if (u < 1.0) {
+          W = (4.0 / 3.0) - 1.2 * u * u + 0.5 * u * u * u;
+        } else {
+          W = (8.0 / 3.0) - 3.0 * u + 1.2 * u * u - (1.0 / 6.0) * u * u * u - 1.0 / (15.0 * u * u);
+        }
+        return W / (r * r * r);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const h = eps;
+        const u = r / h;
+        if (u >= 2.0) return 3.0 / (r * r * r * r * r);
+        if (r <= 1e-30) return 0;
+        let W;
+        let dWdu;
+        if (u < 1.0) {
+          W = (4.0 / 3.0) - 1.2 * u * u + 0.5 * u * u * u;
+          dWdu = -2.4 * u + 1.5 * u * u;
+        } else {
+          W = (8.0 / 3.0) - 3.0 * u + 1.2 * u * u - (1.0 / 6.0) * u * u * u - 1.0 / (15.0 * u * u);
+          dWdu = -3.0 + 2.4 * u - 0.5 * u * u + 2.0 / (15.0 * u * u * u);
+        }
+        const dWdr = dWdu / h;
+        const r3 = r * r * r;
+        const r4 = r3 * r;
+        return (3.0 * W) / (r4 * r) - dWdr / r4;
+      }
+    },
+    wendlandC2: {
+      forceMod: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 1.0;
+        const omq = 1.0 - q;
+        const omq3 = omq * omq * omq;
+        return 1.0 - omq3 * omq * (1.0 + 4.0 * q);
+      },
+      potentialFactor: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 1.0 / r;
+        const omq = 1.0 - q;
+        const omq4 = omq * omq * omq * omq;
+        const phi = omq4 * (1.0 + 4.0 * q) + (21.0 / 5.0) * q * q - (4.0 / 3.0) * q * q * q;
+        return phi / h;
+      },
+      jerkInvR3: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 1.0 / (r * r * r);
+        if (r <= 1e-30) return 0;
+        const omq = 1.0 - q;
+        const omq3 = omq * omq * omq;
+        const W = 1.0 - omq3 * omq * (1.0 + 4.0 * q);
+        return W / (r * r * r);
+      },
+      jerkRadialFactor: (r, eps) => {
+        const h = 2.0 * eps;
+        const q = r / h;
+        if (q >= 1.0) return 3.0 / (r * r * r * r * r);
+        if (r <= 1e-30) return 0;
+        const omq = 1.0 - q;
+        const omq3 = omq * omq * omq;
+        const W = 1.0 - omq3 * omq * (1.0 + 4.0 * q);
+        const dWdq = 4.0 * omq3 * (1.0 + 4.0 * q) - 4.0 * omq3 * omq;
+        const dWdr = dWdq / h;
+        const r4 = r * r * r * r;
+        const r5 = r4 * r;
+        return (3.0 * W) / r5 - dWdr / r4;
+      }
+    }
+  }), []);
+
+  const calculateSoftening = useCallback((bodyStates, config) => {
+    if (!config.enabled) return new Array(bodyStates.length).fill(0);
+    return new Array(bodyStates.length).fill(config.fixedLength);
+  }, []);
+
+  const symmetricSoftening = useCallback((eps_i, eps_j) => {
+    return 0.5 * (eps_i + eps_j);
+  }, []);
+
+  const toNormalizedUnits = useCallback((bodyStates) => {
+    if (bodyStates.length === 0) return { bodies: [], scale: { mass: 1, length: 1, time: 1, vel: 1, G: G_CODATA } };
+
+    let totalMass = 0;
+    let sumDistSq = 0;
+    let pairCount = 0;
+    let maxDist = 0;
+
+    for (let i = 0; i < bodyStates.length; i++) {
+      totalMass += bodyStates[i].gm / G_CODATA;
+      for (let j = i + 1; j < bodyStates.length; j++) {
+        const dx = bodyStates[j].x - bodyStates[i].x;
+        const dy = bodyStates[j].y - bodyStates[i].y;
+        const dz = bodyStates[j].z - bodyStates[i].z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        sumDistSq += d * d;
+        pairCount++;
+        if (d > maxDist) maxDist = d;
+      }
+    }
+
+    let lengthScale;
+    if (pairCount > 0) {
+      const rms = Math.sqrt(sumDistSq / pairCount);
+      lengthScale = rms > 1e6 ? rms : (maxDist > 1e6 ? maxDist : AU);
+    } else {
+      lengthScale = AU;
+    }
+    if (totalMass < 1) totalMass = GM_SUN / G_CODATA;
+
+    const massScale = totalMass;
+    const timeScale = Math.sqrt(lengthScale * lengthScale * lengthScale / (G_CODATA * massScale));
+    const velScale = lengthScale / timeScale;
+    const effectiveC = getEffectiveSpeedOfLight();
+
+    const normalized = bodyStates.map(b => ({
+      ...b,
+      gm: b.gm / (G_CODATA * massScale),
+      x: b.x / lengthScale,
+      y: b.y / lengthScale,
+      z: b.z / lengthScale,
+      vx: b.vx / velScale,
+      vy: b.vy / velScale,
+      vz: b.vz / velScale,
+      radius: b.radius / lengthScale,
+      j2Radius: b.j2Radius ? b.j2Radius / lengthScale : null,
+      errX: (b.errX || 0) / lengthScale,
+      errY: (b.errY || 0) / lengthScale,
+      errZ: (b.errZ || 0) / lengthScale,
+      errVx: (b.errVx || 0) / velScale,
+      errVy: (b.errVy || 0) / velScale,
+      errVz: (b.errVz || 0) / velScale,
+      positionHistory: b.positionHistory,
+      orientation: b.orientation,
+      omegaBody_x: b.omegaBody_x,
+      omegaBody_y: b.omegaBody_y
+    }));
+
+    return {
+      bodies: normalized,
+      scale: {
+        mass: massScale,
+        length: lengthScale,
+        time: timeScale,
+        vel: velScale,
+        G: G_CODATA,
+        c: effectiveC / velScale
+      }
+    };
+  }, [AU, GM_SUN, G_CODATA, getEffectiveSpeedOfLight]);
+
+  const fromNormalizedUnits = useCallback((normalizedBodies, scale, originalBodies) => {
+    return normalizedBodies.map((nb) => {
+      const orig = originalBodies.find(ob => ob.id === nb.id);
+      return {
+        ...(orig || {}),
+        ...nb,
+        gm: nb.gm * G_CODATA * scale.mass,
+        radius: nb.radius * scale.length,
+        j2Radius: nb.j2Radius ? nb.j2Radius * scale.length : null,
+        x: nb.x * scale.length,
+        y: nb.y * scale.length,
+        z: nb.z * scale.length,
+        vx: nb.vx * scale.vel,
+        vy: nb.vy * scale.vel,
+        vz: nb.vz * scale.vel,
+        errX: (nb.errX || 0) * scale.length,
+        errY: (nb.errY || 0) * scale.length,
+        errZ: (nb.errZ || 0) * scale.length,
+        errVx: (nb.errVx || 0) * scale.vel,
+        errVy: (nb.errVy || 0) * scale.vel,
+        errVz: (nb.errVz || 0) * scale.vel,
+        positionHistory: nb.positionHistory,
+        orientation: nb.orientation,
+        omegaBody_x: nb.omegaBody_x,
+        omegaBody_y: nb.omegaBody_y,
+        trail: orig ? orig.trail : null
+      };
+    });
+  }, [G_CODATA]);
+
+  const applyBarycentricCorrection = useCallback((bodyStates) => {
+    const n = bodyStates.length;
+    if (n === 0) return bodyStates;
+
+    let totalMass = 0;
+    let comX = 0, comY = 0, comZ = 0;
+    let comVx = 0, comVy = 0, comVz = 0;
+
+    for (let i = 0; i < n; i++) {
+      const m = bodyStates[i].gm;
+      totalMass += m;
+      comX += m * bodyStates[i].x;
+      comY += m * bodyStates[i].y;
+      comZ += m * bodyStates[i].z;
+      comVx += m * bodyStates[i].vx;
+      comVy += m * bodyStates[i].vy;
+      comVz += m * bodyStates[i].vz;
+    }
+
+    if (totalMass === 0) return bodyStates;
+
+    comX /= totalMass;
+    comY /= totalMass;
+    comZ /= totalMass;
+    comVx /= totalMass;
+    comVy /= totalMass;
+    comVz /= totalMass;
+
+    return bodyStates.map(b => ({
+      ...b,
+      x: b.x - comX,
+      y: b.y - comY,
+      z: b.z - comZ,
+      vx: b.vx - comVx,
+      vy: b.vy - comVy,
+      vz: b.vz - comVz
+    }));
+  }, []);
+
+  const calculateRocheLimit = useCallback((primaryMass, primaryRadius, secondaryDensity) => {
+    const primaryDensity = primaryMass / ((4/3) * Math.PI * Math.pow(primaryRadius, 3));
+    return 2.44 * primaryRadius * Math.pow(primaryDensity / secondaryDensity, 1/3);
+  }, []);
+
+  const checkRocheLimitViolations = useCallback((bodyStates, config) => {
+    if (!config.enableRocheLimit) return { violations: [], debrisConversions: [] };
+
+    const violations = [];
+    const debrisConversions = [];
+    const n = bodyStates.length;
+
+    for (let i = 0; i < n; i++) {
+      if (bodyStates[i].isDebris) continue;
+
+      for (let j = 0; j < n; j++) {
+        if (i === j || bodyStates[j].isDebris) continue;
+
+        const massI = bodyStates[i].gm / G_CODATA;
+        const massJ = bodyStates[j].gm / G_CODATA;
+
+        if (massJ > massI * 0.1) continue;
+
+        const dx = bodyStates[j].x - bodyStates[i].x;
+        const dy = bodyStates[j].y - bodyStates[i].y;
+        const dz = bodyStates[j].z - bodyStates[i].z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        const radiusI = bodyStates[i].radius;
+        const radiusJ = bodyStates[j].radius;
+        const densityJ = massJ / ((4/3) * Math.PI * Math.pow(radiusJ, 3));
+
+        const rocheLimit = calculateRocheLimit(massI, radiusI, densityJ);
+
+        if (dist < rocheLimit && dist > radiusI + radiusJ) {
+          violations.push({
+            primaryId: bodyStates[i].id,
+            primaryName: bodyStates[i].name,
+            secondaryId: bodyStates[j].id,
+            secondaryName: bodyStates[j].name,
+            distance: dist,
+            rocheLimit: rocheLimit,
+            ratio: dist / rocheLimit
+          });
+
+          if (config.rocheDisruptionMode === 'disrupt') {
+            debrisConversions.push(bodyStates[j].id);
+          }
+        }
+      }
+    }
+
+    return { violations, debrisConversions };
+  }, [G_CODATA, calculateRocheLimit]);
+
+  const convertToDebris = useCallback((bodyStates, debrisIds) => {
+    if (debrisIds.length === 0) return bodyStates;
+
+    return bodyStates.map(b => {
+      if (debrisIds.includes(b.id)) {
+        return {
+          ...b,
+          isDebris: true,
+          visible: false,
+          name: `${b.name} (Debris)`
+        };
+      }
+      return b;
+    });
+  }, []);
+
+  const detectAndHandleCollisions = useCallback((bodyStates, config, scale = null) => {
+    const n = bodyStates.length;
+    if (n < 2 || config.collisionMode === 'none') return { states: bodyStates, collisions: [] };
+
+    const collisions = [];
+    const toRemove = new Set();
+    let states = bodyStates.map(b => ({ ...b }));
+
+    for (let i = 0; i < n; i++) {
+      if (toRemove.has(i) || states[i].isDebris) continue;
+      for (let j = i + 1; j < n; j++) {
+        if (toRemove.has(j) || states[j].isDebris) continue;
+
+        const dx = states[j].x - states[i].x;
+        const dy = states[j].y - states[i].y;
+        const dz = states[j].z - states[i].z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        const collisionDist = (states[i].radius + states[j].radius) * config.collisionThreshold;
+
+        if (dist < collisionDist && dist > 0) {
+          if (config.collisionMode === 'merge') {
+            const mi = states[i].gm;
+            const mj = states[j].gm;
+            const massLossFraction = config.collisionMassLoss || 0;
+            const totalMPreLoss = mi + mj;
+            const totalM = totalMPreLoss * (1 - massLossFraction);
+
+            const merged = {
+              ...states[i],
+              ...(mi >= mj ? states[i] : states[j]),
+              id: mi >= mj ? states[i].id : states[j].id,
+              name: mi >= mj ? states[i].name : states[j].name,
+              gm: totalM,
+              x: (mi * states[i].x + mj * states[j].x) / totalMPreLoss,
+              y: (mi * states[i].y + mj * states[j].y) / totalMPreLoss,
+              z: (mi * states[i].z + mj * states[j].z) / totalMPreLoss,
+              vx: (mi * states[i].vx + mj * states[j].vx) / totalMPreLoss,
+              vy: (mi * states[i].vy + mj * states[j].vy) / totalMPreLoss,
+              vz: (mi * states[i].vz + mj * states[j].vz) / totalMPreLoss,
+              radius: Math.pow(Math.pow(states[i].radius, 3) + Math.pow(states[j].radius, 3), 1 / 3) * Math.pow(1 - massLossFraction, 1/3),
+              trail: mi >= mj ? states[i].trail : states[j].trail,
+              positionHistory: mi >= mj ? states[i].positionHistory : states[j].positionHistory
+            };
+
+            states[i] = merged;
+            toRemove.add(j);
+            collisions.push({ type: 'merge', bodies: [states[i].id, states[j].id], massLost: totalMPreLoss * massLossFraction });
+          }
+        }
+      }
+    }
+
+    if (toRemove.size > 0) {
+      states = states.filter((_, idx) => !toRemove.has(idx));
+    }
+
+    return { states, collisions };
+  }, []);
+
+  const getRetardedPosition = useCallback((targetBody, observerBody, c, currentTime) => {
+    const history = targetBody.positionHistory;
+    if (!history || history.count < 2 || !physicsConfig.retardedGravity) {
+      return { x: targetBody.x, y: targetBody.y, z: targetBody.z };
+    }
+
+    const interpolateAt = (retardedTime) => {
+      const firstIdx = ringBufferGetIndex(history, 0);
+      const lastIdx = ringBufferGetIndex(history, history.count - 1);
+      const firstT = history.t[firstIdx];
+      const lastT = history.t[lastIdx];
+
+      if (retardedTime <= firstT) {
+        return { x: history.x[firstIdx], y: history.y[firstIdx], z: history.z[firstIdx] };
+      }
+      if (retardedTime >= lastT) {
+        const dtForward = retardedTime - lastT;
+        return {
+          x: history.x[lastIdx] + history.vx[lastIdx] * dtForward,
+          y: history.y[lastIdx] + history.vy[lastIdx] * dtForward,
+          z: history.z[lastIdx] + history.vz[lastIdx] * dtForward
+        };
+      }
+
+      let lo = 0, hi = history.count - 1;
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midIdx = ringBufferGetIndex(history, mid);
+        if (history.t[midIdx] < retardedTime) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+
+      const loIdx = ringBufferGetIndex(history, lo);
+      const hiIdx = ringBufferGetIndex(history, hi);
+
+      const t0 = history.t[loIdx];
+      const t1 = history.t[hiIdx];
+      const dt = t1 - t0;
+
+      if (dt < 1e-20) {
+        return { x: history.x[loIdx], y: history.y[loIdx], z: history.z[loIdx] };
+      }
+
+      const t = (retardedTime - t0) / dt;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const h00 = 2*t3 - 3*t2 + 1;
+      const h10 = t3 - 2*t2 + t;
+      const h01 = -2*t3 + 3*t2;
+      const h11 = t3 - t2;
+
+      const v0x = history.vx[loIdx] * dt;
+      const v0y = history.vy[loIdx] * dt;
+      const v0z = history.vz[loIdx] * dt;
+      const v1x = history.vx[hiIdx] * dt;
+      const v1y = history.vy[hiIdx] * dt;
+      const v1z = history.vz[hiIdx] * dt;
+
+      return {
+        x: h00 * history.x[loIdx] + h10 * v0x + h01 * history.x[hiIdx] + h11 * v1x,
+        y: h00 * history.y[loIdx] + h10 * v0y + h01 * history.y[hiIdx] + h11 * v1y,
+        z: h00 * history.z[loIdx] + h10 * v0z + h01 * history.z[hiIdx] + h11 * v1z
+      };
+    };
+
+    let pos = { x: targetBody.x, y: targetBody.y, z: targetBody.z };
+    const maxIter = Math.max(1, physicsConfig.retardedIterations || 1);
+    for (let iter = 0; iter < maxIter; iter++) {
+      const dx = pos.x - observerBody.x;
+      const dy = pos.y - observerBody.y;
+      const dz = pos.z - observerBody.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const lightTravelTime = dist / c;
+      const retardedTime = currentTime - lightTravelTime;
+      const newPos = interpolateAt(retardedTime);
+      const ddx = newPos.x - pos.x;
+      const ddy = newPos.y - pos.y;
+      const ddz = newPos.z - pos.z;
+      const change = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+      pos = newPos;
+      if (change < 1e-6 * dist) break;
+    }
+    return pos;
+  }, [physicsConfig.retardedGravity, physicsConfig.retardedIterations, ringBufferGetIndex]);
+
+  const computeGravitationalPotentials = useCallback((bodyStates) => {
+    const n = bodyStates.length;
+    const potentials = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const dx = bodyStates[j].x - bodyStates[i].x;
+        const dy = bodyStates[j].y - bodyStates[i].y;
+        const dz = bodyStates[j].z - bodyStates[i].z;
+        const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (r > 0) {
+          potentials[i] += bodyStates[j].gm / r;
+        }
+      }
+    }
+    return potentials;
+  }, []);
+
+  const computeJ2Acceleration = useCallback((bodyI, bodyJ, dx, dy, dz, r) => {
+    if (!bodyJ.j2 || bodyJ.j2 === 0 || !bodyJ.radius) {
+      return { ax: 0, ay: 0, az: 0, torqueX: 0, torqueY: 0, torqueZ: 0 };
+    }
+    const spinAxis = {
+      x: bodyJ.spinAxisX || 0,
+      y: bodyJ.spinAxisY || 0,
+      z: bodyJ.spinAxisZ || 1
+    };
+    const spinMag = Math.sqrt(spinAxis.x * spinAxis.x + spinAxis.y * spinAxis.y + spinAxis.z * spinAxis.z);
+    if (spinMag < 1e-10) {
+      return { ax: 0, ay: 0, az: 0, torqueX: 0, torqueY: 0, torqueZ: 0 };
+    }
+    const sHat = {
+      x: spinAxis.x / spinMag,
+      y: spinAxis.y / spinMag,
+      z: spinAxis.z / spinMag
+    };
+    const zPrime = dx * sHat.x + dy * sHat.y + dz * sHat.z;
+    const rSq = r * r;
+    const r5 = rSq * rSq * r;
+    const Re = bodyJ.j2Radius || bodyJ.radius;
+    const Re2 = Re * Re;
+    const j2Val = Math.abs(bodyJ.j2);
+    const factor = 1.5 * j2Val * bodyJ.gm * Re2 / r5;
+    const zPrime2_over_rSq = (zPrime * zPrime) / rSq;
+    const coeff1 = 5.0 * zPrime2_over_rSq - 1.0;
+    const coeff2 = -2.0 * zPrime;
+    const ax = factor * (coeff1 * dx + coeff2 * sHat.x);
+    const ay = factor * (coeff1 * dy + coeff2 * sHat.y);
+    const az = factor * (coeff1 * dz + coeff2 * sHat.z);
+    const massI = bodyI.gm / G_CODATA;
+    const Fx = massI * ax;
+    const Fy = massI * ay;
+    const Fz = massI * az;
+    const torqueX = dy * Fz - dz * Fy;
+    const torqueY = dz * Fx - dx * Fz;
+    const torqueZ = dx * Fy - dy * Fx;
+    return { ax, ay, az, torqueX: -torqueX, torqueY: -torqueY, torqueZ: -torqueZ };
+  }, [G_CODATA]);
+
+  const checkPNValidity = useCallback((bodyStates, scale = null) => {
+    const warnings = [];
+    const n = bodyStates.length;
+    const effectiveC = scale ? scale.c : getEffectiveSpeedOfLight();
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const dx = bodyStates[j].x - bodyStates[i].x;
+        const dy = bodyStates[j].y - bodyStates[i].y;
+        const dz = bodyStates[j].z - bodyStates[i].z;
+        const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        const dvx = bodyStates[j].vx - bodyStates[i].vx;
+        const dvy = bodyStates[j].vy - bodyStates[i].vy;
+        const dvz = bodyStates[j].vz - bodyStates[i].vz;
+        const vRel = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
+
+        const vOverC = vRel / effectiveC;
+        if (vOverC > 0.1) {
+          warnings.push({
+            type: 'velocity',
+            bodies: [bodyStates[i].name, bodyStates[j].name],
+            value: vOverC,
+            message: `v/c is ${(vOverC * 100).toFixed(1)}%, so the PN expansion is inaccurate.`
+          });
+        }
+
+        const totalGM = bodyStates[i].gm + bodyStates[j].gm;
+        const schwarzschildRadius = 2 * totalGM / (effectiveC * effectiveC);
+        const rOverRs = r / schwarzschildRadius;
+
+        if (rOverRs < 10) {
+          warnings.push({
+            type: 'separation',
+            bodies: [bodyStates[i].name, bodyStates[j].name],
+            value: rOverRs,
+            message: `r/r_s is ${rOverRs.toFixed(1)}, which is in the strong-field regime where PN is invalid.`
+          });
+        }
+      }
+    }
+
+    return warnings;
+  }, [getEffectiveSpeedOfLight]);
+
+  const computeForces = useCallback((bodyStates, options = {}) => {
+    const {
+      includeGR = false,
+      grMode = '1pn',
+      includeJ2 = false,
+      j2BackReaction = true,
+      softeningConfig: sConf = { enabled: false },
+      scale = null,
+      currentTime = 0,
+      pairCacheOut = null
+    } = options;
+    const n = bodyStates.length;
+    const accelerations = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+    const jerks = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+    const spinTorques = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+
+    const softenings = sConf.enabled ? calculateSoftening(bodyStates, sConf) : new Array(n).fill(0);
+
+    const effectiveC = scale ? scale.c : getEffectiveSpeedOfLight();
+    const c = effectiveC;
+    const c2 = c * c;
+    const c5 = c2 * c2 * c;
+
+    const useRetardedPositions = physicsConfig.relativisticMode && physicsConfig.retardedGravity && includeGR;
+
+    const rVecs = [];
+    const rMags = [];
+    const invRMags = [];
+    for (let i = 0; i < n; i++) {
+      rVecs[i] = [];
+      rMags[i] = [];
+      invRMags[i] = [];
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          rVecs[i][j] = { x: 0, y: 0, z: 0 };
+          rMags[i][j] = 0;
+          invRMags[i][j] = 0;
+        } else {
+          let posJ;
+          if (useRetardedPositions) {
+            posJ = getRetardedPosition(bodyStates[j], bodyStates[i], c, currentTime);
+          } else {
+            posJ = { x: bodyStates[j].x, y: bodyStates[j].y, z: bodyStates[j].z };
+          }
+          const dx = posJ.x - bodyStates[i].x;
+          const dy = posJ.y - bodyStates[i].y;
+          const dz = posJ.z - bodyStates[i].z;
+          const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          rVecs[i][j] = { x: dx, y: dy, z: dz };
+          rMags[i][j] = r;
+          invRMags[i][j] = r > 0 ? 1.0 / r : 0;
+        }
+      }
+    }
+
+    let potentials = null;
+    let newtonianAccel = null;
+    if (includeGR) {
+      potentials = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (i !== j && rMags[i][j] > 0) {
+            potentials[i] += bodyStates[j].gm / rMags[i][j];
+          }
+        }
+      }
+      newtonianAccel = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+      for (let i = 0; i < n; i++) {
+        if (bodyStates[i].isDebris) continue;
+        for (let j = 0; j < n; j++) {
+          if (i === j || bodyStates[j].isDebris) continue;
+          const r = rMags[i][j];
+          if (r > 0) {
+            const invR3 = invRMags[i][j] * invRMags[i][j] * invRMags[i][j];
+            const dx = rVecs[i][j].x;
+            const dy = rVecs[i][j].y;
+            const dz = rVecs[i][j].z;
+            const fac = bodyStates[j].gm * invR3;
+            newtonianAccel[i].x += fac * dx;
+            newtonianAccel[i].y += fac * dy;
+            newtonianAccel[i].z += fac * dz;
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const iIsDebris = bodyStates[i].isDebris;
+        const jIsDebris = bodyStates[j].isDebris;
+
+        if (iIsDebris && jIsDebris) continue;
+
+        const dx = rVecs[i][j].x;
+        const dy = rVecs[i][j].y;
+        const dz = rVecs[i][j].z;
+        const r = rMags[i][j];
+        const invR = invRMags[i][j];
+        const rSq = r * r;
+        const invR3 = invR * invR * invR;
+
+        let forceMod = 1.0;
+        let kernelInvR3 = invR3;
+        let kernelRadialFactor = 3.0 * invR3 * invR * invR;
+        if (sConf.enabled && r > 0) {
+          const eps = symmetricSoftening(softenings[i], softenings[j]);
+          const adaptiveThreshold = 10.0 * eps;
+          if (r > adaptiveThreshold) {
+            forceMod = 1.0;
+            kernelInvR3 = invR3;
+            kernelRadialFactor = 3.0 * invR3 * invR * invR;
+          } else if (sConf.mode === 'plummer') {
+            forceMod = softeningKernels.plummer.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.plummer.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.plummer.jerkRadialFactor(r, eps);
+          } else if (sConf.mode === 'spline') {
+            forceMod = softeningKernels.spline.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.spline.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.spline.jerkRadialFactor(r, eps);
+          } else if (sConf.mode === 'wendlandC2') {
+            forceMod = softeningKernels.wendlandC2.forceMod(r, eps);
+            kernelInvR3 = softeningKernels.wendlandC2.jerkInvR3(r, eps);
+            kernelRadialFactor = softeningKernels.wendlandC2.jerkRadialFactor(r, eps);
+          }
+        }
+
+        const GMj = bodyStates[j].gm;
+        const GMi = bodyStates[i].gm;
+
+        const effectiveInvR3 = invR3 * forceMod;
+
+        let aij_x = 0, aij_y = 0, aij_z = 0;
+        let aji_x = 0, aji_y = 0, aji_z = 0;
+
+        if (!jIsDebris) {
+          aij_x = GMj * effectiveInvR3 * dx;
+          aij_y = GMj * effectiveInvR3 * dy;
+          aij_z = GMj * effectiveInvR3 * dz;
+        }
+
+        if (!iIsDebris) {
+          aji_x = GMi * effectiveInvR3 * dx;
+          aji_y = GMi * effectiveInvR3 * dy;
+          aji_z = GMi * effectiveInvR3 * dz;
+        }
+
+        if (includeGR && r > 0 && !iIsDebris && !jIsDebris) {
+          const totalGM = GMi + GMj;
+          const schwarzschildRadius = 2 * totalGM / c2;
+          const pnValid = r > 10 * schwarzschildRadius;
+
+          if (pnValid) {
+            const nhat = { x: dx * invR, y: dy * invR, z: dz * invR };
+            const vA = { x: bodyStates[i].vx, y: bodyStates[i].vy, z: bodyStates[i].vz };
+            const vB = { x: bodyStates[j].vx, y: bodyStates[j].vy, z: bodyStates[j].vz };
+            const vA2 = vA.x * vA.x + vA.y * vA.y + vA.z * vA.z;
+            const vB2 = vB.x * vB.x + vB.y * vB.y + vB.z * vB.z;
+            const vAdotvB = vA.x * vB.x + vA.y * vB.y + vA.z * vB.z;
+            const nDotvB = nhat.x * vB.x + nhat.y * vB.y + nhat.z * vB.z;
+            const nDotvA = nhat.x * vA.x + nhat.y * vA.y + nhat.z * vA.z;
+
+            const sumPhi_A_others = potentials[i];
+            const sumPhi_B_others = potentials[j];
+
+            const aBx = newtonianAccel[j].x;
+            const aBy = newtonianAccel[j].y;
+            const aBz = newtonianAccel[j].z;
+            const aAx = newtonianAccel[i].x;
+            const aAy = newtonianAccel[i].y;
+            const aAz = newtonianAccel[i].z;
+            const rDotaB = dx * aBx + dy * aBy + dz * aBz;
+            const negRDotaA = -dx * aAx - dy * aAy - dz * aAz;
+
+            const potentialTermA = -4.0 * sumPhi_A_others - 1.0 * sumPhi_B_others;
+            const potentialTermB = -4.0 * sumPhi_B_others - 1.0 * sumPhi_A_others;
+
+            const eihScalarA = (1.0 / c2) * (
+              vA2 + 2.0 * vB2 - 4.0 * vAdotvB
+              - 1.5 * nDotvB * nDotvB
+              + 0.5 * rDotaB
+              + potentialTermA
+            );
+
+            const dvAB_x = vA.x - vB.x;
+            const dvAB_y = vA.y - vB.y;
+            const dvAB_z = vA.z - vB.z;
+
+            const eihVecCoeffA = (1.0 / c2) * (4.0 * nDotvA - 3.0 * nDotvB);
+
+            const grCorrA_x = aij_x * eihScalarA + (GMj * invR * invR / c2) * eihVecCoeffA * dvAB_x;
+            const grCorrA_y = aij_y * eihScalarA + (GMj * invR * invR / c2) * eihVecCoeffA * dvAB_y;
+            const grCorrA_z = aij_z * eihScalarA + (GMj * invR * invR / c2) * eihVecCoeffA * dvAB_z;
+
+            aij_x += grCorrA_x;
+            aij_y += grCorrA_y;
+            aij_z += grCorrA_z;
+
+            const eihScalarB = (1.0 / c2) * (
+              vB2 + 2.0 * vA2 - 4.0 * vAdotvB
+              - 1.5 * nDotvA * nDotvA
+              + 0.5 * negRDotaA
+              + potentialTermB
+            );
+
+            const eihVecCoeffB = (1.0 / c2) * (4.0 * nDotvB - 3.0 * nDotvA);
+
+            const grCorrB_x = aji_x * eihScalarB - (GMi * invR * invR / c2) * eihVecCoeffB * dvAB_x;
+            const grCorrB_y = aji_y * eihScalarB - (GMi * invR * invR / c2) * eihVecCoeffB * dvAB_y;
+            const grCorrB_z = aji_z * eihScalarB - (GMi * invR * invR / c2) * eihVecCoeffB * dvAB_z;
+
+            aji_x += grCorrB_x;
+            aji_y += grCorrB_y;
+            aji_z += grCorrB_z;
+
+            if (grMode === '2.5pn' && r > 20 * schwarzschildRadius && !physicsConfig.retardedGravity) {
+              const mi = GMi / (scale ? 1 : G_CODATA);
+              const mj = GMj / (scale ? 1 : G_CODATA);
+              const totalMass = mi + mj;
+              const reducedMass = (mi * mj) / totalMass;
+              const eta = reducedMass / totalMass;
+              const vRel_x = vA.x - vB.x;
+              const vRel_y = vA.y - vB.y;
+              const vRel_z = vA.z - vB.z;
+              const vRelSq = vRel_x * vRel_x + vRel_y * vRel_y + vRel_z * vRel_z;
+              const rdot = nhat.x * vRel_x + nhat.y * vRel_y + nhat.z * vRel_z;
+              const GTotal = scale ? 1 : G_CODATA;
+              const r3 = r * r * r;
+              const prefactor = (8.0 / 5.0) * eta * GTotal * GTotal * totalMass * totalMass / (r3 * c5);
+              const radialCoeff = prefactor * rdot * (
+                (17.0 / 3.0) * GTotal * totalMass / r + 3.0 * vRelSq
+              );
+              const tangentCoeff = -prefactor * (
+                3.0 * GTotal * totalMass / r + vRelSq
+              );
+              const rr_x = radialCoeff * nhat.x + tangentCoeff * vRel_x;
+              const rr_y = radialCoeff * nhat.y + tangentCoeff * vRel_y;
+              const rr_z = radialCoeff * nhat.z + tangentCoeff * vRel_z;
+              const massRatioI = mj / totalMass;
+              const massRatioJ = mi / totalMass;
+              aij_x += rr_x * massRatioI;
+              aij_y += rr_y * massRatioI;
+              aij_z += rr_z * massRatioI;
+              aji_x += rr_x * massRatioJ;
+              aji_y += rr_y * massRatioJ;
+              aji_z += rr_z * massRatioJ;
+            }
+          }
+        }
+
+        if (includeJ2 && r > 0 && !iIsDebris && !jIsDebris) {
+          const j2ResultFromJ = computeJ2Acceleration(bodyStates[i], bodyStates[j], -dx, -dy, -dz, r);
+          aij_x += j2ResultFromJ.ax;
+          aij_y += j2ResultFromJ.ay;
+          aij_z += j2ResultFromJ.az;
+          if (j2BackReaction) {
+            spinTorques[j].x += j2ResultFromJ.torqueX;
+            spinTorques[j].y += j2ResultFromJ.torqueY;
+            spinTorques[j].z += j2ResultFromJ.torqueZ;
+          }
+
+          const j2ResultFromI = computeJ2Acceleration(bodyStates[j], bodyStates[i], dx, dy, dz, r);
+          aji_x += j2ResultFromI.ax;
+          aji_y += j2ResultFromI.ay;
+          aji_z += j2ResultFromI.az;
+          if (j2BackReaction) {
+            spinTorques[i].x += j2ResultFromI.torqueX;
+            spinTorques[i].y += j2ResultFromI.torqueY;
+            spinTorques[i].z += j2ResultFromI.torqueZ;
+          }
+        }
+
+        accelerations[i].x += aij_x;
+        accelerations[i].y += aij_y;
+        accelerations[i].z += aij_z;
+        accelerations[j].x -= aji_x;
+        accelerations[j].y -= aji_y;
+        accelerations[j].z -= aji_z;
+
+        const dvx = bodyStates[j].vx - bodyStates[i].vx;
+        const dvy = bodyStates[j].vy - bodyStates[i].vy;
+        const dvz = bodyStates[j].vz - bodyStates[i].vz;
+        const rDotv = dx * dvx + dy * dvy + dz * dvz;
+
+        if (!jIsDebris) {
+          const termJ_inv = GMj * kernelInvR3;
+          const termJ_rad = GMj * rDotv * kernelRadialFactor;
+          jerks[i].x += termJ_inv * dvx - termJ_rad * dx;
+          jerks[i].y += termJ_inv * dvy - termJ_rad * dy;
+          jerks[i].z += termJ_inv * dvz - termJ_rad * dz;
+        }
+
+        if (!iIsDebris) {
+          const termI_inv = GMi * kernelInvR3;
+          const termI_rad = GMi * rDotv * kernelRadialFactor;
+          jerks[j].x += termI_inv * (-dvx) - termI_rad * (-dx);
+          jerks[j].y += termI_inv * (-dvy) - termI_rad * (-dy);
+          jerks[j].z += termI_inv * (-dvz) - termI_rad * (-dz);
+        }
+      }
+    }
+
+    if (includeGR && newtonianAccel) {
+      const sevenOver2c2 = 3.5 / c2;
+      for (let i = 0; i < n; i++) {
+        if (bodyStates[i].isDebris) continue;
+        let extraX = 0, extraY = 0, extraZ = 0;
+        for (let j = 0; j < n; j++) {
+          if (i === j || bodyStates[j].isDebris) continue;
+          const r = rMags[i][j];
+          if (r > 0) {
+            const fac = sevenOver2c2 * bodyStates[j].gm / r;
+            extraX += fac * newtonianAccel[j].x;
+            extraY += fac * newtonianAccel[j].y;
+            extraZ += fac * newtonianAccel[j].z;
+          }
+        }
+        accelerations[i].x += extraX;
+        accelerations[i].y += extraY;
+        accelerations[i].z += extraZ;
+      }
+    }
+
+    if (pairCacheOut) {
+      pairCacheOut.rVecs = rVecs;
+      pairCacheOut.rMags = rMags;
+      pairCacheOut.invRMags = invRMags;
+      pairCacheOut.softenings = softenings;
+    }
+
+    return { accelerations, jerks, spinTorques };
+  }, [calculateSoftening, symmetricSoftening, softeningKernels, getEffectiveSpeedOfLight, computeJ2Acceleration, G_CODATA, physicsConfig.relativisticMode, physicsConfig.retardedGravity, getRetardedPosition]);
+
+  const computeSnap = useCallback((bodyStates, accelerations, jerks) => {
+    const n = bodyStates.length;
+    const snaps = new Array(n).fill(0).map(() => ({ x: 0, y: 0, z: 0 }));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const iIsDebris = bodyStates[i].isDebris;
+        const jIsDebris = bodyStates[j].isDebris;
+
+        if (iIsDebris && jIsDebris) continue;
+
+        const dx = bodyStates[j].x - bodyStates[i].x;
+        const dy = bodyStates[j].y - bodyStates[i].y;
+        const dz = bodyStates[j].z - bodyStates[i].z;
+        const rSq = dx * dx + dy * dy + dz * dz;
+        const r = Math.sqrt(rSq);
+        const invR = 1.0 / r;
+        const invR3 = invR * invR * invR;
+
+        const dvx = bodyStates[j].vx - bodyStates[i].vx;
+        const dvy = bodyStates[j].vy - bodyStates[i].vy;
+        const dvz = bodyStates[j].vz - bodyStates[i].vz;
+
+        const dax = accelerations[j].x - accelerations[i].x;
+        const day = accelerations[j].y - accelerations[i].y;
+        const daz = accelerations[j].z - accelerations[i].z;
+
+        const rDotv = dx * dvx + dy * dvy + dz * dvz;
+        const rDota = dx * dax + dy * day + dz * daz;
+        const vDotv = dvx * dvx + dvy * dvy + dvz * dvz;
+
+        const GMj = bodyStates[j].gm;
+        const GMi = bodyStates[i].gm;
+
+        const alpha = rDotv / rSq;
+        const beta = (vDotv + rDota) / rSq + alpha * alpha;
+
+        if (!jIsDebris) {
+          const snap_ij_x = GMj * invR3 * (dax - 6.0 * alpha * (dvx - alpha * dx) - 3.0 * beta * dx);
+          const snap_ij_y = GMj * invR3 * (day - 6.0 * alpha * (dvy - alpha * dy) - 3.0 * beta * dy);
+          const snap_ij_z = GMj * invR3 * (daz - 6.0 * alpha * (dvz - alpha * dz) - 3.0 * beta * dz);
+          snaps[i].x += snap_ij_x;
+          snaps[i].y += snap_ij_y;
+          snaps[i].z += snap_ij_z;
+        }
+
+        if (!iIsDebris) {
+          const snap_ji_x = GMi * invR3 * (-dax - 6.0 * alpha * (-dvx - alpha * (-dx)) - 3.0 * beta * (-dx));
+          const snap_ji_y = GMi * invR3 * (-day - 6.0 * alpha * (-dvy - alpha * (-dy)) - 3.0 * beta * (-dy));
+          const snap_ji_z = GMi * invR3 * (-daz - 6.0 * alpha * (-dvz - alpha * (-dz)) - 3.0 * beta * (-dz));
+          snaps[j].x += snap_ji_x;
+          snaps[j].y += snap_ji_y;
+          snaps[j].z += snap_ji_z;
+        }
+      }
+    }
+    return snaps;
+  }, []);
+
+  const computeAdaptiveTimestep = useCallback((bodyStates, baseTimestep, options = {}) => {
+    const { eta = 0.02, method = 'aarseth', maxTimestep = baseTimestep * 10, scale = null, lastErrorNorm = 0, tolerance = 1e-9 } = options;
+    if (bodyStates.length < 2) return baseTimestep;
+    let dt = maxTimestep;
+
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale
+    };
+
+    if (method === 'simple') {
+      for (let i = 0; i < bodyStates.length; i++) {
+        for (let j = i + 1; j < bodyStates.length; j++) {
+          const dx = bodyStates[j].x - bodyStates[i].x;
+          const dy = bodyStates[j].y - bodyStates[i].y;
+          const dz = bodyStates[j].z - bodyStates[i].z;
+          const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const dvx = bodyStates[j].vx - bodyStates[i].vx;
+          const dvy = bodyStates[j].vy - bodyStates[i].vy;
+          const dvz = bodyStates[j].vz - bodyStates[i].vz;
+          const vRel = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
+          if (vRel > 0) dt = Math.min(dt, eta * r / vRel);
+          const mu = bodyStates[i].gm + bodyStates[j].gm;
+          if (r > 0 && mu > 0) {
+            const tOrb = 2 * Math.PI * Math.sqrt(r * r * r / mu);
+            dt = Math.min(dt, eta * tOrb);
+          }
+        }
+      }
+    } else if (method === 'aarseth') {
+      const { accelerations, jerks } = computeForces(bodyStates, forceOptions);
+
+      for (let i = 0; i < bodyStates.length; i++) {
+        const a2 = accelerations[i].x ** 2 + accelerations[i].y ** 2 + accelerations[i].z ** 2;
+        const j2 = jerks[i].x ** 2 + jerks[i].y ** 2 + jerks[i].z ** 2;
+
+        const aMag = Math.sqrt(a2);
+        const jMag = Math.sqrt(j2);
+
+        if (jMag > 1e-30 && aMag > 1e-30) {
+          dt = Math.min(dt, eta * Math.sqrt(aMag / jMag));
+        } else if (aMag > 1e-30) {
+          const v = Math.sqrt(bodyStates[i].vx ** 2 + bodyStates[i].vy ** 2 + bodyStates[i].vz ** 2);
+          if (v > 1e-30) {
+            dt = Math.min(dt, eta * v / aMag);
+          }
+        }
+      }
+    } else if (method === 'higherorder') {
+      const { accelerations, jerks } = computeForces(bodyStates, forceOptions);
+      const snaps = computeSnap(bodyStates, accelerations, jerks);
+
+      for (let i = 0; i < bodyStates.length; i++) {
+        const a2 = accelerations[i].x ** 2 + accelerations[i].y ** 2 + accelerations[i].z ** 2;
+        const j2 = jerks[i].x ** 2 + jerks[i].y ** 2 + jerks[i].z ** 2;
+        const s2 = snaps[i].x ** 2 + snaps[i].y ** 2 + snaps[i].z ** 2;
+
+        const aMag = Math.sqrt(a2);
+        const jMag = Math.sqrt(j2);
+        const sMag = Math.sqrt(s2);
+
+        if (jMag > 1e-30 && sMag > 1e-30) {
+          const numerator = aMag * sMag + jMag * jMag;
+          const denominator = jMag * sMag + sMag * sMag + 1e-30;
+          dt = Math.min(dt, eta * Math.sqrt(numerator / denominator));
+        } else if (jMag > 1e-30 && aMag > 1e-30) {
+          dt = Math.min(dt, eta * Math.sqrt(aMag / jMag));
+        } else if (aMag > 1e-30) {
+          const v = Math.sqrt(bodyStates[i].vx ** 2 + bodyStates[i].vy ** 2 + bodyStates[i].vz ** 2);
+          if (v > 1e-30) {
+            dt = Math.min(dt, eta * v / aMag);
+          }
+        }
+      }
+    } else if (method === 'embedded') {
+      let prior = baseTimestep;
+      if (adaptiveDtRef.current && adaptiveDtRef.current > 0) {
+        prior = adaptiveDtRef.current;
+      }
+      if (lastErrorNorm > 0 && tolerance > 0) {
+        const safety = 0.9;
+        const ratio = tolerance / lastErrorNorm;
+        const factor = Math.max(0.2, Math.min(5.0, safety * Math.pow(ratio, 0.2)));
+        dt = Math.min(maxTimestep, Math.max(baseTimestep * 1e-4, prior * factor));
+      } else {
+        dt = Math.min(maxTimestep, prior);
+      }
+    }
+
+    if (physicsConfig.includeJ2) {
+      for (let i = 0; i < bodyStates.length; i++) {
+        const ox = bodyStates[i].omegaBody_x || 0;
+        const oy = bodyStates[i].omegaBody_y || 0;
+        const oz = bodyStates[i].spinRate || 0;
+        const omegaMag = Math.sqrt(ox * ox + oy * oy + oz * oz);
+        if (omegaMag > 1e-30) {
+          dt = Math.min(dt, eta / omegaMag);
+        }
+      }
+    }
+
+    return Math.min(maxTimestep, dt);
+  }, [computeForces, computeSnap, softeningConfig, physicsConfig]);
+
+  const computeInertiaTensor = useCallback((body, scale) => {
+    const mass = body.gm / (scale ? 1 : G_CODATA);
+    const radius = body.j2Radius || body.radius;
+    const moiFactor = body.momentOfInertiaFactor || 0.4;
+    const j2 = body.j2 || 0;
+    const MR2 = mass * radius * radius;
+    const I_mean = moiFactor * MR2;
+    const I_xx = I_mean - (j2 * MR2) / 3;
+    const I_yy = I_xx;
+    const I_zz = I_mean + (2 * j2 * MR2) / 3;
+    return { I_xx, I_yy, I_zz };
+  }, [G_CODATA]);
+
+  const integrateRK5 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale,
+      currentTime: currentTime
+    };
+
+    const getDerivatives = (states, t) => {
+      const opts = { ...forceOptions, currentTime: t };
+      const { accelerations, spinTorques } = computeForces(states, opts);
+      return states.map((s, i) => {
+        let dqw = 0, dqx = 0, dqy = 0, dqz = 0;
+        if (physicsConfig.includeJ2 && physicsConfig.j2BackReaction && s.j2 && s.spinRate) {
+          const torqueInertial = { x: spinTorques[i].x, y: spinTorques[i].y, z: spinTorques[i].z };
+          const { I_xx, I_yy, I_zz } = computeInertiaTensor(s, scale);
+          const q = s.orientation || spinAxisToQuaternion(s.spinAxisX || 0, s.spinAxisY || 0, s.spinAxisZ || 1);
+          const qConj = quaternionConjugate(q);
+          const torqueBody = rotateVectorByQuaternion(torqueInertial, qConj);
+          const omega_z = s.spinRate || 0;
+          const omega_x = s.omegaBody_x || 0;
+          const omega_y = s.omegaBody_y || 0;
+          const eulerTerm_x = (I_yy - I_zz) * omega_y * omega_z;
+          const eulerTerm_y = (I_zz - I_xx) * omega_z * omega_x;
+          const eulerTerm_z = (I_xx - I_yy) * omega_x * omega_y;
+          const omegaDot_x = I_xx > 1e-30 ? (torqueBody.x - eulerTerm_x) / I_xx : 0;
+          const omegaDot_y = I_yy > 1e-30 ? (torqueBody.y - eulerTerm_y) / I_yy : 0;
+          const omegaDot_z = I_zz > 1e-30 ? (torqueBody.z - eulerTerm_z) / I_zz : 0;
+          const omegaQuat = { w: 0, x: omega_x / 2, y: omega_y / 2, z: omega_z / 2 };
+          const qDot = quaternionMultiply(q, omegaQuat);
+          dqw = qDot.w;
+          dqx = qDot.x;
+          dqy = qDot.y;
+          dqz = qDot.z;
+          return {
+            dx: s.vx, dy: s.vy, dz: s.vz,
+            dvx: accelerations[i].x, dvy: accelerations[i].y, dvz: accelerations[i].z,
+            dqw, dqx, dqy, dqz,
+            dOmegaX: omegaDot_x, dOmegaY: omegaDot_y, dOmegaZ: omegaDot_z
+          };
+        }
+        return {
+          dx: s.vx, dy: s.vy, dz: s.vz,
+          dvx: accelerations[i].x, dvy: accelerations[i].y, dvz: accelerations[i].z,
+          dqw: 0, dqx: 0, dqy: 0, dqz: 0,
+          dOmegaX: 0, dOmegaY: 0, dOmegaZ: 0
+        };
+      });
+    };
+
+    const b2 = 1 / 4;
+    const b3 = 3 / 32, c3 = 9 / 32;
+    const b4 = 1932 / 2197, c4 = -7200 / 2197, d4 = 7296 / 2197;
+    const b5 = 439 / 216, c5 = -8, d5 = 3680 / 513, e5 = -845 / 4104;
+    const b6 = -8 / 27, c6 = 2, d6 = -3544 / 2565, e6 = 1859 / 4104, f6 = -11 / 40;
+    const n1 = 16 / 135, n3 = 6656 / 12825, n4 = 28561 / 56430, n5 = -9 / 50, n6 = 2 / 55;
+    const e1 = 1 / 360, e3 = -128 / 4275, e4 = -2197 / 75240, eOrd5 = 1 / 50, e6Err = 2 / 55;
+
+    const prepState = bodyStates.map(b => {
+      if (!b.orientation && physicsConfig.includeJ2 && b.j2) {
+        return { ...b, orientation: spinAxisToQuaternion(b.spinAxisX || 0, b.spinAxisY || 0, b.spinAxisZ || 1), omegaBody_x: 0, omegaBody_y: 0 };
+      }
+      return { ...b, omegaBody_x: b.omegaBody_x || 0, omegaBody_y: b.omegaBody_y || 0 };
+    });
+
+    const k1 = getDerivatives(prepState, currentTime);
+
+    const s2 = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      return {
+        ...b,
+        x: b.x + b2 * k1[i].dx * dt,
+        y: b.y + b2 * k1[i].dy * dt,
+        z: b.z + b2 * k1[i].dz * dt,
+        vx: b.vx + b2 * k1[i].dvx * dt,
+        vy: b.vy + b2 * k1[i].dvy * dt,
+        vz: b.vz + b2 * k1[i].dvz * dt,
+        orientation: { w: q.w + b2 * k1[i].dqw * dt, x: q.x + b2 * k1[i].dqx * dt, y: q.y + b2 * k1[i].dqy * dt, z: q.z + b2 * k1[i].dqz * dt },
+        omegaBody_x: (b.omegaBody_x || 0) + b2 * k1[i].dOmegaX * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + b2 * k1[i].dOmegaY * dt,
+        spinRate: (b.spinRate || 0) + b2 * k1[i].dOmegaZ * dt
+      };
+    });
+    const k2 = getDerivatives(s2, currentTime + b2 * dt);
+
+    const s3 = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      return {
+        ...b,
+        x: b.x + (b3 * k1[i].dx + c3 * k2[i].dx) * dt,
+        y: b.y + (b3 * k1[i].dy + c3 * k2[i].dy) * dt,
+        z: b.z + (b3 * k1[i].dz + c3 * k2[i].dz) * dt,
+        vx: b.vx + (b3 * k1[i].dvx + c3 * k2[i].dvx) * dt,
+        vy: b.vy + (b3 * k1[i].dvy + c3 * k2[i].dvy) * dt,
+        vz: b.vz + (b3 * k1[i].dvz + c3 * k2[i].dvz) * dt,
+        orientation: { w: q.w + (b3 * k1[i].dqw + c3 * k2[i].dqw) * dt, x: q.x + (b3 * k1[i].dqx + c3 * k2[i].dqx) * dt, y: q.y + (b3 * k1[i].dqy + c3 * k2[i].dqy) * dt, z: q.z + (b3 * k1[i].dqz + c3 * k2[i].dqz) * dt },
+        omegaBody_x: (b.omegaBody_x || 0) + (b3 * k1[i].dOmegaX + c3 * k2[i].dOmegaX) * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + (b3 * k1[i].dOmegaY + c3 * k2[i].dOmegaY) * dt,
+        spinRate: (b.spinRate || 0) + (b3 * k1[i].dOmegaZ + c3 * k2[i].dOmegaZ) * dt
+      };
+    });
+    const k3 = getDerivatives(s3, currentTime + 0.375 * dt);
+
+    const s4 = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      return {
+        ...b,
+        x: b.x + (b4 * k1[i].dx + c4 * k2[i].dx + d4 * k3[i].dx) * dt,
+        y: b.y + (b4 * k1[i].dy + c4 * k2[i].dy + d4 * k3[i].dy) * dt,
+        z: b.z + (b4 * k1[i].dz + c4 * k2[i].dz + d4 * k3[i].dz) * dt,
+        vx: b.vx + (b4 * k1[i].dvx + c4 * k2[i].dvx + d4 * k3[i].dvx) * dt,
+        vy: b.vy + (b4 * k1[i].dvy + c4 * k2[i].dvy + d4 * k3[i].dvy) * dt,
+        vz: b.vz + (b4 * k1[i].dvz + c4 * k2[i].dvz + d4 * k3[i].dvz) * dt,
+        orientation: { w: q.w + (b4 * k1[i].dqw + c4 * k2[i].dqw + d4 * k3[i].dqw) * dt, x: q.x + (b4 * k1[i].dqx + c4 * k2[i].dqx + d4 * k3[i].dqx) * dt, y: q.y + (b4 * k1[i].dqy + c4 * k2[i].dqy + d4 * k3[i].dqy) * dt, z: q.z + (b4 * k1[i].dqz + c4 * k2[i].dqz + d4 * k3[i].dqz) * dt },
+        omegaBody_x: (b.omegaBody_x || 0) + (b4 * k1[i].dOmegaX + c4 * k2[i].dOmegaX + d4 * k3[i].dOmegaX) * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + (b4 * k1[i].dOmegaY + c4 * k2[i].dOmegaY + d4 * k3[i].dOmegaY) * dt,
+        spinRate: (b.spinRate || 0) + (b4 * k1[i].dOmegaZ + c4 * k2[i].dOmegaZ + d4 * k3[i].dOmegaZ) * dt
+      };
+    });
+    const k4 = getDerivatives(s4, currentTime + (12/13) * dt);
+
+    const s5 = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      return {
+        ...b,
+        x: b.x + (b5 * k1[i].dx + c5 * k2[i].dx + d5 * k3[i].dx + e5 * k4[i].dx) * dt,
+        y: b.y + (b5 * k1[i].dy + c5 * k2[i].dy + d5 * k3[i].dy + e5 * k4[i].dy) * dt,
+        z: b.z + (b5 * k1[i].dz + c5 * k2[i].dz + d5 * k3[i].dz + e5 * k4[i].dz) * dt,
+        vx: b.vx + (b5 * k1[i].dvx + c5 * k2[i].dvx + d5 * k3[i].dvx + e5 * k4[i].dvx) * dt,
+        vy: b.vy + (b5 * k1[i].dvy + c5 * k2[i].dvy + d5 * k3[i].dvy + e5 * k4[i].dvy) * dt,
+        vz: b.vz + (b5 * k1[i].dvz + c5 * k2[i].dvz + d5 * k3[i].dvz + e5 * k4[i].dvz) * dt,
+        orientation: { w: q.w + (b5 * k1[i].dqw + c5 * k2[i].dqw + d5 * k3[i].dqw + e5 * k4[i].dqw) * dt, x: q.x + (b5 * k1[i].dqx + c5 * k2[i].dqx + d5 * k3[i].dqx + e5 * k4[i].dqx) * dt, y: q.y + (b5 * k1[i].dqy + c5 * k2[i].dqy + d5 * k3[i].dqy + e5 * k4[i].dqy) * dt, z: q.z + (b5 * k1[i].dqz + c5 * k2[i].dqz + d5 * k3[i].dqz + e5 * k4[i].dqz) * dt },
+        omegaBody_x: (b.omegaBody_x || 0) + (b5 * k1[i].dOmegaX + c5 * k2[i].dOmegaX + d5 * k3[i].dOmegaX + e5 * k4[i].dOmegaX) * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + (b5 * k1[i].dOmegaY + c5 * k2[i].dOmegaY + d5 * k3[i].dOmegaY + e5 * k4[i].dOmegaY) * dt,
+        spinRate: (b.spinRate || 0) + (b5 * k1[i].dOmegaZ + c5 * k2[i].dOmegaZ + d5 * k3[i].dOmegaZ + e5 * k4[i].dOmegaZ) * dt
+      };
+    });
+    const k5 = getDerivatives(s5, currentTime + dt);
+
+    const s6 = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      return {
+        ...b,
+        x: b.x + (b6 * k1[i].dx + c6 * k2[i].dx + d6 * k3[i].dx + e6 * k4[i].dx + f6 * k5[i].dx) * dt,
+        y: b.y + (b6 * k1[i].dy + c6 * k2[i].dy + d6 * k3[i].dy + e6 * k4[i].dy + f6 * k5[i].dy) * dt,
+        z: b.z + (b6 * k1[i].dz + c6 * k2[i].dz + d6 * k3[i].dz + e6 * k4[i].dz + f6 * k5[i].dz) * dt,
+        vx: b.vx + (b6 * k1[i].dvx + c6 * k2[i].dvx + d6 * k3[i].dvx + e6 * k4[i].dvx + f6 * k5[i].dvx) * dt,
+        vy: b.vy + (b6 * k1[i].dvy + c6 * k2[i].dvy + d6 * k3[i].dvy + e6 * k4[i].dvy + f6 * k5[i].dvy) * dt,
+        vz: b.vz + (b6 * k1[i].dvz + c6 * k2[i].dvz + d6 * k3[i].dvz + e6 * k4[i].dvz + f6 * k5[i].dvz) * dt,
+        orientation: { w: q.w + (b6 * k1[i].dqw + c6 * k2[i].dqw + d6 * k3[i].dqw + e6 * k4[i].dqw + f6 * k5[i].dqw) * dt, x: q.x + (b6 * k1[i].dqx + c6 * k2[i].dqx + d6 * k3[i].dqx + e6 * k4[i].dqx + f6 * k5[i].dqx) * dt, y: q.y + (b6 * k1[i].dqy + c6 * k2[i].dqy + d6 * k3[i].dqy + e6 * k4[i].dqy + f6 * k5[i].dqy) * dt, z: q.z + (b6 * k1[i].dqz + c6 * k2[i].dqz + d6 * k3[i].dqz + e6 * k4[i].dqz + f6 * k5[i].dqz) * dt },
+        omegaBody_x: (b.omegaBody_x || 0) + (b6 * k1[i].dOmegaX + c6 * k2[i].dOmegaX + d6 * k3[i].dOmegaX + e6 * k4[i].dOmegaX + f6 * k5[i].dOmegaX) * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + (b6 * k1[i].dOmegaY + c6 * k2[i].dOmegaY + d6 * k3[i].dOmegaY + e6 * k4[i].dOmegaY + f6 * k5[i].dOmegaY) * dt,
+        spinRate: (b.spinRate || 0) + (b6 * k1[i].dOmegaZ + c6 * k2[i].dOmegaZ + d6 * k3[i].dOmegaZ + e6 * k4[i].dOmegaZ + f6 * k5[i].dOmegaZ) * dt
+      };
+    });
+    const k6 = getDerivatives(s6, currentTime + 0.5 * dt);
+
+    let errorAccum = 0;
+    let errorCount = 0;
+    let posScale = 1;
+    let velScale = 1;
+    for (let i = 0; i < prepState.length; i++) {
+      posScale = Math.max(posScale, Math.abs(prepState[i].x), Math.abs(prepState[i].y), Math.abs(prepState[i].z));
+      velScale = Math.max(velScale, Math.abs(prepState[i].vx), Math.abs(prepState[i].vy), Math.abs(prepState[i].vz));
+    }
+    if (posScale < 1e-30) posScale = 1;
+    if (velScale < 1e-30) velScale = 1;
+
+    const result = prepState.map((b, i) => {
+      const q = b.orientation || { w: 1, x: 0, y: 0, z: 0 };
+      const newQRaw = {
+        w: q.w + (n1 * k1[i].dqw + n3 * k3[i].dqw + n4 * k4[i].dqw + n5 * k5[i].dqw + n6 * k6[i].dqw) * dt,
+        x: q.x + (n1 * k1[i].dqx + n3 * k3[i].dqx + n4 * k4[i].dqx + n5 * k5[i].dqx + n6 * k6[i].dqx) * dt,
+        y: q.y + (n1 * k1[i].dqy + n3 * k3[i].dqy + n4 * k4[i].dqy + n5 * k5[i].dqy + n6 * k6[i].dqy) * dt,
+        z: q.z + (n1 * k1[i].dqz + n3 * k3[i].dqz + n4 * k4[i].dqz + n5 * k5[i].dqz + n6 * k6[i].dqz) * dt
+      };
+      const newQ = quaternionNormalize(newQRaw);
+      const newSpinAxis = quaternionToSpinAxis(newQ);
+
+      const errPosX = dt * (e1 * k1[i].dx + e3 * k3[i].dx + e4 * k4[i].dx + eOrd5 * k5[i].dx + e6Err * k6[i].dx);
+      const errPosY = dt * (e1 * k1[i].dy + e3 * k3[i].dy + e4 * k4[i].dy + eOrd5 * k5[i].dy + e6Err * k6[i].dy);
+      const errPosZ = dt * (e1 * k1[i].dz + e3 * k3[i].dz + e4 * k4[i].dz + eOrd5 * k5[i].dz + e6Err * k6[i].dz);
+      const errVelX = dt * (e1 * k1[i].dvx + e3 * k3[i].dvx + e4 * k4[i].dvx + eOrd5 * k5[i].dvx + e6Err * k6[i].dvx);
+      const errVelY = dt * (e1 * k1[i].dvy + e3 * k3[i].dvy + e4 * k4[i].dvy + eOrd5 * k5[i].dvy + e6Err * k6[i].dvy);
+      const errVelZ = dt * (e1 * k1[i].dvz + e3 * k3[i].dvz + e4 * k4[i].dvz + eOrd5 * k5[i].dvz + e6Err * k6[i].dvz);
+
+      errorAccum += (errPosX / posScale) ** 2 + (errPosY / posScale) ** 2 + (errPosZ / posScale) ** 2;
+      errorAccum += (errVelX / velScale) ** 2 + (errVelY / velScale) ** 2 + (errVelZ / velScale) ** 2;
+      errorCount += 6;
+
+      return {
+        ...b,
+        x: b.x + (n1 * k1[i].dx + n3 * k3[i].dx + n4 * k4[i].dx + n5 * k5[i].dx + n6 * k6[i].dx) * dt,
+        y: b.y + (n1 * k1[i].dy + n3 * k3[i].dy + n4 * k4[i].dy + n5 * k5[i].dy + n6 * k6[i].dy) * dt,
+        z: b.z + (n1 * k1[i].dz + n3 * k3[i].dz + n4 * k4[i].dz + n5 * k5[i].dz + n6 * k6[i].dz) * dt,
+        vx: b.vx + (n1 * k1[i].dvx + n3 * k3[i].dvx + n4 * k4[i].dvx + n5 * k5[i].dvx + n6 * k6[i].dvx) * dt,
+        vy: b.vy + (n1 * k1[i].dvy + n3 * k3[i].dvy + n4 * k4[i].dvy + n5 * k5[i].dvy + n6 * k6[i].dvy) * dt,
+        vz: b.vz + (n1 * k1[i].dvz + n3 * k3[i].dvz + n4 * k4[i].dvz + n5 * k5[i].dvz + n6 * k6[i].dvz) * dt,
+        orientation: newQ,
+        spinAxisX: newSpinAxis.x,
+        spinAxisY: newSpinAxis.y,
+        spinAxisZ: newSpinAxis.z,
+        omegaBody_x: (b.omegaBody_x || 0) + (n1 * k1[i].dOmegaX + n3 * k3[i].dOmegaX + n4 * k4[i].dOmegaX + n5 * k5[i].dOmegaX + n6 * k6[i].dOmegaX) * dt,
+        omegaBody_y: (b.omegaBody_y || 0) + (n1 * k1[i].dOmegaY + n3 * k3[i].dOmegaY + n4 * k4[i].dOmegaY + n5 * k5[i].dOmegaY + n6 * k6[i].dOmegaY) * dt,
+        spinRate: (b.spinRate || 0) + (n1 * k1[i].dOmegaZ + n3 * k3[i].dOmegaZ + n4 * k4[i].dOmegaZ + n5 * k5[i].dOmegaZ + n6 * k6[i].dOmegaZ) * dt
+      };
+    });
+
+    const errorNorm = errorCount > 0 ? Math.sqrt(errorAccum / errorCount) : 0;
+    result.__errorNorm = errorNorm;
+    return result;
+  }, [computeForces, softeningConfig, physicsConfig, computeInertiaTensor, spinAxisToQuaternion, quaternionConjugate, rotateVectorByQuaternion, quaternionMultiply, quaternionNormalize, quaternionToSpinAxis]);
+
+  const integrateRK4 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale
+    };
+    const getDerivatives = (states, t) => {
+      const { accelerations } = computeForces(states, { ...forceOptions, currentTime: t });
+      return states.map((s, i) => ({
+        dx: s.vx, dy: s.vy, dz: s.vz,
+        dvx: accelerations[i].x, dvy: accelerations[i].y, dvz: accelerations[i].z
+      }));
+    };
+    const k1 = getDerivatives(bodyStates, currentTime);
+    const s2 = bodyStates.map((b, i) => ({
+      ...b,
+      x: b.x + k1[i].dx * dt * 0.5,
+      y: b.y + k1[i].dy * dt * 0.5,
+      z: b.z + k1[i].dz * dt * 0.5,
+      vx: b.vx + k1[i].dvx * dt * 0.5,
+      vy: b.vy + k1[i].dvy * dt * 0.5,
+      vz: b.vz + k1[i].dvz * dt * 0.5
+    }));
+    const k2 = getDerivatives(s2, currentTime + dt * 0.5);
+    const s3 = bodyStates.map((b, i) => ({
+      ...b,
+      x: b.x + k2[i].dx * dt * 0.5,
+      y: b.y + k2[i].dy * dt * 0.5,
+      z: b.z + k2[i].dz * dt * 0.5,
+      vx: b.vx + k2[i].dvx * dt * 0.5,
+      vy: b.vy + k2[i].dvy * dt * 0.5,
+      vz: b.vz + k2[i].dvz * dt * 0.5
+    }));
+    const k3 = getDerivatives(s3, currentTime + dt * 0.5);
+    const s4 = bodyStates.map((b, i) => ({
+      ...b,
+      x: b.x + k3[i].dx * dt,
+      y: b.y + k3[i].dy * dt,
+      z: b.z + k3[i].dz * dt,
+      vx: b.vx + k3[i].dvx * dt,
+      vy: b.vy + k3[i].dvy * dt,
+      vz: b.vz + k3[i].dvz * dt
+    }));
+    const k4 = getDerivatives(s4, currentTime + dt);
+    const result = bodyStates.map((b, i) => ({
+      ...b,
+      x: b.x + (k1[i].dx + 2 * k2[i].dx + 2 * k3[i].dx + k4[i].dx) * dt / 6,
+      y: b.y + (k1[i].dy + 2 * k2[i].dy + 2 * k3[i].dy + k4[i].dy) * dt / 6,
+      z: b.z + (k1[i].dz + 2 * k2[i].dz + 2 * k3[i].dz + k4[i].dz) * dt / 6,
+      vx: b.vx + (k1[i].dvx + 2 * k2[i].dvx + 2 * k3[i].dvx + k4[i].dvx) * dt / 6,
+      vy: b.vy + (k1[i].dvy + 2 * k2[i].dvy + 2 * k3[i].dvy + k4[i].dvy) * dt / 6,
+      vz: b.vz + (k1[i].dvz + 2 * k2[i].dvz + 2 * k3[i].dvz + k4[i].dvz) * dt / 6
+    }));
+    result.__errorNorm = 0;
+    return result;
+  }, [computeForces, softeningConfig, physicsConfig]);
+
+  const integrateYoshida4 = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale
+    };
+
+    const cbrt2 = 1.2599210498948732;
+    const w1 = 1.0 / (2.0 - cbrt2);
+    const w0 = -cbrt2 * w1;
+    const c1 = w1 / 2.0;
+    const c2 = (w0 + w1) / 2.0;
+    const c3 = c2;
+    const c4 = c1;
+    const d1 = w1;
+    const d2 = w0;
+    const d3 = w1;
+
+    const drift = (states, c) => states.map(b => {
+      const dx = b.vx * c * dt;
+      const dy = b.vy * c * dt;
+      const dz = b.vz * c * dt;
+
+      const rx = kahanSum(b.x, dx, b.errX || 0);
+      const ry = kahanSum(b.y, dy, b.errY || 0);
+      const rz = kahanSum(b.z, dz, b.errZ || 0);
+
+      return {
+        ...b,
+        x: rx.value, y: ry.value, z: rz.value,
+        errX: rx.error, errY: ry.error, errZ: rz.error
+      };
+    });
+
+    const kick = (states, d, t) => {
+      const { accelerations } = computeForces(states, { ...forceOptions, currentTime: t });
+      return states.map((b, i) => {
+        const dvx = accelerations[i].x * d * dt;
+        const dvy = accelerations[i].y * d * dt;
+        const dvz = accelerations[i].z * d * dt;
+
+        const rvx = kahanSum(b.vx, dvx, b.errVx || 0);
+        const rvy = kahanSum(b.vy, dvy, b.errVy || 0);
+        const rvz = kahanSum(b.vz, dvz, b.errVz || 0);
+
+        return {
+          ...b,
+          vx: rvx.value, vy: rvy.value, vz: rvz.value,
+          errVx: rvx.error, errVy: rvy.error, errVz: rvz.error
+        };
+      });
+    };
+
+    let t = currentTime;
+    let state = drift(bodyStates, c1);
+    t += c1 * dt;
+    state = kick(state, d1, t);
+    state = drift(state, c2);
+    t += c2 * dt;
+    state = kick(state, d2, t);
+    state = drift(state, c3);
+    t += c3 * dt;
+    state = kick(state, d3, t);
+    state = drift(state, c4);
+
+    state.__errorNorm = 0;
+    return state;
+  }, [computeForces, softeningConfig, physicsConfig]);
+
+  const integrateVerlet = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    const forceOptions = {
+      softeningConfig,
+      includeGR: physicsConfig.includeGR,
+      grMode: physicsConfig.grMode,
+      includeJ2: physicsConfig.includeJ2,
+      j2BackReaction: physicsConfig.j2BackReaction,
+      scale: scale,
+      currentTime: currentTime
+    };
+    const { accelerations: a1 } = computeForces(bodyStates, forceOptions);
+    const nextPosStates = bodyStates.map((body, i) => ({
+      ...body,
+      x: body.x + body.vx * dt + 0.5 * a1[i].x * dt * dt,
+      y: body.y + body.vy * dt + 0.5 * a1[i].y * dt * dt,
+      z: body.z + body.vz * dt + 0.5 * a1[i].z * dt * dt
+    }));
+    const { accelerations: a2 } = computeForces(nextPosStates, { ...forceOptions, currentTime: currentTime + dt });
+    const result = nextPosStates.map((body, i) => ({
+      ...body,
+      vx: body.vx + 0.5 * (a1[i].x + a2[i].x) * dt,
+      vy: body.vy + 0.5 * (a1[i].y + a2[i].y) * dt,
+      vz: body.vz + 0.5 * (a1[i].z + a2[i].z) * dt
+    }));
+    result.__errorNorm = 0;
+    return result;
+  }, [computeForces, softeningConfig, physicsConfig]);
+
+  const integrate = useCallback((bodyStates, dt, scale = null, currentTime = 0) => {
+    switch (integrator) {
+      case INTEGRATORS.RK5: return integrateRK5(bodyStates, dt, scale, currentTime);
+      case INTEGRATORS.RK4: return integrateRK4(bodyStates, dt, scale, currentTime);
+      case INTEGRATORS.YOSHIDA4: return integrateYoshida4(bodyStates, dt, scale, currentTime);
+      case INTEGRATORS.VELOCITY_VERLET: default: return integrateVerlet(bodyStates, dt, scale, currentTime);
+    }
+  }, [integrator, integrateRK5, integrateRK4, integrateYoshida4, integrateVerlet]);
+
+  const computeSystemStats = useCallback((bodyStates) => {
+    let kineticEnergy = 0;
+    let potentialEnergy = 0;
+    let relativisticEnergy = 0;
+    let totalMomentum = { x: 0, y: 0, z: 0 };
+    let centerOfMass = { x: 0, y: 0, z: 0 };
+    let totalMass = 0;
+
+    const effectiveC = getEffectiveSpeedOfLight();
+    const c2 = effectiveC * effectiveC;
+
+    const activeBodies = bodyStates.filter(b => !b.isDebris);
+    const nActive = activeBodies.length;
+
+    const masses = activeBodies.map(b => b.gm / G_CODATA);
+    const velocities = activeBodies.map(b => ({
+      x: b.vx, y: b.vy, z: b.vz,
+      sq: b.vx * b.vx + b.vy * b.vy + b.vz * b.vz
+    }));
+
+    activeBodies.forEach((body, i) => {
+      const mass = masses[i];
+      const vSq = velocities[i].sq;
+      kineticEnergy += 0.5 * mass * vSq;
+      totalMomentum.x += mass * body.vx;
+      totalMomentum.y += mass * body.vy;
+      totalMomentum.z += mass * body.vz;
+      centerOfMass.x += mass * body.x;
+      centerOfMass.y += mass * body.y;
+      centerOfMass.z += mass * body.z;
+      totalMass += mass;
+
+      if (physicsConfig.includeGR) {
+        const v4Term = (3.0 / 8.0) * mass * vSq * vSq / c2;
+        relativisticEnergy += v4Term;
+      }
+    });
+
+    if (totalMass > 0) {
+      centerOfMass.x /= totalMass;
+      centerOfMass.y /= totalMass;
+      centerOfMass.z /= totalMass;
+    }
+
+    const softenings = softeningConfig.enabled
+      ? calculateSoftening(activeBodies, softeningConfig)
+      : new Array(nActive).fill(0);
+
+    const rMags = [];
+    const rVecs = [];
+    for (let i = 0; i < nActive; i++) {
+      rMags[i] = [];
+      rVecs[i] = [];
+      for (let j = 0; j < nActive; j++) {
+        if (i === j) {
+          rMags[i][j] = 0;
+          rVecs[i][j] = { x: 0, y: 0, z: 0 };
+        } else {
+          const dx = activeBodies[j].x - activeBodies[i].x;
+          const dy = activeBodies[j].y - activeBodies[i].y;
+          const dz = activeBodies[j].z - activeBodies[i].z;
+          rMags[i][j] = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          rVecs[i][j] = { x: dx, y: dy, z: dz };
+        }
+      }
+    }
+
+    for (let i = 0; i < nActive; i++) {
+      for (let j = i + 1; j < nActive; j++) {
+        const r = rMags[i][j];
+        const mi = masses[i];
+        const mj = masses[j];
+
+        let potentialFactor;
+        if (softeningConfig.enabled && r > 0) {
+          const eps = symmetricSoftening(softenings[i], softenings[j]);
+          if (softeningConfig.mode === 'plummer') {
+            potentialFactor = softeningKernels.plummer.potentialFactor(r, eps);
+          } else if (softeningConfig.mode === 'spline') {
+            potentialFactor = softeningKernels.spline.potentialFactor(r, eps);
+          } else if (softeningConfig.mode === 'wendlandC2') {
+            potentialFactor = softeningKernels.wendlandC2.potentialFactor(r, eps);
+          } else {
+            potentialFactor = 1.0 / r;
+          }
+        } else if (r > 0) {
+          potentialFactor = 1.0 / r;
+        } else {
+          potentialFactor = 0;
+        }
+
+        potentialEnergy -= G_CODATA * mi * mj * potentialFactor;
+
+        if (physicsConfig.includeGR && r > 0) {
+          const dx = rVecs[i][j].x;
+          const dy = rVecs[i][j].y;
+          const dz = rVecs[i][j].z;
+          const vi = velocities[i];
+          const vj = velocities[j];
+          const vi2 = vi.sq;
+          const vj2 = vj.sq;
+          const vidotvj = vi.x * vj.x + vi.y * vj.y + vi.z * vj.z;
+          const nVec = { x: dx / r, y: dy / r, z: dz / r };
+          const ndotvi = nVec.x * vi.x + nVec.y * vi.y + nVec.z * vi.z;
+          const ndotvj = nVec.x * vj.x + nVec.y * vj.y + nVec.z * vj.z;
+
+          const Uij = G_CODATA * mi * mj / r;
+
+          const velDepTerm = (Uij / (2.0 * c2)) * (
+            3.0 * (vi2 + vj2) - 7.0 * vidotvj - ndotvi * ndotvj
+          );
+
+          const potSqTerm = -0.5 * Uij * Uij / (c2 * mi * mj) * (mi + mj);
+
+          relativisticEnergy += velDepTerm + potSqTerm;
+        }
+      }
+    }
+
+    if (physicsConfig.includeGR && nActive >= 3) {
+      for (let a = 0; a < nActive; a++) {
+        for (let b = 0; b < nActive; b++) {
+          if (b === a) continue;
+          for (let cIdx = 0; cIdx < nActive; cIdx++) {
+            if (cIdx === a || cIdx === b) continue;
+            const r_ab = rMags[a][b];
+            const r_ac = rMags[a][cIdx];
+            if (r_ab > 0 && r_ac > 0) {
+              const triple = -(G_CODATA * G_CODATA * masses[a] * masses[b] * masses[cIdx]) / (2.0 * c2 * r_ab * r_ac);
+              relativisticEnergy += triple;
+            }
+          }
+        }
+      }
+    }
+
+    const rocheResult = checkRocheLimitViolations(activeBodies, physicsConfig);
+
+    const totalEnergy = kineticEnergy + potentialEnergy + relativisticEnergy;
+    let energyDrift = 0;
+    if (initialEnergyRef.current !== null && Math.abs(initialEnergyRef.current) > 1e-10) {
+      energyDrift = Math.abs((totalEnergy - initialEnergyRef.current) / initialEnergyRef.current) * 100;
+    }
+
+    const debrisCount = bodyStates.filter(b => b.isDebris).length;
+
+    return {
+      totalEnergy,
+      kineticEnergy,
+      potentialEnergy,
+      relativisticEnergy,
+      totalMomentum,
+      centerOfMass,
+      bodyCount: nActive,
+      debrisCount: debrisCount,
+      initialEnergy: initialEnergyRef.current,
+      energyDrift,
+      rocheViolations: rocheResult.violations,
+      lastErrorNorm: lastErrorNormRef.current
+    };
+  }, [softeningConfig, softeningKernels, calculateSoftening, symmetricSoftening, G_CODATA, physicsConfig, getEffectiveSpeedOfLight, checkRocheLimitViolations]);
+
+  const scaleVector = useCallback((x, y, z) => {
+    if (scaleMode === "linear") {
+      const scale = 50 / AU;
+      return { x: x * scale, y: y * scale, z: z * scale };
+    } else {
+      const dist = Math.sqrt(x * x + y * y + z * z);
+      if (dist < 1000) return { x: x / 10000, y: y / 10000, z: z / 10000 };
+      const logDist = Math.log10(dist / AU * 100 + 1) * 20;
+      const scale = logDist / dist;
+      return { x: x * scale, y: y * scale, z: z * scale };
+    }
+  }, [scaleMode, AU]);
+
+  const scaleRadius = useCallback((radius, gm) => {
+    const minSize = 1.5;
+    const maxSize = 10;
+    const logRadius = Math.log10(radius + 1);
+    const logSolarRadius = Math.log10(SOLAR_RADIUS);
+    const logEarthRadius = Math.log10(EARTH_RADIUS_MEAN);
+    const normalized = (logRadius - logEarthRadius) / (logSolarRadius - logEarthRadius);
+    const scaled = minSize + normalized * (maxSize - minSize);
+    return Math.max(minSize, Math.min(maxSize, scaled));
+  }, [SOLAR_RADIUS, EARTH_RADIUS_MEAN]);
+
+  const openAddBodyModal = useCallback(() => {
+    if (bodies.length === 0) {
+      setNewBody({
+        name: "Sun",
+        mass: GM_SUN / G_CODATA,
+        radius: SOLAR_RADIUS,
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        color: "#FFD700",
+        j2: 0,
+        j2Radius: null,
+        spinAxisX: 0,
+        spinAxisY: 0,
+        spinAxisZ: 1,
+        spinRate: 2.87e-6,
+        momentOfInertiaFactor: 0.07
+      });
+      setTrajectoryMode("manual");
+      setOrbitConfig(prev => ({ ...prev, enabled: false, centralBodyId: null }));
+    } else {
+      setNewBody({
+        name: "",
+        mass: GM_EARTH / G_CODATA,
+        radius: EARTH_RADIUS_MEAN,
+        x: AU, y: 0, z: 0,
+        vx: 0, vy: 29780, vz: 0,
+        color: "#4ECDC4",
+        j2: 0.001083,
+        j2Radius: EARTH_RADIUS_EQUATORIAL,
+        spinAxisX: 0,
+        spinAxisY: 0,
+        spinAxisZ: 1,
+        spinRate: 7.292e-5,
+        momentOfInertiaFactor: 0.331
+      });
+      setTrajectoryMode("orbit");
+      setOrbitConfig({
+        enabled: true,
+        centralBodyId: bodies[0]?.id || null,
+        orbitType: "circular",
+        distance: AU,
+        eccentricity: 0,
+        inclination: 0,
+        longitudeOfAscendingNode: 0,
+        argumentOfPeriapsis: 0,
+        trueAnomaly: 0,
+        prograde: true
+      });
+      setFlybyConfig({
+        targetBodyId: bodies[0]?.id || null,
+        periapsisDistance: 1.0 * AU,
+        vInfinity: 30000,
+        approachAngle: 0,
+        inclination: 0,
+        inbound: true,
+        startDistance: 10 * AU
+      });
+      setInterstellarConfig({
+        referenceBodyId: bodies[0]?.id || null,
+        periapsisDistance: 0.5 * AU,
+        vInfinity: 26000,
+        approachAngle: 45,
+        inclination: 30,
+        startDistance: 50 * AU
+      });
+    }
+    setAddBodyModal(true);
+  }, [bodies, GM_SUN, SOLAR_RADIUS, GM_EARTH, EARTH_RADIUS_MEAN, EARTH_RADIUS_EQUATORIAL, AU, G_CODATA]);
+
+  const addBody = useCallback(() => {
+    let finalX = parseFloat(newBody.x) || 0;
+    let finalY = parseFloat(newBody.y) || 0;
+    let finalZ = parseFloat(newBody.z) || 0;
+    let finalVx = parseFloat(newBody.vx) || 0;
+    let finalVy = parseFloat(newBody.vy) || 0;
+    let finalVz = parseFloat(newBody.vz) || 0;
+
+    if (trajectoryMode === "orbit" && orbitConfig.enabled && orbitConfig.centralBodyId) {
+      const centralBody = bodies.find(b => b.id === orbitConfig.centralBodyId);
+      if (centralBody) {
+        const orbitalState = calculateOrbitalState(centralBody, orbitConfig);
+        if (orbitalState) {
+          finalX = orbitalState.x;
+          finalY = orbitalState.y;
+          finalZ = orbitalState.z;
+          finalVx = orbitalState.vx;
+          finalVy = orbitalState.vy;
+          finalVz = orbitalState.vz;
+        }
+      }
+    } else if (trajectoryMode === "flyby" && flybyConfig.targetBodyId) {
+      const targetBody = bodies.find(b => b.id === flybyConfig.targetBodyId);
+      if (targetBody) {
+        const flybyState = calculateFlybyState(targetBody, flybyConfig);
+        if (flybyState) {
+          finalX = flybyState.x;
+          finalY = flybyState.y;
+          finalZ = flybyState.z;
+          finalVx = flybyState.vx;
+          finalVy = flybyState.vy;
+          finalVz = flybyState.vz;
+        }
+      }
+    } else if (trajectoryMode === "interstellar" && interstellarConfig.referenceBodyId) {
+      const referenceBody = bodies.find(b => b.id === interstellarConfig.referenceBodyId);
+      if (referenceBody) {
+        const interstellarState = calculateInterstellarState(referenceBody, interstellarConfig);
+        if (interstellarState) {
+          finalX = interstellarState.x;
+          finalY = interstellarState.y;
+          finalZ = interstellarState.z;
+          finalVx = interstellarState.vx;
+          finalVy = interstellarState.vy;
+          finalVz = interstellarState.vz;
+        }
+      }
+    }
+
+    const spinMag = Math.sqrt(
+      (parseFloat(newBody.spinAxisX) || 0) ** 2 +
+      (parseFloat(newBody.spinAxisY) || 0) ** 2 +
+      (parseFloat(newBody.spinAxisZ) || 1) ** 2
+    );
+
+    const body = {
+      id: generateId(),
+      name: newBody.name || `Body ${bodies.length + 1}`,
+      gm: (parseFloat(newBody.mass) || 1) * G_CODATA,
+      radius: parseFloat(newBody.radius) || EARTH_RADIUS_MEAN,
+      x: finalX,
+      y: finalY,
+      z: finalZ,
+      vx: finalVx,
+      vy: finalVy,
+      vz: finalVz,
+      color: newBody.color || "#4ECDC4",
+      trail: createTrailBuffer(trailLength),
+      visible: true,
+      j2: newBody.j2,
+      j2Radius: newBody.j2Radius || null,
+      spinAxisX: (parseFloat(newBody.spinAxisX) || 0) / (spinMag || 1),
+      spinAxisY: (parseFloat(newBody.spinAxisY) || 0) / (spinMag || 1),
+      spinAxisZ: (parseFloat(newBody.spinAxisZ) || 1) / (spinMag || 1),
+      spinRate: parseFloat(newBody.spinRate) || 0,
+      momentOfInertiaFactor: parseFloat(newBody.momentOfInertiaFactor) || 0.4,
+      errX: 0, errY: 0, errZ: 0,
+      errVx: 0, errVy: 0, errVz: 0,
+      positionHistory: null,
+      isDebris: false,
+      orientation: null,
+      omegaBody_x: 0,
+      omegaBody_y: 0
+    };
+
+    setBodies(prev => {
+      const newBodies = [...prev, body];
+      initialEnergyRef.current = null;
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
+      return newBodies;
+    });
+    setAddBodyModal(false);
+    setAddBodyColorPickerOpen(false);
+  }, [newBody, bodies, trajectoryMode, orbitConfig, flybyConfig, interstellarConfig,
+    calculateOrbitalState, calculateFlybyState, calculateInterstellarState, EARTH_RADIUS_MEAN, G_CODATA, createTrailBuffer, trailLength]);
+
+  const updateBody = useCallback((id, updates) => {
+    setBodies(prev => {
+      const newBodies = prev.map(b => {
+        if (b.id === id) {
+          return { ...b, ...updates };
+        }
+        return b;
+      });
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
+      return newBodies;
+    });
+    initialEnergyRef.current = null;
+  }, []);
+
+  const removeBody = useCallback((id) => {
+    setBodies(prev => {
+      const newBodies = prev.filter(b => b.id !== id);
+      initialEnergyRef.current = null;
+      initialBodiesRef.current = newBodies.map(b => ({
+        id: b.id,
+        name: b.name,
+        gm: b.gm,
+        radius: b.radius,
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
+        color: b.color,
+        j2: b.j2,
+        j2Radius: b.j2Radius,
+        spinAxisX: b.spinAxisX,
+        spinAxisY: b.spinAxisY,
+        spinAxisZ: b.spinAxisZ,
+        spinRate: b.spinRate,
+        momentOfInertiaFactor: b.momentOfInertiaFactor
+      }));
+      return newBodies;
+    });
+    if (selectedBody === id) setSelectedBody(null);
+    if (focusedBody === id) setFocusedBody(null);
+  }, [selectedBody, focusedBody]);
+
+  const clearAllBodies = () => {
+    setBodies([]);
+    setSelectedBody(null);
+    setFocusedBody(null);
+    setSimulationTime(0);
+    setIsRunning(false);
+    initialEnergyRef.current = null;
+    initialBodiesRef.current = [];
+    mergedBodyIdsRef.current.clear();
+    setPnWarnings([]);
+    adaptiveDtRef.current = null;
+    lastErrorNormRef.current = 0;
+  };
+
+  const resetSimulation = useCallback(() => {
+    setIsRunning(false);
+    setSimulationTime(0);
+    initialEnergyRef.current = null;
+    setPnWarnings([]);
+    mergedBodyIdsRef.current.clear();
+    adaptiveDtRef.current = null;
+    lastErrorNormRef.current = 0;
+
+    if (initialBodiesRef.current.length > 0) {
+      setBodies(initialBodiesRef.current.map(ib => ({
+        ...ib,
+        trail: createTrailBuffer(trailLength),
+        visible: true,
+        positionHistory: null,
+        isDebris: false,
+        orientation: null,
+        omegaBody_x: 0,
+        omegaBody_y: 0,
+        errX: 0,
+        errY: 0,
+        errZ: 0,
+        errVx: 0,
+        errVy: 0,
+        errVz: 0
+      })));
+    } else {
+      setBodies(prev => prev.map(b => ({
+        ...b,
+        trail: createTrailBuffer(trailLength),
+        positionHistory: null,
+        isDebris: false,
+        orientation: null,
+        omegaBody_x: 0,
+        omegaBody_y: 0
+      })));
+    }
+  }, [createTrailBuffer, trailLength]);
+
+  const handleHudMouseDown = useCallback((event) => {
+    if (event.target.closest(".nbody-close-btn")) return;
+    event.preventDefault();
+    setIsDraggingHud(true);
+    setDragStart({ x: event.clientX - hudPosition.x, y: event.clientY - hudPosition.y });
+  }, [hudPosition]);
+
+  const handleHudMouseMove = useCallback((event) => {
+    if (!isDraggingHud || !hudPanelRef.current) return;
+    event.preventDefault();
+    let newX = event.clientX - dragStart.x;
+    let newY = event.clientY - dragStart.y;
+    const winW = window.innerWidth, winH = window.innerHeight;
+    const rect = hudPanelRef.current.getBoundingClientRect();
+    const minX = (rect.width / 2) - (winW / 2) + 10;
+    const maxX = (rect.width / 2) - (winW / 2) + winW - 10;
+    const minY = (rect.height / 2) - (winH / 2) + 10;
+    const maxY = (rect.height / 2) - (winH / 2) + winH - 10;
+    newX = Math.max(minX, Math.min(maxX, newX));
+    newY = Math.max(minY, Math.min(maxY, newY));
+    setHudPosition({ x: newX, y: newY });
+  }, [isDraggingHud, dragStart]);
+
+  const handleHudMouseUp = useCallback(() => setIsDraggingHud(false), []);
+
+  useEffect(() => {
+    if (isDraggingHud) {
+      document.addEventListener("mousemove", handleHudMouseMove);
+      document.addEventListener("mouseup", handleHudMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleHudMouseMove);
+        document.removeEventListener("mouseup", handleHudMouseUp);
+      };
+    }
+  }, [isDraggingHud, handleHudMouseMove, handleHudMouseUp]);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    const width = mountRef.current.clientWidth;
+    const height = mountRef.current.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x08090c);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(60, width && height ? width / height : 1, 0.1, 100000);
+    camera.position.set(100, 60, 100);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    rendererRef.current = renderer;
+    mountRef.current.appendChild(renderer.domElement);
+    const wheelHost = mountRef.current;
+    const claimWheel = (event) => { event.preventDefault(); };
+    wheelHost.addEventListener("wheel", claimWheel, { passive: false, capture: true });
+
+    const labelContainer = document.createElement("div");
+    labelContainer.className = "nbody-label-container";
+    mountRef.current.appendChild(labelContainer);
+    labelContainerRef.current = labelContainer;
+
+    const ambient = new THREE.AmbientLight(0x404060, 0.5);
+    scene.add(ambient);
+    const pointLight = new THREE.PointLight(0xffffff, 1.5, 0, 0.5);
+    pointLight.position.set(0, 0, 0);
+    scene.add(pointLight);
+
+    const gridSize = 4000;
+    const gridSegments = 400;
+    const gridGeometry = new THREE.PlaneGeometry(gridSize, gridSize, gridSegments, gridSegments);
+    gridGeometry.rotateX(-Math.PI / 2);
+
+    const gridPositions = gridGeometry.attributes.position.array.slice();
+    gridGeometry.userData.originalPositions = gridPositions;
+
+    const gridMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uGridColor: { value: new THREE.Color(0x6a7a8a) },
+        uTime: { value: 0.0 },
+        uScale: { value: 1.0 }
+      },
+      vertexShader: `
+        varying vec3 vPosition;
+        varying float vDepth;
+        varying vec3 vWorldPos;
+        uniform float uScale;
+        void main() {
+          vPosition = position * uScale;
+          vDepth = -position.y * uScale;
+          vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uGridColor;
+        uniform float uTime;
+        uniform float uScale;
+        varying vec3 vPosition;
+        varying float vDepth;
+        varying vec3 vWorldPos;
+        float getGrid(vec2 pos, float scale) {
+          vec2 grid = abs(fract(pos / scale - 0.5) - 0.5) / fwidth(pos / scale);
+          return 1.0 - min(min(grid.x, grid.y), 1.0);
+        }
+        void main() {
+          float baseUnit = 2.5 * uScale;
+          float microGrid = getGrid(vPosition.xz, baseUnit);
+          float minorGrid = getGrid(vPosition.xz, baseUnit * 4.0);
+          float majorGrid = getGrid(vPosition.xz, baseUnit * 20.0);
+          float superGrid = getGrid(vPosition.xz, baseUnit * 100.0);
+          float depthNorm = clamp(vDepth / (200.0 * uScale), 0.0, 1.0);
+          float depthSq = depthNorm * depthNorm;
+          vec3 shallowColor = uGridColor * 0.9;
+          vec3 midColor = vec3(0.42, 0.5, 0.6);
+          vec3 deepColor = vec3(0.31, 0.81, 0.77);
+          vec3 coreColor = vec3(0.31, 0.81, 0.77);
+          vec3 wellColor;
+          if (depthNorm < 0.25) {
+            wellColor = mix(shallowColor, midColor, depthNorm * 4.0);
+          } else if (depthNorm < 0.5) {
+            wellColor = mix(midColor, deepColor, (depthNorm - 0.25) * 4.0);
+          } else {
+            wellColor = mix(deepColor, coreColor, (depthNorm - 0.5) * 2.0);
+          }
+          vec3 baseColor = uGridColor * 0.12;
+          vec3 gridColor = baseColor;
+          gridColor = mix(gridColor, uGridColor * 0.35, microGrid * 0.5);
+          gridColor = mix(gridColor, uGridColor * 0.55, minorGrid * 0.7);
+          gridColor = mix(gridColor, uGridColor * 0.8, majorGrid * 0.9);
+          gridColor = mix(gridColor, uGridColor, superGrid);
+          gridColor = mix(gridColor, wellColor, depthSq * 0.85);
+          gridColor = mix(gridColor, wellColor, majorGrid * depthNorm * 0.6);
+          float glow = depthSq * 0.5;
+          gridColor += coreColor * glow * majorGrid;
+          float combinedGrid = max(max(microGrid * 0.3, minorGrid * 0.5), max(majorGrid * 0.8, superGrid));
+          float alpha = combinedGrid * 0.75 + 0.1;
+          alpha = max(alpha, depthNorm * 0.6);
+          alpha = clamp(alpha, 0.08, 0.95);
+          gl_FragColor = vec4(gridColor, alpha);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      wireframe: false,
+      depthWrite: false
+    });
+
+    const gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+    gridMesh.visible = showGrid;
+    scene.add(gridMesh);
+    gridRef.current = gridMesh;
+
+    const starsGeometry = new THREE.BufferGeometry();
+    const starCount = 8000;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const radius = 5000 + Math.random() * 40000;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI;
+      starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      starPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      starPositions[i * 3 + 2] = radius * Math.cos(phi);
+    }
+    starsGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8, sizeAttenuation: true });
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 5;
+    controls.maxDistance = 50000;
+    controlsRef.current = controls;
+
+    const handleResize = () => {
+      if (!mountRef.current) return;
+      const w = mountRef.current.clientWidth;
+      const h = mountRef.current.clientHeight;
+      if (!w || !h) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener("resize", handleResize);
+    const mountResizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(handleResize) : null;
+    if (mountResizeObserver) mountResizeObserver.observe(mountRef.current);
+
+    if (renderer.domElement.width > 0 && renderer.domElement.height > 0) renderer.render(scene, camera);
+
+    return () => {
+      wheelHost.removeEventListener("wheel", claimWheel, { capture: true });
+      window.removeEventListener("resize", handleResize);
+      if (mountResizeObserver) mountResizeObserver.disconnect();
+      if (mountRef.current) {
+        if (renderer.domElement && mountRef.current.contains(renderer.domElement)) {
+          mountRef.current.removeChild(renderer.domElement);
+        }
+        if (labelContainer && mountRef.current.contains(labelContainer)) {
+          mountRef.current.removeChild(labelContainer);
+        }
+      }
+      controls.dispose();
+      renderer.dispose();
+    };
+  }, [authLoading]);
+
+  useEffect(() => {
+    if (gridRef.current) gridRef.current.visible = showGrid;
+  }, [showGrid]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    Object.keys(meshesRef.current).forEach(id => {
+      if (!bodies.find(b => b.id === id)) {
+        scene.remove(meshesRef.current[id]);
+        if (meshesRef.current[id].geometry) meshesRef.current[id].geometry.dispose();
+        if (meshesRef.current[id].material) meshesRef.current[id].material.dispose();
+        delete meshesRef.current[id];
+      }
+    });
+
+    Object.keys(trailsRef.current).forEach(id => {
+      if (!bodies.find(b => b.id === id)) {
+        scene.remove(trailsRef.current[id]);
+        if (trailsRef.current[id].geometry) trailsRef.current[id].geometry.dispose();
+        if (trailsRef.current[id].material) trailsRef.current[id].material.dispose();
+        delete trailsRef.current[id];
+      }
+    });
+
+    Object.keys(labelsRef.current).forEach(id => {
+      if (!bodies.find(b => b.id === id)) {
+        if (labelsRef.current[id] && labelsRef.current[id].parentNode) {
+          labelsRef.current[id].parentNode.removeChild(labelsRef.current[id]);
+        }
+        delete labelsRef.current[id];
+      }
+    });
+
+    Object.keys(vectorsRef.current).forEach(id => {
+      if (!bodies.find(b => b.id === id)) {
+        scene.remove(vectorsRef.current[id]);
+        delete vectorsRef.current[id];
+      }
+    });
+
+    bodies.forEach(body => {
+      if (!meshesRef.current[body.id]) {
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        const material = new THREE.MeshPhongMaterial({
+          color: body.color,
+          emissive: body.color,
+          emissiveIntensity: 0.3,
+          shininess: 30
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        meshesRef.current[body.id] = mesh;
+
+        const glowGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: body.color,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        mesh.add(glow);
+      } else {
+        meshesRef.current[body.id].material.color.set(body.color);
+        meshesRef.current[body.id].material.emissive.set(body.color);
+      }
+
+      const mesh = meshesRef.current[body.id];
+      if (mesh) {
+        const visualRadius = scaleRadius(body.radius, body.gm);
+        mesh.scale.setScalar(visualRadius);
+      }
+
+      if (!trailsRef.current[body.id]) {
+        const trailGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(trailLength * 3);
+        trailGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        trailGeometry.setDrawRange(0, 0);
+        const trailMaterial = new THREE.LineBasicMaterial({
+          color: body.color,
+          transparent: true,
+          opacity: 0.6
+        });
+        const trail = new THREE.Line(trailGeometry, trailMaterial);
+        scene.add(trail);
+        trailsRef.current[body.id] = trail;
+      } else {
+        trailsRef.current[body.id].material.color.set(body.color);
+        const currentBufferSize = trailsRef.current[body.id].geometry.attributes.position.array.length / 3;
+        if (currentBufferSize !== trailLength) {
+          trailsRef.current[body.id].geometry.dispose();
+          const newGeom = new THREE.BufferGeometry();
+          const newPositions = new Float32Array(trailLength * 3);
+          newGeom.setAttribute("position", new THREE.BufferAttribute(newPositions, 3));
+          newGeom.setDrawRange(0, 0);
+          trailsRef.current[body.id].geometry = newGeom;
+        }
+      }
+
+      if (!labelsRef.current[body.id] && labelContainerRef.current) {
+        const label = document.createElement("div");
+        label.className = "nbody-label";
+        label.textContent = body.name;
+        label.style.color = body.color;
+        label.style.borderColor = body.color;
+        labelContainerRef.current.appendChild(label);
+        labelsRef.current[body.id] = label;
+      } else if (labelsRef.current[body.id]) {
+        labelsRef.current[body.id].textContent = body.name;
+        labelsRef.current[body.id].style.color = body.color;
+        labelsRef.current[body.id].style.borderColor = body.color;
+      }
+
+      if (!vectorsRef.current[body.id]) {
+        const arrowGroup = new THREE.Group();
+        const arrowMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        const arrowGeometry = new THREE.BufferGeometry();
+        arrowGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+        const arrow = new THREE.Line(arrowGeometry, arrowMaterial);
+        arrowGroup.add(arrow);
+        arrowGroup.visible = showVectors;
+        scene.add(arrowGroup);
+        vectorsRef.current[body.id] = arrowGroup;
+      }
+    });
+  }, [bodies, trailLength, showVectors, scaleRadius]);
+
+  useEffect(() => {
+    if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+
+    const animate = (currentTime) => {
+      animationRef.current = requestAnimationFrame(animate);
+
+      const deltaTime = (currentTime - lastTimeRef.current) / 1000;
+      lastTimeRef.current = currentTime;
+
+      fpsCounterRef.current++;
+      if (currentTime - lastFpsTimeRef.current >= 1000) {
+        setActualFps(fpsCounterRef.current);
+        fpsCounterRef.current = 0;
+        lastFpsTimeRef.current = currentTime;
+      }
+
+      const currentBodies = bodiesRef.current;
+      const currentSimTime = simulationTimeRef.current;
+
+      if (isRunning && currentBodies.length > 0) {
+        let physicsState = currentBodies.map(b => ({
+          ...b,
+          positionHistory: b.positionHistory || null
+        }));
+
+        if (physicsConfig.barycentricCorrection && physicsState.length >= 2) {
+          physicsState = applyBarycentricCorrection(physicsState);
+        }
+
+        if (initialEnergyRef.current === null && physicsState.length >= 2) {
+          const stats = computeSystemStats(physicsState);
+          initialEnergyRef.current = stats.totalEnergy;
+        }
+
+        let scale = null;
+        let normalizedState = physicsState;
+
+        if (physicsConfig.useNormalizedUnits && physicsState.length >= 2) {
+          const normalized = toNormalizedUnits(physicsState);
+          normalizedState = normalized.bodies;
+          scale = normalized.scale;
+        }
+
+        let effectiveDt = timeStep;
+        let subSteps = Math.ceil(speedMultiplier);
+
+        const isSymplectic = integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET;
+
+        if (scale) {
+          effectiveDt = timeStep / scale.time;
+        }
+
+        if (!isSymplectic && physicsConfig.timestepMethod !== 'fixed' && normalizedState.length >= 2) {
+          const adaptiveDt = computeAdaptiveTimestep(normalizedState, effectiveDt, {
+            method: physicsConfig.timestepMethod,
+            eta: physicsConfig.timestepEta,
+            scale: scale,
+            lastErrorNorm: lastErrorNormRef.current,
+            tolerance: physicsConfig.embeddedTolerance
+          });
+          adaptiveDtRef.current = adaptiveDt;
+          const totalSimTime = scale ? (timeStep * speedMultiplier) / scale.time : (timeStep * speedMultiplier);
+          subSteps = Math.ceil(totalSimTime / adaptiveDt);
+          subSteps = Math.max(1, Math.min(subSteps, 10000));
+          effectiveDt = totalSimTime / subSteps;
+        } else {
+          const totalSimTime = scale ? (timeStep * speedMultiplier) / scale.time : (timeStep * speedMultiplier);
+          effectiveDt = totalSimTime / subSteps;
+        }
+
+        let normalizedTime = scale ? currentSimTime / scale.time : currentSimTime;
+        let cumulativeErr = 0;
+        let stepCount = 0;
+
+        for (let i = 0; i < subSteps; i++) {
+          if (physicsConfig.relativisticMode && physicsConfig.retardedGravity) {
+            for (let j = 0; j < normalizedState.length; j++) {
+              const b = normalizedState[j];
+              if (!b.positionHistory) {
+                b.positionHistory = initializeHistoryBuffer(b, normalizedState, normalizedTime, physicsConfig.historyBufferSize, scale ? scale.c : getEffectiveSpeedOfLight());
+              }
+              ringBufferPush(b.positionHistory, b.x, b.y, b.z, b.vx, b.vy, b.vz, normalizedTime);
+            }
+          }
+
+          const stepResult = integrate(normalizedState, effectiveDt, scale, normalizedTime);
+          if (typeof stepResult.__errorNorm === 'number') {
+            cumulativeErr += stepResult.__errorNorm;
+            stepCount++;
+          }
+          normalizedState = stepResult;
+          normalizedTime += effectiveDt;
+
+          if (physicsConfig.collisionMode !== 'none') {
+            const collisionResult = detectAndHandleCollisions(normalizedState, physicsConfig, scale);
+            normalizedState = collisionResult.states;
+            if (collisionResult.collisions.length > 0) {
+              collisionResult.collisions.forEach(c => {
+                c.bodies.forEach(bid => mergedBodyIdsRef.current.add(bid));
+              });
+            }
+          }
+
+          if (physicsConfig.enableRocheLimit && physicsConfig.rocheDisruptionMode === 'disrupt') {
+            const rocheResult = checkRocheLimitViolations(normalizedState, physicsConfig);
+            if (rocheResult.debrisConversions.length > 0) {
+              normalizedState = convertToDebris(normalizedState, rocheResult.debrisConversions);
+            }
+          }
+        }
+
+        if (stepCount > 0) {
+          lastErrorNormRef.current = cumulativeErr / stepCount;
+        }
+
+        if (physicsConfig.includeGR) {
+          const warnings = checkPNValidity(normalizedState, scale);
+          if (warnings.length > 0) {
+            setPnWarnings(warnings.slice(0, 3));
+          } else {
+            setPnWarnings([]);
+          }
+        }
+
+        let finalState;
+        if (scale) {
+          finalState = fromNormalizedUnits(normalizedState, scale, currentBodies);
+        } else {
+          finalState = normalizedState.map(ns => {
+            const orig = currentBodies.find(b => b.id === ns.id);
+            return { ...(orig || {}), ...ns };
+          });
+        }
+
+        const updatedBodies = [];
+        for (let i = 0; i < finalState.length; i++) {
+          const ps = finalState[i];
+          const origBody = currentBodies.find(b => b.id === ps.id);
+
+          if (!origBody) continue;
+
+          const scaledPos = scaleVector(ps.x, ps.y, ps.z);
+          let tb = origBody.trail;
+          if (!tb || !tb.size || tb.size !== trailLength) {
+            tb = trailBufferResize(tb, trailLength);
+          }
+          trailBufferPush(tb, scaledPos.x, scaledPos.y, scaledPos.z);
+
+          updatedBodies.push({
+            ...origBody,
+            ...ps,
+            trail: tb
+          });
+        }
+
+        setBodies(updatedBodies);
+        setSimulationTime(prev => prev + (timeStep * speedMultiplier));
+
+        const statsState = updatedBodies.map(b => ({
+          ...b,
+          gm: b.gm, x: b.x, y: b.y, z: b.z,
+          vx: b.vx, vy: b.vy, vz: b.vz
+        }));
+        setSystemStats(computeSystemStats(statsState));
+      }
+
+      currentBodies.forEach(body => {
+        const mesh = meshesRef.current[body.id];
+        if (mesh) {
+          const scaledPos = scaleVector(body.x, body.y, body.z);
+          mesh.position.set(scaledPos.x, scaledPos.y, scaledPos.z);
+          const visualRadius = scaleRadius(body.radius, body.gm);
+          mesh.scale.setScalar(visualRadius);
+          mesh.visible = body.visible;
+        }
+
+        const trail = trailsRef.current[body.id];
+        if (trail && showTrails && body.trail && body.trail.count > 1) {
+          const positions = trail.geometry.attributes.position.array;
+          const tb = body.trail;
+          const len = Math.min(tb.count, trailLength, positions.length / 3);
+          for (let i = 0; i < len; i++) {
+            const idx = (tb.head - tb.count + i + tb.size) % tb.size;
+            positions[i * 3] = tb.x[idx];
+            positions[i * 3 + 1] = tb.y[idx];
+            positions[i * 3 + 2] = tb.z[idx];
+          }
+          trail.geometry.attributes.position.needsUpdate = true;
+          trail.geometry.setDrawRange(0, len);
+          trail.visible = body.visible && showTrails;
+        } else if (trail) {
+          trail.visible = false;
+        }
+
+        const label = labelsRef.current[body.id];
+        if (label && showLabels && body.visible) {
+          const scaledPos = scaleVector(body.x, body.y, body.z);
+          const pos = new THREE.Vector3(scaledPos.x, scaledPos.y, scaledPos.z);
+          pos.project(camera);
+
+          if (pos.z < 1 && mountRef.current) {
+            const x = (pos.x * 0.5 + 0.5) * mountRef.current.clientWidth;
+            const y = (pos.y * -0.5 + 0.5) * mountRef.current.clientHeight;
+            label.style.left = `${x}px`;
+            label.style.top = `${y - 25}px`;
+            label.style.display = "block";
+          } else {
+            label.style.display = "none";
+          }
+        } else if (label) {
+          label.style.display = "none";
+        }
+
+        const vectorGroup = vectorsRef.current[body.id];
+        if (vectorGroup && showVectors && body.visible) {
+          const arrow = vectorGroup.children[0];
+          const positions = arrow.geometry.attributes.position.array;
+          const scaledPos = scaleVector(body.x, body.y, body.z);
+          const vScale = 1e-4;
+          positions[0] = scaledPos.x;
+          positions[1] = scaledPos.y;
+          positions[2] = scaledPos.z;
+          positions[3] = scaledPos.x + body.vx * vScale;
+          positions[4] = scaledPos.y + body.vy * vScale;
+          positions[5] = scaledPos.z + body.vz * vScale;
+          arrow.geometry.attributes.position.needsUpdate = true;
+          vectorGroup.visible = true;
+        } else if (vectorGroup) {
+          vectorGroup.visible = false;
+        }
+      });
+
+      if (focusedBody) {
+        const body = currentBodies.find(b => b.id === focusedBody);
+        if (body) {
+          const scaledPos = scaleVector(body.x, body.y, body.z);
+          const targetPos = new THREE.Vector3(scaledPos.x, scaledPos.y, scaledPos.z);
+          controls.target.lerp(targetPos, 0.05);
+        }
+      }
+
+      if (gridRef.current && gridRef.current.geometry && showGrid && currentBodies.length > 0) {
+        const geometry = gridRef.current.geometry;
+        const positions = geometry.attributes.position.array;
+        const originalPositions = geometry.userData.originalPositions;
+
+        if (gridRef.current.material.uniforms) {
+          gridRef.current.material.uniforms.uTime.value = currentTime * 0.001;
+        }
+
+        if (originalPositions) {
+          const warpStrength = gridWarpStrength;
+          const maxWarp = 120;
+          const falloffPower = 0.8;
+          const spreadFactor = (100 - gridWarpSpread) / 400 + 0.02;
+
+          for (let i = 0; i < positions.length; i += 3) {
+            const ox = originalPositions[i];
+            const oy = originalPositions[i + 1];
+            const oz = originalPositions[i + 2];
+            let totalWarp = 0;
+            currentBodies.forEach(body => {
+              if (!body.visible) return;
+              const scaledPos = scaleVector(body.x, body.y, body.z);
+              const dx = ox - scaledPos.x;
+              const dz = oz - scaledPos.z;
+              const distSq = dx * dx + dz * dz;
+              const massScale = Math.log10((body.gm / G_CODATA) + 1) - 18;
+              const influence = Math.max(0, massScale) * warpStrength;
+              const scaledDist = Math.sqrt(distSq) * spreadFactor + 1.0;
+              const warp = influence / Math.pow(scaledDist, falloffPower);
+              const gaussian = Math.exp(-distSq * 0.0003) * influence * 0.5;
+              totalWarp += warp + gaussian;
+            });
+            totalWarp = Math.min(totalWarp, maxWarp);
+            positions[i] = ox;
+            positions[i + 1] = oy - totalWarp;
+            positions[i + 2] = oz;
+          }
+          geometry.attributes.position.needsUpdate = true;
+          geometry.computeVertexNormals();
+        }
+      } else if (gridRef.current && gridRef.current.geometry && showGrid) {
+        const geometry = gridRef.current.geometry;
+        const positions = geometry.attributes.position.array;
+        const originalPositions = geometry.userData.originalPositions;
+        if (originalPositions) {
+          for (let i = 0; i < positions.length; i++) {
+            positions[i] = originalPositions[i];
+          }
+          geometry.attributes.position.needsUpdate = true;
+        }
+      }
+
+      controls.update();
+      if (renderer.domElement.width === 0 || renderer.domElement.height === 0) return;
+      renderer.render(scene, camera);
+    };
+
+    animate(performance.now());
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isRunning, timeStep, speedMultiplier, showTrails, showLabels, showVectors, showGrid,
+    gridWarpStrength, gridWarpSpread, integrate, scaleVector, scaleRadius, computeSystemStats,
+    focusedBody, trailLength, computeAdaptiveTimestep, physicsConfig, G_CODATA, integrator, INTEGRATORS,
+    applyBarycentricCorrection, toNormalizedUnits, fromNormalizedUnits, detectAndHandleCollisions,
+    checkRocheLimitViolations, checkPNValidity, initializeHistoryBuffer, ringBufferPush, convertToDebris,
+    getEffectiveSpeedOfLight, trailBufferPush, trailBufferResize]);
+
+  const selectedBodyData = useMemo(() => {
+    if (!selectedBody) return null;
+    return bodies.find(b => b.id === selectedBody);
+  }, [selectedBody, bodies]);
+
+  const selectedBodyOrbital = useMemo(() => {
+    if (!selectedBodyData || bodies.length < 2) return null;
+    const massiveBodies = [...bodies].sort((a, b) => b.gm - a.gm);
+    const centralBody = massiveBodies.find(b => b.id !== selectedBody);
+    if (!centralBody) return null;
+    return computeOrbitalElements(selectedBodyData, centralBody);
+  }, [selectedBodyData, bodies, selectedBody, computeOrbitalElements]);
+
+  const getOrbitTypeClass = (orbitType) => {
+    switch (orbitType) {
+      case "hyperbolic": return "nbody-orbit-type-hyperbolic";
+      case "parabolic": return "nbody-orbit-type-parabolic";
+      default: return "nbody-orbit-type-bound";
+    }
+  };
+
+  const getEnergyDriftClass = (drift) => {
+    if (drift < 1) return "nbody-status-good";
+    if (drift < 5) return "nbody-status-warning";
+    return "nbody-status-critical";
+  };
+
+  const isSymplecticDisabled = physicsConfig.includeGR || physicsConfig.includeJ2 || (physicsConfig.relativisticMode && physicsConfig.retardedGravity);
+  const isRK4DisabledFor25PN = physicsConfig.includeGR && physicsConfig.grMode === '2.5pn';
+  const isEmbeddedDisabled = integrator !== INTEGRATORS.RK5;
+
+  const statusColor = isRunning ? "#4ecdc4" : "#919baf";
+
+  const renderLayoutControls = () => (
+    <div className="nbody-layout-controls">
+      {LAYOUT_TOGGLES.map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          title={`${layoutVisibility[key] ? "Hide" : "Show"} ${label}`}
+          className={`nbody-layout-toggle ${layoutVisibility[key] ? "nbody-layout-toggle-active" : ""}`}
+          onClick={() => setLayoutVisibility(prev => ({ ...prev, [key]: !prev[key] }))}
+        >
+          <FontAwesomeIcon icon={layoutVisibility[key] ? faEye : faEyeSlash} />
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const handleExpandClick = (event) => {
+    const root = event.currentTarget;
+    if (!(event.target instanceof Element) || event.target.closest(".nbody-expanded-content")) return;
+    const target = event.target.closest(EXPANDABLE_SELECTOR);
+    if (!target || isInteractiveTarget(event.target, root)) return;
+    const container = findExpandContainer(target, root);
+    setExpandedView({ title: target.textContent.trim() || "Details", html: container.outerHTML });
+  };
+
+  return (
+    <div className="nbody-page" onClick={handleExpandClick}>
+      {layoutVisibility.nav && <Nav activePage="nbodysimulator" />}
+
+      {authLoading ? (
+        <div className="nbodyGate">
+          <div className="loading-wrapper">
+            <div className="loading-circle" />
+            <label className="loading-title">
+              Loading
+            </label>
+          </div>
+        </div>
+      ) : (
+      <div className={`nbody-container ${layoutVisibility.nav ? "" : "nbody-container-no-nav"}`}>
+        {layoutVisibility.header && (
+        <header className="nbody-header">
+          <div className="nbody-header-content">
+            <div className="nbody-title-section">
+              <div className="nbody-subtitle">
+                {bodies.length} Bodies | {integrator === INTEGRATORS.RK5 ? "RKF45" : integrator.toUpperCase()} | T+ {formatTime(simulationTime)}
+              </div>
+            </div>
+            <div className="nbody-header-status">
+              <div className={`nbody-header-decision ${isRunning ? "nbody-decision-running" : "nbody-decision-paused"}`}>
+                <FontAwesomeIcon icon={isRunning ? faBroadcastTower : faPause} />
+                <span>{isRunning ? "Running" : "Paused"}</span>
+              </div>
+              <div className={`nbody-header-decision ${systemStats.energyDrift < 1 ? "nbody-decision-nominal" : systemStats.energyDrift < 5 ? "nbody-decision-warning" : "nbody-decision-critical"}`}>
+                <FontAwesomeIcon icon={faSignal} />
+                <span>DRIFT {formatNumber(systemStats.energyDrift, 3)}%</span>
+              </div>
+              <button className={`nbody-alert-btn ${hudVisible ? "nbody-alert-btn-active" : ""}`} onClick={() => setHudVisible(!hudVisible)}>
+                <FontAwesomeIcon icon={faChartLine} />
+              </button>
+            </div>
+          </div>
+        </header>
+        )}
+
+        <div className="nbody-main-content">
+          {layoutVisibility.sidebar && (
+          <aside className="nbody-sidebar">
+            <div className="nbody-controls-panel">
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label>Time Step (s)</label>
+                  <input type="number" value={timeStep} onChange={(e) => setTimeStep(parseFloat(e.target.value) || 1)} className="nbody-input" />
+                </div>
+                <div className="nbody-control-group">
+                  {renderDropdown([[INTEGRATORS.RK5, "RKF45 Fehlberg"], [INTEGRATORS.RK4, "RK4 (4th Order)", isRK4DisabledFor25PN], [INTEGRATORS.YOSHIDA4, "Yoshida4 (Symplectic)", isSymplecticDisabled], [INTEGRATORS.VELOCITY_VERLET, "Verlet (Symplectic)", isSymplecticDisabled]], integrator, (e) => { const newIntegrator = e.target.value; setIntegrator(newIntegrator); if (newIntegrator === INTEGRATORS.YOSHIDA4 || newIntegrator === INTEGRATORS.VELOCITY_VERLET) { setPhysicsConfig(prev => ({ ...prev, timestepMethod: 'fixed' })); } if (newIntegrator !== INTEGRATORS.RK5 && physicsConfig.timestepMethod === 'embedded') { setPhysicsConfig(prev => ({ ...prev, timestepMethod: 'aarseth' })); } }, "Integrator")}
+                </div>
+                <div className="nbody-control-group">
+                  {renderDropdown([["fixed", "Fixed"], ["aarseth", "Aarseth"], ["higherorder", "Higher-Order"], ["embedded", "Embedded RKF45", isEmbeddedDisabled]], physicsConfig.timestepMethod, (e) => setPhysicsConfig({ ...physicsConfig, timestepMethod: e.target.value }), "Timestep Mode", integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)}
+                </div>
+                {physicsConfig.timestepMethod === 'embedded' && (
+                  <div className="nbody-control-group">
+                    <label>Tolerance</label>
+                    <input type="number" value={physicsConfig.embeddedTolerance} onChange={(e) => setPhysicsConfig({ ...physicsConfig, embeddedTolerance: parseFloat(e.target.value) || 1e-9 })} className="nbody-input" step="1e-10" />
+                  </div>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.useNormalizedUnits} onChange={(e) => setPhysicsConfig({ ...physicsConfig, useNormalizedUnits: e.target.checked })} /><span>Normalized Units</span></label>
+                </div>
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.barycentricCorrection} onChange={(e) => setPhysicsConfig({ ...physicsConfig, barycentricCorrection: e.target.checked })} /><span>Barycentric Frame</span></label>
+                </div>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  {renderDropdown([["none", "None"], ["merge", "Merge (Inelastic)"]], physicsConfig.collisionMode, (e) => setPhysicsConfig({ ...physicsConfig, collisionMode: e.target.value }), "Collision Mode")}
+                </div>
+                {physicsConfig.collisionMode === 'merge' && (
+                  <div className="nbody-control-group">
+                    <label>Ejecta Mass Loss (%)</label>
+                    <input type="number" value={(physicsConfig.collisionMassLoss || 0) * 100} onChange={(e) => setPhysicsConfig({ ...physicsConfig, collisionMassLoss: Math.max(0, Math.min(20, parseFloat(e.target.value) || 0)) / 100 })} className="nbody-input" min="0" max="20" step="0.5" />
+                  </div>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.enableRocheLimit} onChange={(e) => setPhysicsConfig({ ...physicsConfig, enableRocheLimit: e.target.checked })} /><span>Roche Limit Detection</span></label>
+                </div>
+                {physicsConfig.enableRocheLimit && (
+                  <div className="nbody-control-group">
+                    {renderDropdown([["warning", "Warning Only"], ["disrupt", "Convert to Debris"]], physicsConfig.rocheDisruptionMode, (e) => setPhysicsConfig({ ...physicsConfig, rocheDisruptionMode: e.target.value }), "Roche Mode")}
+                  </div>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.includeGR} onChange={(e) => { const newGR = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeGR: newGR }); if (newGR && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } if (newGR && physicsConfig.grMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }} /><span>GR Corrections</span></label>
+                </div>
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.includeJ2} onChange={(e) => { const newJ2 = e.target.checked; setPhysicsConfig({ ...physicsConfig, includeJ2: newJ2 }); if (newJ2 && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>J2 Oblateness</span></label>
+                </div>
+                {physicsConfig.includeGR && (
+                  <div className="nbody-control-group">
+                    {renderDropdown([["1pn", "1PN (Conservative)"], ["2.5pn", "2.5PN (GW Radiation)"]], physicsConfig.grMode, (e) => { const newMode = e.target.value; setPhysicsConfig({ ...physicsConfig, grMode: newMode }); if (newMode === '2.5pn' && integrator === INTEGRATORS.RK4) { setIntegrator(INTEGRATORS.RK5); } }, "GR Order")}
+                  </div>
+                )}
+                {physicsConfig.includeGR && physicsConfig.grMode === '2.5pn' && (
+                  <>
+                    <div className="nbody-control-group">
+                      <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.relativisticMode} onChange={(e) => setPhysicsConfig({ ...physicsConfig, relativisticMode: e.target.checked })} /><span>Relativistic Mode</span></label>
+                    </div>
+                    {physicsConfig.relativisticMode && (
+                      <>
+                        <div className="nbody-control-group">
+                          <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.retardedGravity} onChange={(e) => { const newRetarded = e.target.checked; setPhysicsConfig({ ...physicsConfig, retardedGravity: newRetarded }); if (newRetarded && (integrator === INTEGRATORS.YOSHIDA4 || integrator === INTEGRATORS.VELOCITY_VERLET)) { setIntegrator(INTEGRATORS.RK5); } }} /><span>Retarded Gravity</span></label>
+                        </div>
+                        {physicsConfig.retardedGravity && (
+                          <div className="nbody-control-group">
+                            <label>Retarded Iterations</label>
+                            <input type="number" value={physicsConfig.retardedIterations} onChange={(e) => setPhysicsConfig({ ...physicsConfig, retardedIterations: Math.max(1, parseInt(e.target.value) || 1) })} className="nbody-input" min="1" max="10" step="1" />
+                          </div>
+                        )}
+                        <div className="nbody-control-group">
+                          {renderDropdown([[100, "100x"], [1000, "1000x"], [10000, "10000x"]], physicsConfig.cReductionFactor, (e) => setPhysicsConfig({ ...physicsConfig, cReductionFactor: parseInt(e.target.value) }), "c Reduction Factor")}
+                        </div>
+                        <div className="nbody-physics-notice">
+                          <FontAwesomeIcon icon={faExclamationTriangle} />
+                          <span>This uses a non-physical value of c for visualization only.</span>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+                {physicsConfig.includeJ2 && (
+                  <div className="nbody-control-group">
+                    <label className="nbody-checkbox-label"><input type="checkbox" checked={physicsConfig.j2BackReaction} onChange={(e) => setPhysicsConfig({ ...physicsConfig, j2BackReaction: e.target.checked })} /><span>Spin Axis Precession</span></label>
+                  </div>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  <label className="nbody-checkbox-label"><input type="checkbox" checked={softeningConfig.enabled} onChange={(e) => setSofteningConfig({ ...softeningConfig, enabled: e.target.checked })} /><span>Softening</span></label>
+                </div>
+                {softeningConfig.enabled && (
+                  <>
+                    <div className="nbody-physics-notice">
+                      <FontAwesomeIcon icon={faInfoCircle} />
+                      <span>This alters 1/r gravity and is not suitable for planetary dynamics.</span>
+                    </div>
+                    <div className="nbody-control-group">
+                      {renderDropdown([["plummer", "Plummer"], ["spline", "Cubic Spline"], ["wendlandC2", "Wendland C2"]], softeningConfig.mode, (e) => setSofteningConfig({ ...softeningConfig, mode: e.target.value }), "Kernel")}
+                    </div>
+                    <div className="nbody-control-group">
+                      <label>Length (m)</label>
+                      <input type="number" value={softeningConfig.fixedLength} onChange={(e) => setSofteningConfig({ ...softeningConfig, fixedLength: parseFloat(e.target.value) || 1e9 })} className="nbody-input" />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-control-group">
+                  {renderDropdown([["log", "Logarithmic"], ["linear", "Linear"]], scaleMode, (e) => setScaleMode(e.target.value), "Scale Mode")}
+                </div>
+                <div className="nbody-control-group">
+                  <label>Trail Length</label>
+                  <input type="number" value={trailLength} onChange={(e) => setTrailLength(parseInt(e.target.value) || 100)} className="nbody-input" min="10" max="2000" />
+                </div>
+                <div className="nbody-control-group-slider">
+                  <label>Grid Warp<span className="nbody-slider-value">{gridWarpStrength}</span></label>
+                  <div className="nbody-slider-group"><input type="range" value={gridWarpStrength} onChange={(e) => setGridWarpStrength(parseFloat(e.target.value))} className="nbody-slider" min="0" max="200" step="1" /></div>
+                </div>
+                <div className="nbody-control-group-slider">
+                  <label>Warp Spread<span className="nbody-slider-value">{gridWarpSpread}</span></label>
+                  <div className="nbody-slider-group"><input type="range" value={gridWarpSpread} onChange={(e) => setGridWarpSpread(parseFloat(e.target.value))} className="nbody-slider" min="10" max="100" step="5" /></div>
+                </div>
+              </div>
+
+              <div className="nbody-control-group-stack">
+                <div className="nbody-section-header">
+                  <FontAwesomeIcon icon={faGlobe} />
+                  <span>Bodies ({bodies.length})</span>
+                </div>
+                <div className="nbody-control-actions-inline">
+                  <button className="nbody-btn nbody-btn-primary" onClick={openAddBodyModal}><FontAwesomeIcon icon={faPlus} /><span className="nbody-btn-label">Add</span></button>
+                  <button className="nbody-btn nbody-btn-secondary" onClick={clearAllBodies}><FontAwesomeIcon icon={faTrash} /><span className="nbody-btn-label">Clear</span></button>
+                </div>
+                <div className="nbody-body-list">
+                  {bodies.map(body => (
+                    <div key={body.id} className={`nbody-body-item ${selectedBody === body.id ? "selected" : ""} ${body.isDebris ? "debris" : ""}`} onClick={() => setSelectedBody(body.id)}>
+                      <div className="nbody-body-color" style={{ backgroundColor: body.isDebris ? '#666' : body.color }} />
+                      <div className="nbody-body-info">
+                        <span className="nbody-body-name">{body.name}</span>
+                        {body.isDebris && <FontAwesomeIcon icon={faAtom} className="nbody-debris-icon" title="Debris" />}
+                      </div>
+                      <div className="nbody-body-actions">
+                        <button onClick={(e) => { e.stopPropagation(); setFocusedBody(focusedBody === body.id ? null : body.id); }} className={focusedBody === body.id ? "active" : ""}><FontAwesomeIcon icon={faCrosshairs} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); updateBody(body.id, { visible: !body.visible }); }}><FontAwesomeIcon icon={body.visible ? faEye : faEyeSlash} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); if (!isRunning) setEditBodyModal({ ...body, mass: body.gm / G_CODATA }); }} disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faEdit} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); removeBody(body.id); }} className="danger" disabled={isRunning} style={{ opacity: isRunning ? 0.4 : 1, cursor: isRunning ? 'not-allowed' : 'pointer' }}><FontAwesomeIcon icon={faTrash} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="nbody-control-actions">
+                <button className="nbody-btn nbody-btn-primary" onClick={resetSimulation}><FontAwesomeIcon icon={faRotate} /><span className="nbody-btn-label">Reset</span></button>
+                <button className="nbody-btn nbody-btn-secondary" onClick={() => setHudVisible(!hudVisible)}><FontAwesomeIcon icon={faChartLine} /><span className="nbody-btn-label">Stats</span></button>
+              </div>
+            </div>
+
+            {selectedBodyData && (
+              <div className="nbody-inspector-panel">
+                <div className="nbody-panel-header-with-badge">
+                  <h3><FontAwesomeIcon icon={faRocket} /> {selectedBodyData.name}</h3>
+                </div>
+                <div className="nbody-detail-grid">
+                  <div className="nbody-detail-item"><span>Pos X</span><span>{formatNumber(selectedBodyData.x / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Pos Y</span><span>{formatNumber(selectedBodyData.y / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Pos Z</span><span>{formatNumber(selectedBodyData.z / AU)} AU</span></div>
+                  <div className="nbody-detail-item"><span>Vel X</span><span>{formatNumber(selectedBodyData.vx / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Vel Y</span><span>{formatNumber(selectedBodyData.vy / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Vel Z</span><span>{formatNumber(selectedBodyData.vz / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Speed</span><span>{formatNumber(Math.sqrt(selectedBodyData.vx ** 2 + selectedBodyData.vy ** 2 + selectedBodyData.vz ** 2) / 1000)} km/s</span></div>
+                  <div className="nbody-detail-item"><span>Mass</span><span>{formatNumber(selectedBodyData.gm / G_CODATA)} kg</span></div>
+                </div>
+                {selectedBodyOrbital && (
+                  <>
+                    <div className="nbody-section-subheader">
+                      Orbital Elements
+                      <span className={`nbody-orbit-type-label ${getOrbitTypeClass(selectedBodyOrbital.orbitType)}`}>({selectedBodyOrbital.orbitType})</span>
+                    </div>
+                    <div className="nbody-detail-grid">
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Semi-Major</span><span>{formatNumber(selectedBodyOrbital.semiMajorAxis / AU)} AU</span></div>)}
+                      {selectedBodyOrbital.orbitType === "hyperbolic" && (<div className="nbody-detail-item"><span>|Semi-Major|</span><span>{formatNumber(Math.abs(selectedBodyOrbital.semiMajorAxis) / AU)} AU</span></div>)}
+                      <div className="nbody-detail-item"><span>Eccentricity</span><span>{formatNumber(selectedBodyOrbital.eccentricity, 4)}</span></div>
+                      <div className="nbody-detail-item"><span>Inclination</span><span>{formatNumber(selectedBodyOrbital.inclination)}deg</span></div>
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && selectedBodyOrbital.orbitType !== "parabolic" && (<div className="nbody-detail-item"><span>Period</span><span>{formatTime(selectedBodyOrbital.period)}</span></div>)}
+                      <div className="nbody-detail-item"><span>Periapsis</span><span>{formatNumber(Math.abs(selectedBodyOrbital.periapsis) / AU)} AU</span></div>
+                      {selectedBodyOrbital.orbitType !== "hyperbolic" && (<div className="nbody-detail-item"><span>Apoapsis</span><span>{formatNumber(selectedBodyOrbital.apoapsis / AU)} AU</span></div>)}
+                    </div>
+                    {selectedBodyOrbital.orbitType === "hyperbolic" && (
+                      <div className="nbody-physics-notice nbody-notice-warning">
+                        <FontAwesomeIcon icon={faExclamationTriangle} />
+                        <span>This trajectory is unbound and will escape the system.</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </aside>
+          )}
+
+          <div className="nbody-content-area">
+            <nav className="nbody-tabs">
+              <button className="nbody-tab" onClick={() => setIsRunning(!isRunning)}>
+                <FontAwesomeIcon icon={isRunning ? faPause : faPlay} />
+                <span>{isRunning ? "Pause" : "Play"}</span>
+              </button>
+              <button className="nbody-tab" onClick={resetSimulation}>
+                <FontAwesomeIcon icon={faRedo} />
+                <span>Reset</span>
+              </button>
+              {SPEED_OPTIONS.map(opt => (
+                <button key={opt.label} className={`nbody-tab ${speedMultiplier === opt.value ? "nbody-tab-active" : ""}`} onClick={() => setSpeedMultiplier(opt.value)}>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+              <span className="nbody-time-readout">T+ {formatTime(simulationTime)}</span>
+              <button className={`nbody-tab ${showTrails ? "nbody-tab-active" : ""}`} onClick={() => setShowTrails(!showTrails)}><span>Trails</span></button>
+              <button className={`nbody-tab ${showLabels ? "nbody-tab-active" : ""}`} onClick={() => setShowLabels(!showLabels)}><span>Labels</span></button>
+              <button className={`nbody-tab ${showVectors ? "nbody-tab-active" : ""}`} onClick={() => setShowVectors(!showVectors)}><span>Vectors</span></button>
+              <button className={`nbody-tab ${showGrid ? "nbody-tab-active" : ""}`} onClick={() => setShowGrid(!showGrid)}><span>Grid</span></button>
+              <button className="nbody-tab" onClick={() => { if (cameraRef.current) { cameraRef.current.position.set(100, 60, 100); cameraRef.current.lookAt(0, 0, 0); } }}><span>Reset Cam</span></button>
+              {renderLayoutControls()}
+            </nav>
+
+            <div className="nbody-tab-content">
+              <div ref={mountRef} className="nbody-canvas-container" />
+
+              {pnWarnings.length > 0 && (
+                <div className="nbody-pn-warnings">
+                  {pnWarnings.map((w, idx) => (
+                    <div key={idx} className="nbody-warning-item">
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>{w.message} ({w.bodies.join(' / ')})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {systemStats.rocheViolations && systemStats.rocheViolations.length > 0 && (
+                <div className="nbody-roche-warnings">
+                  {systemStats.rocheViolations.map((v, idx) => (
+                    <div key={idx} className="nbody-warning-item nbody-warning-critical">
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>Roche Limit: {v.secondaryName} is inside the Roche limit of {v.primaryName} ({(v.ratio * 100).toFixed(1)}%).</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {hudVisible && (
+                <div ref={hudPanelRef} className="nbody-hud-panel" style={{ transform: `translate(calc(-50% + ${hudPosition.x}px), calc(-50% + ${hudPosition.y}px))` }} onMouseDown={handleHudMouseDown}>
+                  <div className="nbody-hud-header">
+                    <span>System Telemetry</span>
+                    <button className="nbody-close-btn" onClick={() => setHudVisible(false)}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+                  </div>
+                  <div className="nbody-hud-content">
+                    <div className="nbody-hud-section">
+                      <h4>Energy Conservation</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>Total Energy</span><span>{formatNumber(systemStats.totalEnergy)} J</span></div>
+                        <div className="nbody-hud-item"><span>Kinetic</span><span>{formatNumber(systemStats.kineticEnergy)} J</span></div>
+                        <div className="nbody-hud-item"><span>Potential</span><span>{formatNumber(systemStats.potentialEnergy)} J</span></div>
+                        {physicsConfig.includeGR && (<div className="nbody-hud-item"><span>Relativistic</span><span>{formatNumber(systemStats.relativisticEnergy)} J</span></div>)}
+                        <div className="nbody-hud-item"><span>Energy Drift</span><span className={getEnergyDriftClass(systemStats.energyDrift)}>{formatNumber(systemStats.energyDrift, 4)}%</span></div>
+                        <div className="nbody-hud-item"><span>RKF45 Err</span><span>{formatNumber(systemStats.lastErrorNorm, 3)}</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Momentum</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>Px</span><span>{formatNumber(systemStats.totalMomentum.x)}</span></div>
+                        <div className="nbody-hud-item"><span>Py</span><span>{formatNumber(systemStats.totalMomentum.y)}</span></div>
+                        <div className="nbody-hud-item"><span>Pz</span><span>{formatNumber(systemStats.totalMomentum.z)}</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Center of Mass</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>X</span><span>{formatNumber(systemStats.centerOfMass.x / AU)} AU</span></div>
+                        <div className="nbody-hud-item"><span>Y</span><span>{formatNumber(systemStats.centerOfMass.y / AU)} AU</span></div>
+                        <div className="nbody-hud-item"><span>Z</span><span>{formatNumber(systemStats.centerOfMass.z / AU)} AU</span></div>
+                      </div>
+                    </div>
+                    <div className="nbody-hud-section">
+                      <h4>Performance</h4>
+                      <div className="nbody-hud-grid">
+                        <div className="nbody-hud-item"><span>FPS</span><span>{actualFps}</span></div>
+                        <div className="nbody-hud-item"><span>Bodies</span><span>{systemStats.bodyCount}</span></div>
+                        <div className="nbody-hud-item"><span>Integrator</span><span className="nbody-status-on">{integrator === INTEGRATORS.RK5 ? 'RKF45' : integrator.toUpperCase()}</span></div>
+                        <div className="nbody-hud-item"><span>Timestep</span><span className="nbody-status-on">{physicsConfig.timestepMethod === 'fixed' ? "FIXED" : physicsConfig.timestepMethod.toUpperCase()}</span></div>
+                        <div className="nbody-hud-item"><span>Normalized</span><span className={physicsConfig.useNormalizedUnits ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.useNormalizedUnits ? "ON" : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Barycentric</span><span className={physicsConfig.barycentricCorrection ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.barycentricCorrection ? "ON" : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Collisions</span><span className={physicsConfig.collisionMode !== 'none' ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.collisionMode === 'none' ? 'OFF' : 'MERGE'}</span></div>
+                        <div className="nbody-hud-item"><span>Roche</span><span className={physicsConfig.enableRocheLimit ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.enableRocheLimit ? (physicsConfig.rocheDisruptionMode === 'disrupt' ? 'DEBRIS' : 'WARN') : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>Softening</span><span className={softeningConfig.enabled ? "nbody-status-warning" : "nbody-status-off"}>{softeningConfig.enabled ? softeningConfig.mode.toUpperCase() : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>GR</span><span className={physicsConfig.includeGR ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.includeGR ? (physicsConfig.grMode === '2.5pn' ? (physicsConfig.relativisticMode ? (physicsConfig.retardedGravity ? `RET c/${physicsConfig.cReductionFactor}` : `2.5PN c/${physicsConfig.cReductionFactor}`) : "2.5PN+GW") : "1PN") : "OFF"}</span></div>
+                        <div className="nbody-hud-item"><span>J2</span><span className={physicsConfig.includeJ2 ? "nbody-status-on" : "nbody-status-off"}>{physicsConfig.includeJ2 ? (physicsConfig.j2BackReaction ? "PRECESSING" : "FIXED") : "OFF"}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {layoutVisibility.footer && (
+        <footer className="nbody-footer">
+          <div className="nbody-footer-content">
+            <span>T+ {formatTime(simulationTime)}</span>
+            <span>FPS: {actualFps}</span>
+            <span>Bodies: {systemStats.bodyCount}</span>
+            <span>Drift: {formatNumber(systemStats.energyDrift, 3)}%</span>
+            <span>Integrator: {integrator === INTEGRATORS.RK5 ? 'RKF45' : integrator.toUpperCase()}</span>
+            <span>{isRunning ? "Running" : "Paused"}</span>
+          </div>
+        </footer>
+        )}
+      </div>
+      )}
+
+      {expandedView && (
+        <>
+          <div className="nbody-modal-backdrop" onClick={() => setExpandedView(null)} />
+          <div className="nbody-modal nbody-expand-modal">
+            <div className="nbody-modal-header">
+              <span>{expandedView.title}</span>
+              <button className="nbody-close-btn" onClick={() => setExpandedView(null)}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+            </div>
+            <div className="nbody-modal-content">
+              <div className="nbody-expanded-content" dangerouslySetInnerHTML={{ __html: expandedView.html }} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {addBodyModal && (
+        <>
+          <div className="nbody-modal-backdrop" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }} />
+          <div className="nbody-modal">
+            <div className="nbody-modal-header">
+              <span>Add Celestial Body</span>
+              <button className="nbody-close-btn" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+            </div>
+            <div className="nbody-modal-content">
+              {bodies.length === 0 && (
+                <div className="nbody-modal-tip">
+                  <FontAwesomeIcon icon={faFlask} />
+                  <div><strong>Getting Started:</strong> Add a massive central body (like a star) at the origin to begin your simulation.</div>
+                </div>
+              )}
+              <div className="nbody-modal-section">
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faGlobe} />Basic Properties</div>
+                <div className="nbody-modal-section-content">
+                  <div className="nbody-modal-grid nbody-modal-grid-2">
+                    <div className="nbody-modal-field nbody-modal-field-wide"><label>Name</label><input type="text" value={newBody.name} onChange={(e) => setNewBody({ ...newBody, name: e.target.value })} placeholder="Enter Body Name" className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Mass (kg)</label><input type="number" value={newBody.mass} onChange={(e) => setNewBody({ ...newBody, mass: e.target.value })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Radius (m)</label><input type="number" value={newBody.radius} onChange={(e) => setNewBody({ ...newBody, radius: e.target.value })} className="nbody-input" /></div>
+                  </div>
+                  <div className="nbody-modal-color-row">
+                    <label>Color</label>
+                    <Tippy content={<ColorPicker color={newBody.color} onChange={(c) => setNewBody({ ...newBody, color: c })} />} visible={addBodyColorPickerOpen} onClickOutside={() => setAddBodyColorPickerOpen(false)} interactive={true} placement="bottom" className="color-picker-tippy" appendTo={() => document.body}>
+                      <div className="nbody-color-picker-swatch" onClick={() => setAddBodyColorPickerOpen((prev) => !prev)} style={{ backgroundColor: newBody.color }} />
+                    </Tippy>
+                  </div>
+                </div>
+              </div>
+              {bodies.length > 0 && (
+                <div className="nbody-modal-section">
+                  <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faRocket} />Trajectory Configuration</div>
+                  <div className="nbody-modal-section-content">
+                    <div className="nbody-modal-grid nbody-modal-grid-2">
+                      <div className="nbody-modal-field nbody-modal-field-wide">
+                        {renderDropdown([["orbit", "Orbital (Bound)"], ["flyby", "Flyby / Gravity Assist"], ["interstellar", "Interstellar Object"], ["manual", "Manual Entry"]], trajectoryMode, (e) => setTrajectoryMode(e.target.value), "Trajectory Mode")}
+                      </div>
+                    </div>
+                    {trajectoryMode === "orbit" && (
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field">{renderDropdown(bodies.map((b) => [b.id, b.name]), orbitConfig.centralBodyId || "", (e) => setOrbitConfig({ ...orbitConfig, centralBodyId: e.target.value || null }), "Central Body")}</div>
+                        <div className="nbody-modal-field">{renderDropdown([["circular", "Circular"], ["elliptical", "Elliptical"], ["parabolic", "Parabolic"], ["hyperbolic", "Hyperbolic"]], orbitConfig.orbitType, (e) => setOrbitConfig({ ...orbitConfig, orbitType: e.target.value }), "Orbit Type")}</div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={orbitConfig.distance / AU} onChange={(e) => setOrbitConfig({ ...orbitConfig, distance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
+                        {(orbitConfig.orbitType === "elliptical" || orbitConfig.orbitType === "hyperbolic") && (<div className="nbody-modal-field"><label>Eccentricity</label><input type="number" value={orbitConfig.eccentricity} onChange={(e) => setOrbitConfig({ ...orbitConfig, eccentricity: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>)}
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={orbitConfig.inclination} onChange={(e) => setOrbitConfig({ ...orbitConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>True Anomaly (deg)</label><input type="number" value={orbitConfig.trueAnomaly} onChange={(e) => setOrbitConfig({ ...orbitConfig, trueAnomaly: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>RAAN (deg)</label><input type="number" value={orbitConfig.longitudeOfAscendingNode} onChange={(e) => setOrbitConfig({ ...orbitConfig, longitudeOfAscendingNode: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Arg. Periapsis (deg)</label><input type="number" value={orbitConfig.argumentOfPeriapsis} onChange={(e) => setOrbitConfig({ ...orbitConfig, argumentOfPeriapsis: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field">{renderDropdown([["prograde", "Prograde"], ["retrograde", "Retrograde"]], orbitConfig.prograde ? "prograde" : "retrograde", (e) => setOrbitConfig({ ...orbitConfig, prograde: e.target.value === "prograde" }), "Direction")}</div>
+                      </div>
+                    )}
+                    {trajectoryMode === "flyby" && (
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field">{renderDropdown(bodies.map((b) => [b.id, b.name]), flybyConfig.targetBodyId || "", (e) => setFlybyConfig({ ...flybyConfig, targetBodyId: e.target.value || null }), "Target Body")}</div>
+                        <div className="nbody-modal-field">{renderDropdown([["inbound", "Inbound"], ["outbound", "Outbound"]], flybyConfig.inbound ? "inbound" : "outbound", (e) => setFlybyConfig({ ...flybyConfig, inbound: e.target.value === "inbound" }), "Phase")}</div>
+                        <div className="nbody-modal-field"><label>V-inf (km/s)</label><input type="number" value={flybyConfig.vInfinity / 1000} onChange={(e) => setFlybyConfig({ ...flybyConfig, vInfinity: (parseFloat(e.target.value) || 10) * 1000 })} className="nbody-input" step="1" /></div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={flybyConfig.periapsisDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, periapsisDistance: (parseFloat(e.target.value) || 0.1) * AU })} className="nbody-input" step="0.01" /></div>
+                        <div className="nbody-modal-field"><label>Approach Angle (deg)</label><input type="number" value={flybyConfig.approachAngle} onChange={(e) => setFlybyConfig({ ...flybyConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={flybyConfig.inclination} onChange={(e) => setFlybyConfig({ ...flybyConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field nbody-modal-field-wide"><label>Start Distance (AU)</label><input type="number" value={flybyConfig.startDistance / AU} onChange={(e) => setFlybyConfig({ ...flybyConfig, startDistance: (parseFloat(e.target.value) || 5) * AU })} className="nbody-input" step="0.5" /></div>
+                      </div>
+                    )}
+                    {trajectoryMode === "interstellar" && (
+                      <div className="nbody-modal-grid nbody-modal-grid-2" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field">{renderDropdown(bodies.map((b) => [b.id, b.name]), interstellarConfig.referenceBodyId || "", (e) => setInterstellarConfig({ ...interstellarConfig, referenceBodyId: e.target.value || null }), "Reference Body")}</div>
+                        <div className="nbody-modal-field"><label>V-inf (km/s)</label><input type="number" value={interstellarConfig.vInfinity / 1000} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, vInfinity: (parseFloat(e.target.value) || 26) * 1000 })} className="nbody-input" step="1" /></div>
+                        <div className="nbody-modal-field"><label>Periapsis (AU)</label><input type="number" value={interstellarConfig.periapsisDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, periapsisDistance: (parseFloat(e.target.value) || 1) * AU })} className="nbody-input" step="0.1" /></div>
+                        <div className="nbody-modal-field"><label>Approach Angle (deg)</label><input type="number" value={interstellarConfig.approachAngle} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, approachAngle: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Inclination (deg)</label><input type="number" value={interstellarConfig.inclination} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, inclination: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Start Distance (AU)</label><input type="number" value={interstellarConfig.startDistance / AU} onChange={(e) => setInterstellarConfig({ ...interstellarConfig, startDistance: (parseFloat(e.target.value) || 50) * AU })} className="nbody-input" step="5" /></div>
+                      </div>
+                    )}
+                    {trajectoryMode === "manual" && (
+                      <div className="nbody-modal-grid nbody-modal-grid-3" style={{ marginTop: '0.75rem' }}>
+                        <div className="nbody-modal-field"><label>Position X (m)</label><input type="number" value={newBody.x} onChange={(e) => setNewBody({ ...newBody, x: e.target.value })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Position Y (m)</label><input type="number" value={newBody.y} onChange={(e) => setNewBody({ ...newBody, y: e.target.value })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Position Z (m)</label><input type="number" value={newBody.z} onChange={(e) => setNewBody({ ...newBody, z: e.target.value })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Velocity X (m/s)</label><input type="number" value={newBody.vx} onChange={(e) => setNewBody({ ...newBody, vx: e.target.value })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Velocity Y (m/s)</label><input type="number" value={newBody.vy} onChange={(e) => setNewBody({ ...newBody, vy: e.target.value })} className="nbody-input" /></div>
+                        <div className="nbody-modal-field"><label>Velocity Z (m/s)</label><input type="number" value={newBody.vz} onChange={(e) => setNewBody({ ...newBody, vz: e.target.value })} className="nbody-input" /></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {bodies.length === 0 && (
+                <div className="nbody-modal-section">
+                  <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCrosshairs} />Initial State</div>
+                  <div className="nbody-modal-section-content">
+                    <div className="nbody-modal-grid nbody-modal-grid-3">
+                      <div className="nbody-modal-field"><label>Position X (m)</label><input type="number" value={newBody.x} onChange={(e) => setNewBody({ ...newBody, x: e.target.value })} className="nbody-input" /></div>
+                      <div className="nbody-modal-field"><label>Position Y (m)</label><input type="number" value={newBody.y} onChange={(e) => setNewBody({ ...newBody, y: e.target.value })} className="nbody-input" /></div>
+                      <div className="nbody-modal-field"><label>Position Z (m)</label><input type="number" value={newBody.z} onChange={(e) => setNewBody({ ...newBody, z: e.target.value })} className="nbody-input" /></div>
+                      <div className="nbody-modal-field"><label>Velocity X (m/s)</label><input type="number" value={newBody.vx} onChange={(e) => setNewBody({ ...newBody, vx: e.target.value })} className="nbody-input" /></div>
+                      <div className="nbody-modal-field"><label>Velocity Y (m/s)</label><input type="number" value={newBody.vy} onChange={(e) => setNewBody({ ...newBody, vy: e.target.value })} className="nbody-input" /></div>
+                      <div className="nbody-modal-field"><label>Velocity Z (m/s)</label><input type="number" value={newBody.vz} onChange={(e) => setNewBody({ ...newBody, vz: e.target.value })} className="nbody-input" /></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="nbody-modal-section">
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) and Spin</div>
+                <div className="nbody-modal-section-content">
+                  <div className="nbody-modal-grid nbody-modal-grid-4">
+                    <div className="nbody-modal-field"><label>J2 (x10^-3)</label><input type="number" value={(newBody.j2 || 0) * 1000} onChange={(e) => setNewBody({ ...newBody, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" /></div>
+                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={newBody.j2Radius || ''} onChange={(e) => setNewBody({ ...newBody, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={newBody.spinRate || ''} onChange={(e) => setNewBody({ ...newBody, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" /></div>
+                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={newBody.momentOfInertiaFactor || 0.4} onChange={(e) => setNewBody({ ...newBody, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis X</label><input type="number" value={newBody.spinAxisX} onChange={(e) => setNewBody({ ...newBody, spinAxisX: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis Y</label><input type="number" value={newBody.spinAxisY} onChange={(e) => setNewBody({ ...newBody, spinAxisY: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis Z</label><input type="number" value={newBody.spinAxisZ} onChange={(e) => setNewBody({ ...newBody, spinAxisZ: parseFloat(e.target.value) || 1 })} className="nbody-input" step="0.1" /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="nbody-modal-footer">
+              <button className="nbody-modal-btn cancel" onClick={() => { setAddBodyModal(false); setAddBodyColorPickerOpen(false); }}><span className="nbody-btn-label">Cancel</span></button>
+              <button className="nbody-modal-btn confirm" onClick={addBody}><FontAwesomeIcon icon={faPlus} /><span className="nbody-btn-label">Add Body</span></button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {editBodyModal && (
+        <>
+          <div className="nbody-modal-backdrop" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }} />
+          <div className="nbody-modal">            <div className="nbody-modal-header">
+              <span>Edit: {editBodyModal.name}</span>
+              <button className="nbody-close-btn" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }}><FontAwesomeIcon icon={faXmarkSquare} /></button>
+            </div>
+            <div className="nbody-modal-content">
+              <div className="nbody-modal-section">
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faGlobe} />Basic Properties</div>
+                <div className="nbody-modal-section-content">
+                  <div className="nbody-modal-grid nbody-modal-grid-2">
+                    <div className="nbody-modal-field nbody-modal-field-wide"><label>Name</label><input type="text" value={editBodyModal.name} onChange={(e) => setEditBodyModal({ ...editBodyModal, name: e.target.value })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Mass (kg)</label><input type="number" value={editBodyModal.mass} onChange={(e) => setEditBodyModal({ ...editBodyModal, mass: e.target.value })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Radius (m)</label><input type="number" value={editBodyModal.radius} onChange={(e) => setEditBodyModal({ ...editBodyModal, radius: e.target.value })} className="nbody-input" /></div>
+                  </div>
+                  <div className="nbody-modal-color-row">
+                    <label>Color</label>
+                    <Tippy content={<ColorPicker color={editBodyModal.color} onChange={(c) => setEditBodyModal({ ...editBodyModal, color: c })} />} visible={editBodyColorPickerOpen} onClickOutside={() => setEditBodyColorPickerOpen(false)} interactive={true} placement="bottom" className="color-picker-tippy" appendTo={() => document.body}>
+                      <div className="nbody-color-picker-swatch" onClick={() => setEditBodyColorPickerOpen((prev) => !prev)} style={{ backgroundColor: editBodyModal.color }} />
+                    </Tippy>
+                  </div>
+                </div>
+              </div>
+              <div className="nbody-modal-section">
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCrosshairs} />Position and Velocity</div>
+                <div className="nbody-modal-section-content">
+                  <div className="nbody-modal-grid nbody-modal-grid-3">
+                    <div className="nbody-modal-field"><label>Position X (m)</label><input type="number" value={editBodyModal.x} onChange={(e) => setEditBodyModal({ ...editBodyModal, x: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Position Y (m)</label><input type="number" value={editBodyModal.y} onChange={(e) => setEditBodyModal({ ...editBodyModal, y: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Position Z (m)</label><input type="number" value={editBodyModal.z} onChange={(e) => setEditBodyModal({ ...editBodyModal, z: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Velocity X (m/s)</label><input type="number" value={editBodyModal.vx} onChange={(e) => setEditBodyModal({ ...editBodyModal, vx: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Velocity Y (m/s)</label><input type="number" value={editBodyModal.vy} onChange={(e) => setEditBodyModal({ ...editBodyModal, vy: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Velocity Z (m/s)</label><input type="number" value={editBodyModal.vz} onChange={(e) => setEditBodyModal({ ...editBodyModal, vz: parseFloat(e.target.value) || 0 })} className="nbody-input" /></div>
+                  </div>
+                </div>
+              </div>
+              <div className="nbody-modal-section">
+                <div className="nbody-modal-section-header"><FontAwesomeIcon icon={faCog} />Oblateness (J2) and Spin</div>
+                <div className="nbody-modal-section-content">
+                  <div className="nbody-modal-grid nbody-modal-grid-4">
+                    <div className="nbody-modal-field"><label>J2 (x10^-3)</label><input type="number" value={(editBodyModal.j2 || 0) * 1000} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2: (parseFloat(e.target.value) || 0) / 1000 })} className="nbody-input" step="0.001" /></div>
+                    <div className="nbody-modal-field"><label>Eq. Radius (m)</label><input type="number" value={editBodyModal.j2Radius || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, j2Radius: parseFloat(e.target.value) || null })} className="nbody-input" /></div>
+                    <div className="nbody-modal-field"><label>Spin Rate (rad/s)</label><input type="number" value={editBodyModal.spinRate || ''} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinRate: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.0001" /></div>
+                    <div className="nbody-modal-field"><label>MoI Factor</label><input type="number" value={editBodyModal.momentOfInertiaFactor || 0.4} onChange={(e) => setEditBodyModal({ ...editBodyModal, momentOfInertiaFactor: parseFloat(e.target.value) || 0.4 })} className="nbody-input" step="0.01" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis X</label><input type="number" value={editBodyModal.spinAxisX || 0} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisX: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis Y</label><input type="number" value={editBodyModal.spinAxisY || 0} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisY: parseFloat(e.target.value) || 0 })} className="nbody-input" step="0.1" /></div>
+                    <div className="nbody-modal-field"><label>Spin Axis Z</label><input type="number" value={editBodyModal.spinAxisZ || 1} onChange={(e) => setEditBodyModal({ ...editBodyModal, spinAxisZ: parseFloat(e.target.value) || 1 })} className="nbody-input" step="0.1" /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="nbody-modal-footer">
+              <button className="nbody-modal-btn cancel" onClick={() => { setEditBodyModal(null); setEditBodyColorPickerOpen(false); }}><span className="nbody-btn-label">Cancel</span></button>
+              <button className="nbody-modal-btn confirm" onClick={() => {
+                const spinMag = Math.sqrt((parseFloat(editBodyModal.spinAxisX) || 0) ** 2 + (parseFloat(editBodyModal.spinAxisY) || 0) ** 2 + (parseFloat(editBodyModal.spinAxisZ) || 1) ** 2);
+                updateBody(editBodyModal.id, {
+                  name: editBodyModal.name,
+                  gm: (parseFloat(editBodyModal.mass) || 1) * G_CODATA,
+                  radius: parseFloat(editBodyModal.radius) || EARTH_RADIUS_MEAN,
+                  x: parseFloat(editBodyModal.x) || 0,
+                  y: parseFloat(editBodyModal.y) || 0,
+                  z: parseFloat(editBodyModal.z) || 0,
+                  vx: parseFloat(editBodyModal.vx) || 0,
+                  vy: parseFloat(editBodyModal.vy) || 0,
+                  vz: parseFloat(editBodyModal.vz) || 0,
+                  color: editBodyModal.color,
+                  j2: editBodyModal.j2,
+                  j2Radius: editBodyModal.j2Radius || null,
+                  spinAxisX: (parseFloat(editBodyModal.spinAxisX) || 0) / (spinMag || 1),
+                  spinAxisY: (parseFloat(editBodyModal.spinAxisY) || 0) / (spinMag || 1),
+                  spinAxisZ: (parseFloat(editBodyModal.spinAxisZ) || 1) / (spinMag || 1),
+                  spinRate: parseFloat(editBodyModal.spinRate) || 0,
+                  momentOfInertiaFactor: parseFloat(editBodyModal.momentOfInertiaFactor) || 0.4,
+                  errX: 0, errY: 0, errZ: 0,
+                  errVx: 0, errVy: 0, errVz: 0,
+                  isDebris: false,
+                  positionHistory: null,
+                  orientation: null,
+                  omegaBody_x: 0,
+                  omegaBody_y: 0
+                });
+                setEditBodyModal(null);
+                setEditBodyColorPickerOpen(false);
+              }}><FontAwesomeIcon icon={faEdit} /><span className="nbody-btn-label">Save Changes</span></button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default NBodySimulator;

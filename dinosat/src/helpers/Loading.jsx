@@ -1,15 +1,15 @@
 import React from "react";
 import "../styles/helperStyles/LoadingSpinner.css";
 
-const DinoLabsLoading = () => {
+const ParallaxLoading = () => {
     return (
         <div className="loading-container">
             <div className="loading-wrapper">
                 <div className="loading-circle" />
-                <label className="loading-title">Dino Labs Web IDE</label>
+                <label className="loading-title">Loading</label>
             </div>
         </div>
     );
 }; 
 
-export default DinoLabsLoading; 
+export default ParallaxLoading; 

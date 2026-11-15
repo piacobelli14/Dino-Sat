@@ -7,9 +7,9 @@ let __alertContainer = null;
 
 function ensureMount() {
   if (__alertRoot && __alertContainer) return;
-  const existing = document.getElementById("dinolabs-alert-root");
+  const existing = document.getElementById("noti-alert-root");
   __alertContainer = existing || document.createElement("div");
-  __alertContainer.id = "dinolabs-alert-root";
+  __alertContainer.id = "noti-alert-root";
 
   __alertContainer.style.position = "fixed";
   __alertContainer.style.inset = "0";
@@ -29,7 +29,7 @@ function unmount() {
   __alertContainer = null;
 }
 
-function DinoLabsAlert({
+function Alert({
   visible,
   title = "",
   message = "",
@@ -98,22 +98,22 @@ function DinoLabsAlert({
 
   return (
     <div style={wrapperStyle}>
-      <div className="dinolabsAlertOverlay">
-        <div className="dinolabsAlert" role="dialog" aria-modal="true">
+      <div className="notiAlertOverlay">
+        <div className="notiAlert" role="dialog" aria-modal="true">
           <img
-            className="dinolabsAlertImage"
-            src="./DinoSatLogo.png"
+            className="notiAlertImage"
+            src="./parallaxlogo.png"
             alt="Logo"
           />
-          {title && <label className="dinolabsAlertHeader">{title}</label>}
-          <label className="dinolabsAlertSubHeader">{message}</label>
+          {title && <label className="notiAlertHeader">{title}</label>}
+          <label className="notiAlertSubHeader">{message}</label>
 
           {inputs.length > 0 &&
             inputs.map((input) => (
-              <label className="dinolabsAlertInputWrapper" key={input.name}>
+              <label className="notiAlertInputWrapper" key={input.name}>
                 {input.type === "select" ? (
                   <select
-                    className="dinolabsAlertInput input-select"
+                    className="notiAlertInput input-select"
                     name={input.name}
                     value={values[input.name]}
                     onChange={handleChange}
@@ -128,7 +128,7 @@ function DinoLabsAlert({
                   </select>
                 ) : (
                   <input
-                    className={`dinolabsAlertInput input-${
+                    className={`notiAlertInput input-${
                       input.type || "text"
                     }`}
                     type={input.type || "text"}
@@ -146,9 +146,9 @@ function DinoLabsAlert({
               </label>
             ))}
 
-          <div className="dinolabsAlertButtonsFlex">
+          <div className="notiAlertButtonsFlex">
             <button
-              className="dinolabsAlertButtons"
+              className="notiAlertButtons"
               style={{ backgroundColor: "#AD6ADD" }}
               onClick={handleConfirm}
             >
@@ -156,7 +156,7 @@ function DinoLabsAlert({
             </button>
             {showCancel && (
               <button
-                className="dinolabsAlertButtons"
+                className="notiAlertButtons"
                 style={{ backgroundColor: "#D8D8D8", color: "#191919" }}
                 onClick={handleCancel}
               >
@@ -195,7 +195,7 @@ export function showDialog({ title, message, inputs = [], showCancel = false }) 
     setTimeout(() => {
       if (!__alertRoot) ensureMount();
       __alertRoot.render(
-        <DinoLabsAlert
+        <Alert
           visible={true}
           title={title}
           message={message}

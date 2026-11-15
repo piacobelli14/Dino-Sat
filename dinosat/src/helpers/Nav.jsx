@@ -1,63 +1,95 @@
-import { useEffect, useState } from "react";
+import { cloneElement, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBars,
-  faXmark,
-  faRightToBracket,
-  faIdCard,
-  faRightFromBracket,
-  faCode,
-  faSquarePlus,
-  faComputer,
-  faChevronDown,
-  faChevronUp,
-  faMountain,
-  faSatellite,
-  faPlantWilt,
-  faSeedling,
-  faRocket,
-  faSatelliteDish,
-  faMobileScreen,
-  faEarthAmericas,
-  faMeteor,
-  faStar,
-  faCloudMoon,
-  faClipboard,
-  faPlusSquare,
-  faMagnifyingGlass,
-  faList,
-  faMapLocation,
-  faWheatAwn,
-  faDatabase,
-  faGauge,
-  faList12,
-  faTable,
-  faStarHalfStroke,
-  faEarthOceania,
-  faSun,
-  faHillRockslide,
-  faMoon,
-  faBook,
-  faPhone,
-  faMobilePhone,
-  faVideoCamera, 
-  faUserCog,
-  faUsersCog
+  faBars, faXmark, faRightToBracket, faIdCard, faRightFromBracket,
+  faCode, faSquarePlus, faComputer, faChevronDown, faChevronUp,
+  faMountain, faSatellite, faPlantWilt, faSeedling, faRocket,
+  faSatelliteDish, faMobileScreen, faEarthAmericas, faMeteor, faStar,
+  faCloudMoon, faClipboard, faPlusSquare, faMagnifyingGlass, faList,
+  faMapLocation, faWheatAwn, faDatabase, faGauge, faList12,
+  faTable, faStarHalfStroke, faEarthOceania, faSun, faHillRockslide,
+  faMoon, faBook, faPeopleGroup, faStopwatch, faUserPlus,
+  faUserDoctor, faListCheck, faUserGear, faUsersGear, faHeartPulse,
+  faHeartbeat, faEye, faMicrophone, faCalendarDays, faWifi,
+  faClock, faMicrochip, faPlug, faBatteryFull, faBatteryHalf,
+  faBatteryQuarter, faLocationCrosshairs, faCircleNodes, faToolbox, faFolder, faFolderOpen, faCalculator,
+  faSquareRootVariable, faTableCells, faChartLine, faScissors, faPalette,
+  faCompressArrowsAlt, faBookOpen, faChartBar, faAsterisk, faSuperscript,
+  faKey, faShieldHalved, faPlane, faCloudBolt, faDna, faBrain, faFire
 } from "@fortawesome/free-solid-svg-icons";
-import "../styles/helperStyles/NavBar.css";
+import Tippy from "@tippyjs/react";
 import useAuth from "../UseAuth.jsx";
 import useIsTouchDevice from "../TouchDevice.jsx";
+import "../styles/helperStyles/NavBar.css";
+import "tippy.js/dist/tippy.css";
 
-const DinoLabsNav = ({ activePage }) => {
+const NavTooltip = ({ children, ...tippyProps }) => {
+  const referenceRef = useRef(null);
+  return (
+    <>
+      {cloneElement(children, { ref: referenceRef })}
+      <Tippy {...tippyProps} reference={referenceRef} />
+    </>
+  );
+};
+
+const NAV_GROUPS = [
+  {
+    key: "sat",
+    label: "Sat",
+    icon: faSatellite,
+    items: [
+      { label: "Earth Conditions", icon: faEarthAmericas, path: "/earth-conditions" },
+      { label: "Satellite Feeds", icon: faSatelliteDish, path: "/satellite-feeds" },
+      { label: "N-Body Simulator", icon: faCircleNodes, path: "/nbody-simulator" }
+    ],
+    folders: [
+      {
+        key: "sat-trackers",
+        label: "Trackers",
+        items: [
+          { label: "Weather Tracker", icon: faCloudBolt, path: "/weather-tracker" },
+          { label: "Flight Tracker", icon: faPlane, path: "/flight-tracker" },
+          { label: "Satellite Tracker", icon: faLocationCrosshairs, path: "/satellite-tracker" },
+          { label: "Asteroid Tracker", icon: faHillRockslide, path: "/asteroid-tracker" },
+          { label: "Comet Tracker", icon: faMeteor, path: "/comet-tracker" }
+        ]
+      }
+    ]
+  },
+  {
+    key: "account",
+    label: "Account",
+    icon: faUserGear,
+    items: [
+      { label: "My Account", icon: faUserGear, path: "/account" },
+      { label: "My Team", icon: faUsersGear, path: "/team", adminOnly: true },
+    ]
+  }
+];
+
+const QUICK_LINKS = [
+  { label: "Account", icon: faUserGear, path: "/account" },
+  { label: "Team", icon: faUsersGear, path: "/team", adminOnly: true },
+];
+
+const Nav = ({ activePage }) => {
   const navigate = useNavigate();
   const isTouchDevice = useIsTouchDevice();
-  const { token, isAdmin, loading, userID, organizationID } = useAuth();
+  const { token, organizationID, isAdmin, loading } = useAuth();
   const [isHamburger, setIsHamburger] = useState(false);
   const [isTokenExpired, setIsTokenExpired] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openSubDropdown, setOpenSubDropdown] = useState(null);
-  
+  const [link, setLink] = useState({ value: "Offline", label: "There is no network connection." });
+  const [clock, setClock] = useState({ value: "", label: "" });
+  const [memory, setMemory] = useState(null);
+  const [battery, setBattery] = useState({
+    value: "",
+    label: "",
+    icon: faPlug
+  });
 
   useEffect(() => {
     const checkTokenExpiration = () => {
@@ -86,6 +118,145 @@ const DinoLabsNav = ({ activePage }) => {
     };
   }, [isHamburger]);
 
+  useEffect(() => {
+    const describe = () => {
+      if (!navigator.onLine) {
+        setLink({ value: "Offline", label: "There is no network connection." });
+        return;
+      }
+
+      const conn = navigator.connection
+        || navigator.mozConnection
+        || navigator.webkitConnection;
+
+      if (!conn || !conn.downlink) {
+        setLink({ value: "Online", label: "Connected. This browser does not report link speed." });
+        return;
+      }
+
+      const speed = conn.downlink >= 10
+        ? `${Math.round(conn.downlink)} Mbps`
+        : `${conn.downlink.toFixed(1)} Mbps`;
+
+      const parts = [`The estimated downlink is ${speed}.`];
+
+      if (conn.effectiveType) {
+        parts.push(`The effective connection type is ${conn.effectiveType}.`);
+      }
+
+      if (conn.rtt) {
+        parts.push(`The round trip time is ${conn.rtt} ms.`);
+      }
+
+      setLink({ value: speed, label: parts.join(" ") });
+    };
+
+    describe();
+
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+    window.addEventListener("online", describe);
+    window.addEventListener("offline", describe);
+
+    if (conn && conn.addEventListener) {
+      conn.addEventListener("change", describe);
+    }
+
+    return () => {
+      window.removeEventListener("online", describe);
+      window.removeEventListener("offline", describe);
+
+      if (conn && conn.removeEventListener) {
+        conn.removeEventListener("change", describe);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+
+      setClock({
+        value: now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        label: now.toLocaleDateString([], {
+          weekday: "long", month: "long", day: "numeric", year: "numeric"
+        }) + `. ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`
+      });
+    };
+
+    tick();
+
+    const timer = setInterval(tick, 15000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.getBattery) {
+      setBattery({ value: "", label: "", icon: faPlug });
+      return undefined;
+    }
+
+    let source = null;
+
+    const describe = (b) => {
+      const percent = Math.round(b.level * 100);
+
+      setBattery({
+        value: `${percent}%`,
+        label: b.charging
+          ? `The battery is charging at ${percent} percent.`
+          : `The device is on battery with ${percent} percent remaining.`,
+        icon: b.charging
+          ? faPlug
+          : percent > 66
+          ? faBatteryFull
+          : percent > 33
+          ? faBatteryHalf
+          : faBatteryQuarter
+      });
+    };
+
+    navigator.getBattery().then((b) => {
+      source = b;
+      describe(b);
+
+      b.addEventListener("levelchange", () => describe(b));
+      b.addEventListener("chargingchange", () => describe(b));
+    }).catch(() => {
+      setBattery({ value: "", label: "", icon: faPlug });
+    });
+
+    return () => {
+      if (source) {
+        source.onlevelchange = null;
+        source.onchargingchange = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!performance || !performance.memory) {
+      return undefined;
+    }
+
+    const sample = () => {
+      const used = performance.memory.usedJSHeapSize / 1048576;
+      const limit = performance.memory.jsHeapSizeLimit / 1048576;
+
+      setMemory({
+        value: `${Math.round(used)} MB`,
+        label: `This tab is using ${Math.round(used)} MB of a ${Math.round(limit)} MB heap.`
+      });
+    };
+
+    sample();
+
+    const timer = setInterval(sample, 10000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userid");
@@ -111,6 +282,8 @@ const DinoLabsNav = ({ activePage }) => {
     }
   };
 
+  const hasAdminAccess = isAdmin === true || isAdmin === "admin" || isAdmin === "true" || isAdmin === 1;
+
   const toggleDropdown = (key) => {
     setOpenDropdown((prev) => (prev === key ? null : key));
   };
@@ -123,236 +296,226 @@ const DinoLabsNav = ({ activePage }) => {
     navigate(path);
     setIsHamburger(false);
     setOpenDropdown(null);
+    setOpenSubDropdown(null);
   };
+
+  const isItemVisible = (item) => !item.adminOnly || hasAdminAccess;
+
+  const isGroupVisible = (group) =>
+    (group.items || []).some(isItemVisible)
+    || (group.folders || []).some((folder) => folder.items.some(isItemVisible));
 
   return (
     <>
       <div
         className="homeHeaderContainer"
-        style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+        style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
       >
         <div className="homeTopNavBarContainer">
           <div className="homeSkipToContent">
             <img
               className="homeLogo"
-              src={"./DinoSatLogo.png"}
+              src="./DinoSatLogo.png"
               alt="Logo"
             />
-            <label className="homeHeader" style={{ color: "#f1f5f9" }}>
-              Dino Sat
+            <label className="homeHeader" style={{ color: "#ebf0f8" }}>
+              DinoSat
             </label>
           </div>
 
+          {(token && organizationID) && (
+            <div className="homeStatRow">
+              <NavTooltip
+                content={link.label}
+                theme="tooltip-light"
+                placement="bottom"
+                delay={[200, 0]}
+              >
+                <div className="homeStat">
+                  <FontAwesomeIcon icon={faWifi} className="homeStatIcon" />
+                  <span className="homeStatValue">{link.value}</span>
+                </div>
+              </NavTooltip>
+
+              <NavTooltip
+                content={clock.label}
+                theme="tooltip-light"
+                placement="bottom"
+                delay={[200, 0]}
+              >
+                <div className="homeStat">
+                  <FontAwesomeIcon icon={faClock} className="homeStatIcon" />
+                  <span className="homeStatValue">{clock.value}</span>
+                </div>
+              </NavTooltip>
+
+              {battery.value && (
+                <NavTooltip
+                  content={battery.label}
+                  theme="tooltip-light"
+                  placement="bottom"
+                  delay={[200, 0]}
+                >
+                  <div className="homeStat">
+                    <FontAwesomeIcon icon={battery.icon} className="homeStatIcon" />
+                    <span className="homeStatValue">{battery.value}</span>
+                  </div>
+                </NavTooltip>
+              )}
+
+              {memory && (
+                <NavTooltip
+                  content={memory.label}
+                  theme="tooltip-light"
+                  placement="bottom"
+                  delay={[200, 0]}
+                >
+                  <div className="homeStat">
+                    <FontAwesomeIcon icon={faMicrochip} className="homeStatIcon" />
+                    <span className="homeStatValue">{memory.value}</span>
+                  </div>
+                </NavTooltip>
+              )}
+            </div>
+          )}
+
           <div className="homeNavSupplement"></div>
 
-          {!isTouchDevice && (
-            <button
-              className="homeHamburgerCircle"
-              onClick={() => setIsHamburger(!isHamburger)}
-            >
-              <FontAwesomeIcon
-                icon={isHamburger ? faXmark : faBars}
-                className="homeHamburgerIcon"
-                style={{ color: "#f1f5f9" }}
-              />
-            </button>
+          {(token && organizationID) && (
+            <div className="homeQuickRow">
+              {QUICK_LINKS
+                .filter((link) => !link.adminOnly || hasAdminAccess)
+                .map((link) => (
+                  <NavTooltip
+                    key={link.path}
+                    content={link.label}
+                    theme="tooltip-light"
+                    placement="bottom"
+                    delay={[200, 0]}
+                  >
+                    <button
+                      className="homeQuickButton"
+                      onClick={() => navigate(link.path)}
+                      aria-label={link.label}
+                    >
+                      <FontAwesomeIcon icon={link.icon} className="homeQuickIcon" />
+                    </button>
+                  </NavTooltip>
+                ))}
+            </div>
           )}
+
+          <button
+            className="homeHamburgerCircle"
+            onClick={() => setIsHamburger(!isHamburger)}
+          >
+            <FontAwesomeIcon
+              icon={isHamburger ? faXmark : faBars}
+              className="homeHamburgerIcon"
+              style={{ color: "#ebf0f8" }}
+            />
+          </button>
         </div>
       </div>
 
-      {isHamburger && !isTouchDevice && (
+      {isHamburger && (
         <div className="homeHamburgerPopout">
           <div className="homeHamburgerContent">
-            {token && !isTokenExpired && (
-              <>
-               
+
+            {(token && organizationID) && NAV_GROUPS
+              .filter(isGroupVisible)
+              .map((group) => (
+              <div key={group.key} className="navigationGroup">
                 <button
                   className="navigationButtonWrapper"
-                  onClick={() => toggleSubDropdown("sat-trackers")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                  onClick={() => toggleDropdown(group.key)}
+                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
                 >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faClipboard} className="navigationButtonIcon" />
-                    Trackers
+                  <div className="navigationButton" style={{ color: "#ebf0f8" }}>
+                    <FontAwesomeIcon icon={group.icon} className="navigationButtonIcon" />
+                    {group.label}
                   </div>
                   <FontAwesomeIcon
-                    icon={openSubDropdown === "sat-trackers" ? faChevronUp : faChevronDown}
+                    icon={openDropdown === group.key ? faChevronUp : faChevronDown}
                     className="navigationButtonIconTrailer"
                   />
+                  <div className="navigationButtonDivider" style={{ backgroundColor: "#aab4c8" }} />
                 </button>
 
-                {openSubDropdown === "sat-trackers" && (
-                  <>
+                {openDropdown === group.key && (group.items || [])
+                  .filter(isItemVisible)
+                  .map((item) => (
+                  <button
+                    key={item.path}
+                    className="navigationButtonWrapperMini"
+                    onClick={() => closeMenuAndNavigate(item.path)}
+                    style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
+                  >
+                    <div className="navigationButton navigationButtonNested" style={{ color: "#ebf0f8" }}>
+                      <FontAwesomeIcon icon={item.icon} className="navigationButtonIcon" />
+                      {item.label}
+                    </div>
+                    <div className="navigationButtonDivider" style={{ backgroundColor: "#aab4c8" }} />
+                  </button>
+                ))}
+
+                {openDropdown === group.key && (group.folders || [])
+                  .filter((folder) => folder.items.some(isItemVisible))
+                  .map((folder) => (
+                  <div key={folder.key} className="navigationSubGroup">
                     <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/satellite-tracker")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
+                      className="navigationButtonWrapperMini"
+                      onClick={() => toggleSubDropdown(folder.key)}
+                      style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
                     >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faSatellite} className="navigationButtonIcon" />
-                        Satellite Tracker
+                      <div className="navigationButton navigationButtonNested" style={{ color: "#ebf0f8" }}>
+                        <FontAwesomeIcon
+                          icon={openSubDropdown === folder.key ? faFolderOpen : faFolder}
+                          className="navigationButtonIcon"
+                        />
+                        {folder.label}
                       </div>
+                      <FontAwesomeIcon
+                        icon={openSubDropdown === folder.key ? faChevronUp : faChevronDown}
+                        className="navigationButtonIconTrailer"
+                      />
+                      <div className="navigationButtonDivider" style={{ backgroundColor: "#aab4c8" }} />
                     </button>
 
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/asteroid-tracker")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faHillRockslide} className="navigationButtonIcon" />
-                        Asteroid Tracker
-                      </div>
-                    </button>
-
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/comet-tracker")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faMeteor} className="navigationButtonIcon" />
-                        Comet Tracker
-                      </div>
-                    </button>
-                    
-                    
-                  </>
-                )}
-
-                <button
-                  className="navigationButtonWrapper"
-                  onClick={() => toggleSubDropdown("sat-simulators")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
-                >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faComputer} className="navigationButtonIcon" />
-                    Simulators
+                    {openSubDropdown === folder.key && folder.items
+                      .filter(isItemVisible)
+                      .map((item) => (
+                      <button
+                        key={item.path}
+                        className="navigationButtonWrapperMini"
+                        onClick={() => closeMenuAndNavigate(item.path)}
+                        style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
+                      >
+                        <div className="navigationButton navigationButtonNested navigationButtonNestedDeep" style={{ color: "#ebf0f8" }}>
+                          <FontAwesomeIcon icon={item.icon} className="navigationButtonIcon" />
+                          {item.label}
+                        </div>
+                        <div className="navigationButtonDivider" style={{ backgroundColor: "#aab4c8" }} />
+                      </button>
+                    ))}
                   </div>
-                  <FontAwesomeIcon
-                    icon={openSubDropdown === "sat-simulators" ? faChevronUp : faChevronDown}
-                    className="navigationButtonIconTrailer"
-                  />
-                </button>
-
-                {openSubDropdown === "sat-simulators" && (
-                  <>
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/simulator")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faMobilePhone} className="navigationButtonIcon" />
-                        N-Body Simulator
-                      </div>
-                    </button>
-                  </>
-                )}
-                
-                <button
-                  className="navigationButtonWrapper"
-                  onClick={() => toggleSubDropdown("sat-monitoring")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
-                >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faGauge} className="navigationButtonIcon" />
-                    Monitoring
-                  </div>
-                  <FontAwesomeIcon
-                    icon={openSubDropdown === "sat-monitoring" ? faChevronUp : faChevronDown}
-                    className="navigationButtonIconTrailer"
-                  />
-                </button>
-
-                {openSubDropdown === "sat-monitoring" && (
-                  <>
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/earth-conditions")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faEarthAmericas} className="navigationButtonIcon" />
-                        Earth Conditions Monitor
-                      </div>
-                    </button>
-
-                    <button
-                      className="navigationButtonWrapper"
-                      onClick={() => navigate("/satellite-feeds")}
-                      style={{ background: "linear-gradient(135deg, #222630 0%, #2f3645 50%, #3e485a 100%)" }}
-                    >
-                      <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                        <FontAwesomeIcon icon={faVideoCamera} className="navigationButtonIcon" />
-                        Live Satellite Feeds
-                      </div>
-                    </button>
-                  </>
-                )}
-
-                <button
-                  className="navigationButtonWrapper"
-                  onClick={() => navigate("/celestial-catalog")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
-                >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faBook} className="navigationButtonIcon" />
-                    Astronomical Reference
-                  </div>
-                </button>
-                    
-              </>
-            )}
-
-            {token && !isTokenExpired && (
-                <button
-                  className="navigationButtonWrapper"
-                  onClick={() => navigate("/account")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
-                >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faUserCog} className="navigationButtonIcon" />
-                    My Account
-                  </div>
-                  <div
-                    className="navigationButtonDivider"
-                    style={{ backgroundColor: "#94a3b8" }}
-                  />
-                </button>
-              )}
-
-              {token && !isTokenExpired && organizationID && (
-                <button
-                  className="navigationButtonWrapper"
-                  onClick={() => navigate("/team")}
-                  style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
-                >
-                  <div className="navigationButton" style={{ color: "#f1f5f9" }}>
-                    <FontAwesomeIcon icon={faUsersCog} className="navigationButtonIcon" />
-                    My Team
-                  </div>
-                  <div
-                    className="navigationButtonDivider"
-                    style={{ backgroundColor: "#94a3b8" }}
-                  />
-                </button>
-              )}
-
+                ))}
+              </div>
+            ))}
 
             {!token && (
               <button
                 className="navigationButtonWrapper"
                 onClick={() => navigate("/register")}
-                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
               >
-                <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                <div className="navigationButton" style={{ color: "#ebf0f8" }}>
                   <FontAwesomeIcon icon={faIdCard} className="navigationButtonIcon" />
                   Sign Up
                 </div>
                 <div
                   className="navigationButtonDivider"
-                  style={{ backgroundColor: "#94a3b8" }}
+                  style={{ backgroundColor: "#aab4c8" }}
                 />
               </button>
             )}
@@ -361,9 +524,9 @@ const DinoLabsNav = ({ activePage }) => {
               <button
                 className="navigationButtonWrapper"
                 onClick={() => navigate("/login")}
-                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
               >
-                <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                <div className="navigationButton" style={{ color: "#ebf0f8" }}>
                   <FontAwesomeIcon
                     icon={faRightToBracket}
                     className="navigationButtonIcon"
@@ -372,16 +535,16 @@ const DinoLabsNav = ({ activePage }) => {
                 </div>
                 <div
                   className="navigationButtonDivider"
-                  style={{ backgroundColor: "#94a3b8" }}
+                  style={{ backgroundColor: "#aab4c8" }}
                 />
               </button>
             ) : (
               <button
                 className="navigationButtonWrapper"
                 onClick={handleLogout}
-                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #141820 50%, #1e242e 100%)" }}
+                style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
               >
-                <div className="navigationButton" style={{ color: "#f1f5f9" }}>
+                <div className="navigationButton" style={{ color: "#ebf0f8" }}>
                   <FontAwesomeIcon
                     icon={faRightFromBracket}
                     className="navigationButtonIcon"
@@ -390,7 +553,7 @@ const DinoLabsNav = ({ activePage }) => {
                 </div>
                 <div
                   className="navigationButtonDivider"
-                  style={{ backgroundColor: "#94a3b8" }}
+                  style={{ backgroundColor: "#aab4c8" }}
                 />
               </button>
             )}
@@ -401,4 +564,4 @@ const DinoLabsNav = ({ activePage }) => {
   );
 };
 
-export default DinoLabsNav;
+export default Nav;

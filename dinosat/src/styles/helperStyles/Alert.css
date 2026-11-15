@@ -1,55 +1,55 @@
-.dinolabsAlertOverlay {
+.notiAlertOverlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(6, 8, 11, 0.78);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10;
 }
 
-.dinolabsAlert {
-    background: linear-gradient(145deg, #0e1014 0%, #181c24 50%, #242a36 100%);
+.notiAlert {
+    background: linear-gradient(160deg, #171b24 0%, #12151b 100%);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
     padding: 2rem;
-    border: 1px solid rgba(50, 55, 70, 0.45);
+    border: 1px solid #3d4354;
     border-radius: 6px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     min-width: 400px;
     max-width: 500px;
 }
 
-.dinolabsAlertImage {
+.notiAlertImage {
     height: 60px;
     width: auto;
 }
 
-.dinolabsAlertHeader {
+.notiAlertHeader {
     font-size: 20px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #ebf0f8;
     margin-top: 1rem;
     text-align: center;
 }
 
-.dinolabsAlertSubHeader {
+.notiAlertSubHeader {
     font-size: 14px;
     font-weight: 600;
-    color: #f1f5f9;
+    color: #ebf0f8;
     margin-top: 0.5rem;
     opacity: 0.9;
     text-align: center;
     line-height: 1.4;
 }
 
-.dinolabsAlertButtonsFlex {
+.notiAlertButtonsFlex {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -58,12 +58,12 @@
     gap: 1rem;
 }
 
-.dinolabsAlertButtons {
+.notiAlertButtons {
     padding: 0.6rem 1.2rem;
     font-size: 12px;
     font-weight: 700;
-    color: #f1f5f9;
-    border: 1px solid rgba(50, 55, 70, 0.45);
+    color: #ebf0f8;
+    border: 1px solid #3d4354;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -71,32 +71,32 @@
     min-width: 80px;
 }
 
-.dinolabsAlertButtons[style*="backgroundColor: #AD6ADD"] {
-    background: linear-gradient(135deg, #1c222c 0%, #2a323e 50%, #363f4d 100%);
-    border-color: rgba(60, 68, 85, 0.5);
+.notiAlertButtons[style*="backgroundColor: #AD6ADD"] {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-color: #3b82f6;
 }
 
-.dinolabsAlertButtons[style*="backgroundColor: #D8D8D8"] {
-    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
-    border-color: rgba(50, 55, 70, 0.45);
-    color: #f1f5f9;
+.notiAlertButtons[style*="backgroundColor: #D8D8D8"] {
+    background: linear-gradient(145deg, #1f242e 0%, #12151b 100%);
+    border-color: #3d4354;
+    color: #ebf0f8;
 }
 
-.dinolabsAlertButtons:hover {
+.notiAlertButtons:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(60, 68, 85, 0.5);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    border: 1px solid #3d4354;
     outline: none;
 }
 
-.dinolabsAlertButtons:focus {
+.notiAlertButtons:focus {
     outline: none;
-    border-color: rgba(106, 122, 138, 0.5);
-    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
 }
 
-.dinolabsAlertInputWrapper {
+.notiAlertInputWrapper {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -105,13 +105,13 @@
     padding: 1rem 0 0 0;
 }
 
-.dinolabsAlertInput.input-text {
-    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
-    border: 1px solid rgba(50, 55, 70, 0.45);
+.notiAlertInput.input-text {
+    background: linear-gradient(145deg, #1f242e 0%, #12151b 100%);
+    border: 1px solid #3d4354;
     padding: 0.6rem 1rem;
     font-size: 12px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #ebf0f8;
     border-radius: 6px;
     width: 80%;
     outline: none;
@@ -119,31 +119,31 @@
     transition: all 0.2s ease;
 }
 
-.dinolabsAlertInput.input-text::placeholder {
-    color: rgba(145, 155, 175, 0.58);
+.notiAlertInput.input-text::placeholder {
+    color: #6f7789;
     font-weight: 700;
 }
 
-.dinolabsAlertInput.input-text:hover {
+.notiAlertInput.input-text:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     outline: none;
 }
 
-.dinolabsAlertInput.input-text:focus {
+.notiAlertInput.input-text:focus {
     outline: none;
-    border-color: rgba(106, 122, 138, 0.5);
-    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
 }
 
-.dinolabsAlertInput.input-select {
-    background: linear-gradient(145deg, #121418 0%, #1c222c 50%, #242a36 100%);
-    border: 1px solid rgba(50, 55, 70, 0.45);
+.notiAlertInput.input-select {
+    background: linear-gradient(145deg, #1f242e 0%, #12151b 100%);
+    border: 1px solid #3d4354;
     padding: 0.6rem 1rem;
     font-size: 12px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #ebf0f8;
     border-radius: 6px;
     width: 80%;
     outline: none;
@@ -152,26 +152,26 @@
     transition: all 0.2s ease;
 }
 
-.dinolabsAlertInput.input-select:hover {
+.notiAlertInput.input-select:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     outline: none;
     cursor: pointer;
 }
 
-.dinolabsAlertInput.input-select:focus {
+.notiAlertInput.input-select:focus {
     outline: none;
-    border-color: rgba(106, 122, 138, 0.5);
-    box-shadow: 0 0 0 3px rgba(106, 122, 138, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
     cursor: pointer;
 }
 
-.dinolabsAlertInput::-ms-expand {
+.notiAlertInput::-ms-expand {
     display: none;
 }
 
-.dinolabsAlertInput {
+.notiAlertInput {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
