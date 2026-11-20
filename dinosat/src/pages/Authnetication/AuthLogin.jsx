@@ -13,12 +13,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/mainStyles/Authentication/AuthLogin.css";
 import DinoLabsNav from "../../helpers/Nav";
-import useIsTouchDevice from "../../TouchDevice.jsx";
 import useAuth from "../../UseAuth.jsx";
 
 const Login = () => {
     const navigate = useNavigate();
-    const isTouchDevice = useIsTouchDevice();
     const { setToken } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -111,7 +109,6 @@ const Login = () => {
 
             <DinoLabsNav activePage="sat" />
             <div className="loginCellHeaderContainer">
-                {!isTouchDevice && (
                 <video
                     autoPlay
                     muted
@@ -123,7 +120,6 @@ const Login = () => {
                 >
                     <source src="/MoonBackground.mp4" type="video/mp4" />
                 </video>
-                )}
 
                 <div className="loginHeroBackgroundWrapper">
                     <div className="loginHeroBackground">
@@ -134,9 +130,9 @@ const Login = () => {
 
                     <div className="loginGridPattern"/>
 
-                    <div className={!isTouchDevice ? "loginBlock" : "loginBlockTouch"} style={{"backgroundColor": "rgba(255, 255, 255, 0.0)"}}>
+                    <div className="loginBlock" style={{"backgroundColor": "rgba(255, 255, 255, 0.0)"}}>
                         <img
-                            className={!isTouchDevice ? "loginLogo" : "loginLogoTouch"}
+                            className="loginLogo"
                             src="./DinoSatLogo_Text_White.png"
                             alt=""
                         />
