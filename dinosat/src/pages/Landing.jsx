@@ -2582,7 +2582,7 @@ const Landing = () => {
   const [active, setActive] = useState(DEMOS[0].key);
   const [summary, setSummary] = useState(null);
   const [demos, setDemos] = useState({});
-  const [globe, setGlobe] = useState(true);
+  const [globe, setGlobe] = useState(false);
 
   const demo = DEMOS.find((entry) => entry.key === active);
   const state = demos[active] || { data: null, error: null, loading: true };
