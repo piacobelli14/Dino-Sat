@@ -24,21 +24,26 @@ const SOURCES = {
     comets: 1800
   },
   limits: {
-    aircraft: 2500,
-    warnings: 200,
-    events: 8,
-    operators: 8,
+    aircraft: 5000,
     satellites: 600,
     asteroids: 500,
     comets: 400,
-    sentry: 8,
     categories: 8
   },
   retrySeconds: 30,
-  buildTimeoutSeconds: 20,
+  waitSeconds: 8,
+  warmOnStart: true,
+  warmDelaySeconds: 15,
   flightSnapshotRoute: "/flights/snapshot",
-  aircraftFields: ["lat", "lon", "track", "altitude", "ground", "flight"],
-  aircraftSourceFields: ["lat", "lon", "trk", "alt", "ground", "flight"]
+  aircraftSourceFields: ["lat", "lon"],
+  weatherRoutes: {
+    radar: { path: "/weather/radar", query: { product: "composite" } },
+    alerts: { path: "/weather/alerts", query: {} },
+    storms: { path: "/weather/storms", query: {} },
+    reports: { path: "/weather/reports", query: {} },
+    tropical: { path: "/weather/tropical", query: {} }
+  },
+  weatherMapEvents: ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "Extreme Wind Warning", "Snow Squall Warning", "Special Marine Warning", "Dust Storm Warning"]
 };
 
 const sections = Object.keys(SOURCES.modules);
@@ -59,17 +64,27 @@ const loadModule = (key) => {
   }
 };
 
-const callRoute = (routerModule, path) => new Promise((resolve, reject) => {
+const callRoute = (routerModule, path, query = {}) => new Promise((resolve, reject) => {
   const layer = (routerModule.stack || []).find((entry) => entry.route && entry.route.path === path && entry.route.methods && entry.route.methods.get);
   if (!layer || !layer.route.stack.length) {
     reject(new Error(`The route ${path} was not found.`));
     return;
   }
-  const req = { method: "GET", url: path, originalUrl: path, query: {}, params: {}, headers: {} };
+  const req = { method: "GET", url: path, originalUrl: path, query, params: {}, headers: {} };
   const res = {
     statusCode: 200,
     status(code) { this.statusCode = code; return this; },
-    json(body) { resolve({ status: this.statusCode, body }); return this; }
+    type() { return this; },
+    set() { return this; },
+    json(body) { resolve({ status: this.statusCode, body }); return this; },
+    send(body) {
+      try {
+        resolve({ status: this.statusCode, body: typeof body === "string" ? JSON.parse(body) : body });
+      } catch (error) {
+        reject(error);
+      }
+      return this;
+    }
   };
   try {
     Promise.resolve(layer.route.stack[0].handle(req, res, (error) => reject(error || new Error(`The route ${path} did not respond.`)))).catch(reject);
@@ -95,34 +110,40 @@ const tally = (list, pick, limit) => {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([key, count]) => ({ key, count }));
 };
 
-const finite = (value) => (Number.isFinite(Number(value)) && value !== null ? Number(value) : null);
-
 const builders = {
   flights: async () => {
-    const flights = loadModule("flights");
-    const census = await flights.trafficCensus();
-    const snapshot = await callRoute(flights, SOURCES.flightSnapshotRoute);
+    const snapshot = await callRoute(loadModule("flights"), SOURCES.flightSnapshotRoute);
     if (snapshot.status !== 200 || !snapshot.body || !Array.isArray(snapshot.body.rows) || !Array.isArray(snapshot.body.fields)) throw new Error((snapshot.body && snapshot.body.message) || "The flight snapshot returned no aircraft.");
     const columns = SOURCES.aircraftSourceFields.map((field) => snapshot.body.fields.indexOf(field));
     const located = snapshot.body.rows.filter((row) => Number.isFinite(row[columns[0]]) && Number.isFinite(row[columns[1]]));
+    if (!located.length) throw new Error("The flight sweep has not reported any aircraft yet.");
+    const stats = snapshot.body.stats || {};
     return {
-      count: census.total,
+      count: stats.total,
       stats: {
-        total: census.total,
-        airborne: census.airborne,
-        ground: census.ground,
-        military: census.military,
-        emergencies: Array.isArray(census.emergencies) ? census.emergencies.length : 0
+        total: stats.total,
+        airborne: stats.airborne,
+        ground: stats.ground,
+        military: stats.military,
+        emergencies: stats.emergencies
       },
-      operators: (census.topOperators || []).slice(0, SOURCES.limits.operators),
-      fields: SOURCES.aircraftFields,
-      rows: sample(located, SOURCES.limits.aircraft).map((row) => columns.map((column) => (column === -1 || row[column] === undefined ? null : row[column])))
+      fields: snapshot.body.fields,
+      rows: sample(located, SOURCES.limits.aircraft)
     };
   },
   weather: async () => {
-    const census = await loadModule("weather").weatherCensus();
-    const colors = Object.fromEntries((census.alerts.byEvent || []).map((entry) => [entry.event, entry.color]));
-    const warnings = (census.warnings || []).filter((warning) => finite(warning.lat) !== null && finite(warning.lon) !== null);
+    const weather = loadModule("weather");
+    const census = await weather.weatherCensus();
+    const layers = {};
+    for (const [key, route] of Object.entries(SOURCES.weatherRoutes)) {
+      try {
+        const result = await callRoute(weather, route.path, route.query);
+        layers[key] = result.status === 200 && result.body && result.body.success ? result.body : null;
+      } catch (error) {
+        layers[key] = null;
+      }
+    }
+    if (layers.alerts && Array.isArray(layers.alerts.alerts)) layers.alerts = { ...layers.alerts, alerts: layers.alerts.alerts.filter((alert) => SOURCES.weatherMapEvents.includes(alert.event)) };
     return {
       count: census.alerts.total,
       stats: {
@@ -135,17 +156,11 @@ const builders = {
         flashFloodWarnings: census.alerts.flashFloodWarnings,
         stormCells: census.storms ? census.storms.total : 0
       },
-      events: (census.alerts.byEvent || []).slice(0, SOURCES.limits.events).map((entry) => ({ key: entry.event, count: entry.count, color: entry.color })),
-      warnings: warnings.slice(0, SOURCES.limits.warnings).map((warning) => ({
-        id: warning.id,
-        event: warning.event,
-        area: warning.areaDesc ? String(warning.areaDesc).split(";")[0].slice(0, 80) : null,
-        expires: warning.expires,
-        lat: warning.lat,
-        lon: warning.lon,
-        color: colors[warning.event] || "#C0C0C0"
-      })),
-      tropical: (census.tropical || []).filter((storm) => finite(storm.lat) !== null && finite(storm.lon) !== null)
+      radar: layers.radar,
+      alerts: layers.alerts,
+      storms: layers.storms,
+      reports: layers.reports,
+      tropical: layers.tropical
     };
   },
   satellites: async () => {
@@ -173,18 +188,9 @@ const builders = {
     };
   },
   asteroids: async () => {
-    const asteroids = loadModule("asteroids");
-    const snapshot = await asteroids.catalogSnapshot();
+    const snapshot = await loadModule("asteroids").catalogSnapshot();
     if (!snapshot.asteroids.length) throw new Error(snapshot.error || "The asteroid catalog is empty right now.");
     const bound = snapshot.asteroids.filter((asteroid) => asteroid.elements && asteroid.elements.a > 0 && asteroid.elements.e < 1);
-    let sentry = [];
-    if (typeof asteroids.sentrySnapshot === "function") {
-      try {
-        sentry = (await asteroids.sentrySnapshot()).objects.slice(0, SOURCES.limits.sentry).map((object) => ({ key: object.fullname || object.designation || object.des || "Unnamed Object", count: object.nImp || 0 }));
-      } catch (error) {
-        sentry = [];
-      }
-    }
     return {
       count: snapshot.asteroids.length,
       stats: {
@@ -194,7 +200,6 @@ const builders = {
         shown: Math.min(bound.length, SOURCES.limits.asteroids)
       },
       categories: tally(snapshot.asteroids, (asteroid) => asteroid.category, SOURCES.limits.categories),
-      sentry,
       objects: sample(bound, SOURCES.limits.asteroids).map((asteroid) => ({
         id: asteroid.id,
         name: asteroid.name,
@@ -229,32 +234,38 @@ const builders = {
   }
 };
 
-let buildQueue = Promise.resolve();
-
-const loadSection = (key) => {
+const build = (key) => {
   const entry = cache[key];
-  if (entry.value && Date.now() - entry.at < SOURCES.refreshSeconds[key] * 1000) return Promise.resolve(entry);
-  if (entry.error && Date.now() - entry.failedAt < SOURCES.retrySeconds * 1000) return Promise.resolve(entry);
   if (entry.loading) return entry.loading;
-  const turn = buildQueue.then(() => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`The ${SOURCES.labels[key]} data took longer than ${SOURCES.buildTimeoutSeconds} seconds to load.`)), SOURCES.buildTimeoutSeconds * 1000);
-    builders[key]().then(resolve, reject).finally(() => clearTimeout(timer));
-  }));
-  buildQueue = turn.then(() => null, () => null);
-  entry.loading = turn.then((value) => {
+  entry.loading = Promise.resolve().then(() => builders[key]()).then((value) => {
     entry.value = value;
     entry.at = Date.now();
     entry.error = null;
-    return entry;
   }).catch((error) => {
     entry.error = errorMessage(error);
     entry.failedAt = Date.now();
-    return entry;
   }).finally(() => {
     entry.loading = null;
   });
   return entry.loading;
 };
+
+const isFresh = (key) => Boolean(cache[key].value) && Date.now() - cache[key].at < SOURCES.refreshSeconds[key] * 1000;
+
+const isCooling = (key) => Boolean(cache[key].error) && Date.now() - cache[key].failedAt < SOURCES.retrySeconds * 1000;
+
+const refresh = (key) => {
+  if (isFresh(key) || isCooling(key)) return null;
+  return build(key);
+};
+
+const waitFor = (promise, seconds) => new Promise((resolve) => {
+  const timer = setTimeout(resolve, seconds * 1000);
+  promise.then(() => null, () => null).then(() => {
+    clearTimeout(timer);
+    resolve();
+  });
+});
 
 router.get("/landing/summary", (req, res) => {
   try {
@@ -262,10 +273,10 @@ router.get("/landing/summary", (req, res) => {
     const errors = {};
     const pending = [];
     sections.forEach((key) => {
-      loadSection(key);
+      refresh(key);
       counts[key] = cache[key].value ? cache[key].value.count : null;
       errors[key] = cache[key].value ? null : cache[key].error;
-      if (!cache[key].value && !cache[key].error) pending.push(key);
+      if (!cache[key].value && cache[key].loading) pending.push(key);
     });
     res.json({ success: true, counts, errors, pending, updatedAt: new Date().toISOString() });
   } catch (error) {
@@ -277,12 +288,22 @@ router.get("/landing/demo/:section", async (req, res) => {
   const key = req.params.section;
   if (!builders[key]) return res.status(404).json({ success: false, message: "That demo does not exist." });
   try {
-    const entry = await loadSection(key);
-    if (!entry.value) return res.status(502).json({ success: false, message: entry.error || `The ${SOURCES.labels[key]} demo has no data right now.` });
-    res.json({ success: true, section: key, ...entry.value, stale: Boolean(entry.error), updatedAt: new Date(entry.at).toISOString() });
+    const entry = cache[key];
+    const running = refresh(key);
+    if (!entry.value && running) await waitFor(running, SOURCES.waitSeconds);
+    if (entry.value) return res.json({ success: true, section: key, ...entry.value, stale: !isFresh(key), updatedAt: new Date(entry.at).toISOString() });
+    if (entry.loading) return res.json({ success: true, section: key, pending: true });
+    res.status(502).json({ success: false, message: entry.error || `The ${SOURCES.labels[key]} demo has no data right now.` });
   } catch (error) {
     res.status(500).json({ success: false, message: `The ${SOURCES.labels[key]} demo could not be built. ${errorMessage(error)}` });
   }
 });
+
+if (SOURCES.warmOnStart) {
+  const warmTimer = setTimeout(async () => {
+    for (const key of sections) await build(key);
+  }, SOURCES.warmDelaySeconds * 1000);
+  if (warmTimer.unref) warmTimer.unref();
+}
 
 module.exports = router;

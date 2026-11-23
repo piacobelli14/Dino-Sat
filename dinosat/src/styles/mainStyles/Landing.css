@@ -259,38 +259,20 @@
   overflow: hidden;
 }
 
-.landingMapHost {
+.landingSceneHost {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  background: #08090c;
   cursor: grab;
 }
 
-.landingMapHost:active {
+.landingSceneHost:active {
   cursor: grabbing;
 }
 
-.landingMapHost canvas {
-  display: block;
-}
-
-.landingMapHost .maplibregl-ctrl-attrib {
-  background: rgba(11, 12, 15, 0.85);
-  color: #aab4c8;
-  font-size: 0.6rem;
-}
-
-.landingMapHost .maplibregl-ctrl-attrib a {
-  color: #cdd4e4;
-}
-
-.landingOrbitCanvas {
-  position: absolute;
-  top: 0;
-  left: 0;
+.landingSceneHost canvas {
   display: block;
 }
 
@@ -305,7 +287,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: #08090c;
+  pointer-events: none;
 }
 
 .landingErrorBox {
