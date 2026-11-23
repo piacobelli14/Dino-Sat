@@ -312,7 +312,7 @@ const Nav = ({ activePage }) => {
         style={{ background: "linear-gradient(135deg, #0a0c10 0%, #11141a 50%, #1b212b 100%)" }}
       >
         <div className="homeTopNavBarContainer">
-          <div className="homeSkipToContent">
+          <div className="homeSkipToContent" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
             <img
               className="homeLogo"
               src="./DinoSatLogo.png"

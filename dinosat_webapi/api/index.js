@@ -12,6 +12,7 @@ const satAsteroidTracker = require("./routes/sat/trackers/asteroids.js");
 const satCometTracker = require("./routes/sat/trackers/comets.js");
 const satFlightTracker = require("./routes/sat/trackers/flights.js");
 const satWeatherTracker = require("./routes/sat/trackers/weather.js");
+const satLanding = require("./routes/sat/landing.js");
 
 const harvester = require("./harvester");
 
@@ -53,6 +54,7 @@ app.use("/", satAsteroidTracker);
 app.use("/", satCometTracker); 
 app.use("/", satFlightTracker);
 app.use("/", satWeatherTracker);
+app.use("/", satLanding);
 
 app.use("/", harvester.router);
 
