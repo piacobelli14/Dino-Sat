@@ -6,7 +6,7 @@ As a disclaimer, I am not a physicist. Much like my other open source platforms,
 
 This is a personal-scale platform built because the existing tools for this stuff are either Cold War era government dashboards, paywalled aerospace software, or toy demos. DinoSat sits somewhere in the middle: real propagators, real ephemerides, real conjunction math, wrapped in a UI that is fun to use and pretty to look at.
 
-Hosted at **[DinoSat](https://dino-sat.vercel.app/login)**. Account creation, sessions, and team management are handled through DinoAuth (see below).
+Hosted at **[DinoSat](https://dino-sat.vercel.app)**. Account creation, sessions, and team management are handled through DinoAuth (see below).
 
 **Stack:** React + Vite + Three.js on the frontend, Node.js + Express + PostgreSQL on the backend.
 
@@ -297,7 +297,7 @@ What this means in practice:
 
 ## Hosted version
 
-The intended way to use DinoSat is at my hosted version available at [DinoSat](https://dino-sat.vercel.app/login). It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas). Account creation, usage, storage, and everything else is completely free, barring an unforeseen increase in traffic.
+The intended way to use DinoSat is at my hosted version available at [DinoSat](https://dino-sat.vercel.app). It runs on infrastructure that is set up to handle the upstream data ingest (TLE refreshes, SBDB caching, weather pulls, Gemini quotas). Account creation, usage, storage, and everything else is completely free, barring an unforeseen increase in traffic.
 
 This repository exists primarily as a reference and as the development home of the project. Self-hosting is possible but is not the supported path.
 
