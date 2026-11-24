@@ -23,6 +23,7 @@ import useAuth from "../UseAuth.jsx";
 import useIsTouchDevice from "../TouchDevice.jsx";
 import "../styles/helperStyles/NavBar.css";
 import "tippy.js/dist/tippy.css";
+import "../styles/helperStyles/Tooltip.css";
 
 const NavTooltip = ({ children, ...tippyProps }) => {
   const referenceRef = useRef(null);
