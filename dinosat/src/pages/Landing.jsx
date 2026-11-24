@@ -2725,7 +2725,7 @@ const Landing = () => {
             <button key={entry.key} className={`landingDockTab ${active === entry.key ? "landingDockTabActive" : ""}`} onClick={() => setActive(entry.key)}>
               <FontAwesomeIcon icon={entry.icon} />
               <span className="landingDockLabel">{entry.label}</span>
-              <span className="landingDockCount">{formatCount(summary && summary.counts ? summary.counts[entry.key] : null)}</span>
+              <span className="landingDockCount">{formatCount(demos[entry.key] && demos[entry.key].data ? demos[entry.key].data.count : summary && summary.counts ? summary.counts[entry.key] : null)}</span>
             </button>
           ))}
         </div>
